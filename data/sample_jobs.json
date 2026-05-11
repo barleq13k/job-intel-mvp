@@ -1,0 +1,521 @@
+[
+    {
+        "title": "Python Automation Script for Data Extraction",
+        "description": "Need a Python script to automate scraping and API data extraction",
+        "skills": ["python", "automation", "api"],
+        "budget": 150,
+        "source": "platform_a"
+    },
+    {
+        "title": "Senior Backend Engineer (Java Microservices)",
+        "description": "Enterprise-level system design and microservices architecture",
+        "skills": ["java", "microservices", "system design"],
+        "budget": 3000,
+        "source": "platform_b"
+    },
+    {
+        "title": "Simple Web Scraper Task",
+        "description": "Build a basic scraper to collect product data from websites",
+        "skills": ["python", "scraping"],
+        "budget": 80,
+        "source": "platform_c"
+    },
+    {
+    "id": 1,
+    "title": "Data Entry Specialist !!!",
+    "description": "Work from home! Make $5000 a week using this one simple trick. No experience needed. Contact us at scam@domain.com now!",
+    "skills": ["Marketing", "Sales", "Fast Cash"],
+    "budget_or_hourly_rate": "$52/hr",
+    "source": "LinkedIn"
+    },
+    {
+    "id": 4,
+    "title": "---Software Developer---",
+    "description": "Rquiremnets: Pythen, Djnago, SQL. Woking hours: 9-5. Salary: Negotiable. Pls apply soon.",
+    "skills": ["React", "SQL", "Terraform", "Node.js", "AWS", "Python", "Django", "Docker"],
+    "budget_or_hourly_rate": "Negotiable",
+    "source": "Telegram_Bot"
+    },
+    {
+    "id": 5,
+    "title": "Graduate Python Developer",
+    "description": "Excellent opportunity for a recent graduate to join a fast-paced team. You will be mentored by senior devs while working on front-end features.",
+    "skills": ["Docker", "Node.js", "AWS"],
+    "budget_or_hourly_rate": "$80827/yr",
+    "source": "Scraped_Site_X"
+    },
+    {
+        "title": "AI Workflow Automation Assistant",
+        "description": "Looking for automation using Python and Zapier",
+        "skills": ["python", "automation", "zapier"],
+        "budget": 150,
+        "source": "platform_a"
+    },
+        {
+        "title": "Junior Python Automation QA",
+        "description": "Looking for QA tester automation python scripts selenium",
+        "skills": ["python", "qa", "automation"],
+        "budget": 300
+    },
+    {
+        "title": "Sr. DevOps Kubernetes Engineer (Enterprise)",
+        "description": "Manage microservices infra cloud kubernetes aws terraform",
+        "skills": ["kubernetes", "aws", "terraform"],
+        "budget": 5000
+    },
+    {
+        "title": "Scraper / Lead Gen Assistant",
+        "description": "Collect data from websites scraping lead generation excel",
+        "skills": ["scraping", "excel"],
+        "hourly_rate": 10
+    },
+    {
+        "title": "PYTHON PYTHON PYTHON",
+        "description": "python python python automation python scripts",
+        "skills": []
+    },
+    {
+        "title": "AI Workflow Support Assistant",
+        "description": "Assist with AI workflow setup and lightweight automation tasks",
+        "skills": ["automation", "workflow"],
+        "hourly_rate": 10,
+        "source": "platform_hourly"
+    },
+    {
+        "title": "Beginner Data-Entry Automation Helper",
+        "description":"Assist with AI workflow setup and lightweight automation tasks",
+        "skills": ["automation", "spreadsheets"],
+        "hourly_rate": 3,
+        "source": "platform_hourly"
+    },
+    {
+        "title": "Senior DevOps Engineer",
+        "description": "Advanced Kubernetes infra and CI/CD pipeline work",
+        "skills": ["devops", "kubernetes", "ci/cd"],
+        "hourly_rate": 60,
+        "source": "platform_enterprise"
+    },
+    {
+        "title": "Unknown Automation Assistant",
+        "description": "Need help automating spreadsheets",
+        "budget": 120,
+        "source": "platform_x"
+    },
+    {
+        "title": "React Frontend Developer",
+        "description": "Need advanced React UI work",
+        "skills": ["react", "typescript"],
+        "budget": 1200,
+        "source": "platform_b"
+    },
+    {
+        "title": "QA Tester for Mobile App",
+        "description": "Manual QA testing for Android app",
+        "skills": ["qa", "testing"],
+        "budget": 200,
+        "source": "platform_c"
+    },
+    {
+        "title": "Python Engineer Automation Task",
+        "description": "Create Python file automation scripts",
+        "skills": ["python"],
+        "budget": 1000,
+        "source": "platform_d"
+    },
+    {
+        "title": "Python Data Cleanup",
+        "skills": ["python"],
+        "budget": 180,
+        "source": "platform_y"
+    },
+    {
+        "title": "Junior Scraping Assistant",
+        "description": "Simple scraping work",
+        "skills": ["python", "scraping"],
+        "source": "platform_z"
+    },
+    {
+    "id": 6,
+    "title": "Graduate Software Engineer",
+    "description": "",
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Incomplete_Feed"
+  },
+  {
+    "id": 9,
+    "title": "--- DEVELOPER ---",
+    "description": "Python Python Python Python Python Python Python Python Python Python  AWS  AWS  AWS  AWS  AWS  !!! URGENT !!! Contact recruiter at: jobz@junk.co.uk. No recruiters pls.",
+    "skills": ["Terraform", "CI/CD", "FastAPI", "AWS", "Python", "TypeScript", "Django", "Redis"],
+    "budget_or_hourly_rate": "Competitive / DOE",
+    "source": "Raw_Scraper_3"
+  },
+  {
+    "id": 10,
+    "title": "Staff Software Architect",
+    "description": "We are looking for an experienced professional with 8+ years in Redis. You will lead architecture and mentor teams. Deep knowledge of scalable systems is required.",
+    "skills": ["React", "FastAPI", "Redis", "AWS", "Kubernetes"],
+    "budget_or_hourly_rate": "$220k/yr",
+    "source": "Indeed"
+  },
+  {
+    "id": 16,
+    "title": "Remote Assistant Needed!!!",
+    "description": "NO EXPERIENCE. NO INTERVIEW. CLICK THE LINK TO START. MAKE MONEY FROM YOUR COUCH. LIMITED SPOTS!!!",
+    "skills": ["Microsoft Word", "Sales"],
+    "budget_or_hourly_rate": "$72/hr",
+    "source": "Spam_Bot"
+  },
+  {
+    "id": 23,
+    "title": "Pythen Dev (URGENT)",
+    "description": "Python Python Python Python Python Python Python Python Python Python  AWS  AWS  AWS  AWS  AWS  !!! URGENT !!! Contact recruiter at: jobz@junk.co.uk. No recruiters pls.",
+    "skills": ["TypeScript", "Python", "Terraform", "AWS", "React"],
+    "budget_or_hourly_rate": "Competitive / DOE",
+    "source": "Raw_Scraper_3"
+  },
+  {
+    "id": 73,
+    "title": "Junior Python Dev",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Incomplete_Feed"
+  },
+  {
+    "id": 81,
+    "title": "Principal Python Developer",
+    "description": "We are looking for an experienced professional with 8+ years in TypeScript. You will lead architecture and mentor teams. Deep knowledge of scalable systems is required.",
+    "skills": ["React", "Docker", "FastAPI", "Terraform", "PostgreSQL", "TypeScript", "Redis"],
+    "budget_or_hourly_rate": "$215k/yr",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 125,
+    "title": "Job #99283 - DEVEL",
+    "description": "Python Python Python Python Python Python Python Python Python Python  AWS  AWS  AWS  AWS  AWS  !!! URGENT !!! Contact recruiter at: jobz@junk.co.uk. No recruiters pls.",
+    "skills": ["FastAPI", "CI/CD", "PostgreSQL", "TypeScript", "Kubernetes", "Python", "AWS", "React", "Redis"],
+    "budget_or_hourly_rate": "Competitive / DOE",
+    "source": "Raw_Scraper_3"
+  },
+  {
+    "id": 1,
+    "title": "Staff Backend Developer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["Kubernetes", "AWS", "Python", "SQL", "CI/CD", "Django"],
+    "budget_or_hourly_rate": "$178k/yr",
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 2,
+    "title": "CLiCK HeRe for JOB",
+    "description": "NO INTERVIEW! JUST CLICK THE LINK! WE PAY DAILY! BEST JOB EVER!",
+    "skills": ["Sales", "Marketing"],
+    "budget_or_hourly_rate": "$92/hr",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 3,
+    "title": "Pyth0n Dev!!!",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 4,
+    "title": "--- s o f t w a r e ---",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "Upwork"
+  },
+  {
+    "id": 5,
+    "title": "Principal Software Architect",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["Django", "SQL", "AWS", "React", "Redis", "Kubernetes", "Docker"],
+    "budget_or_hourly_rate": "$162k/yr",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 6,
+    "title": "JOB_ID_9928_DEVELOPER",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 7,
+    "title": "Developer [REMOTE] [URGENT] [$$$]",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 8,
+    "title": "",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 9,
+    "title": "Entry Level Python Coder",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["TypeScript", "CI/CD"],
+    "budget_or_hourly_rate": "$60k/yr",
+    "source": "Indeed"
+  },
+  {
+    "id": 10,
+    "title": "Staff Backend Developer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["React", "Kubernetes", "Django", "TypeScript", "Redis", "SQL"],
+    "budget_or_hourly_rate": "$178k/yr",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 11,
+    "title": "Associate Software Engineer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["Terraform", "CI/CD"],
+    "budget_or_hourly_rate": "$73k/yr",
+    "source": "Upwork"
+  },
+  {
+    "id": 12,
+    "title": "Lead Data Scientist",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["TypeScript", "Kubernetes", "AWS", "Django", "CI/CD"],
+    "budget_or_hourly_rate": "$155k/yr",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 13,
+    "title": "Staff Backend Developer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["TypeScript", "Kubernetes", "SQL", "Redis", "FastAPI"],
+    "budget_or_hourly_rate": "$220k/yr",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 14,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 15,
+    "title": "Staff Backend Developer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["FastAPI", "React", "Redis", "SQL", "Python", "TypeScript", "AWS"],
+    "budget_or_hourly_rate": "$199k/yr",
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 16,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Upwork"
+  },
+  {
+    "id": 17,
+    "title": "Principal Software Architect",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["React", "Kubernetes", "Python", "TypeScript", "Docker", "Django", "SQL"],
+    "budget_or_hourly_rate": "$152k/yr",
+    "source": "Upwork"
+  },
+  {
+    "id": 18,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Junk_Feed"
+  },
+  {
+    "id": 19,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Indeed"
+  },
+  {
+    "id": 20,
+    "title": "Associate Software Engineer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["Django", "Redis"],
+    "budget_or_hourly_rate": "$88k/yr",
+    "source": "Junk_Feed"
+  },
+   {
+    "id": 21,
+    "title": "Graduate Developer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["Redis", "Django", "Terraform"],
+    "budget_or_hourly_rate": "$87k/yr",
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 22,
+    "title": "JOB_ID_9928_DEVELOPER",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 23,
+    "title": "CLiCK HeRe for JOB",
+    "description": "NO INTERVIEW! JUST CLICK THE LINK! WE PAY DAILY! BEST JOB EVER!",
+    "skills": ["Sales", "Marketing"],
+    "budget_or_hourly_rate": "$76/hr",
+    "source": "Junk_Feed"
+  },
+  {
+    "id": 24,
+    "title": "Graduate Developer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["Kubernetes", "Docker"],
+    "budget_or_hourly_rate": "$65k/yr",
+    "source": "Indeed"
+  },
+  {
+    "id": 25,
+    "title": "Senior Python Engineer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["Python", "TypeScript", "AWS", "Kubernetes", "CI/CD"],
+    "budget_or_hourly_rate": "$179k/yr",
+    "source": "Upwork"
+  },
+  {
+    "id": 26,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 27,
+    "title": null,
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["Terraform"],
+    "budget_or_hourly_rate": "$76k/yr",
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 28,
+    "title": "CLiCK HeRe for JOB",
+    "description": "NO INTERVIEW! JUST CLICK THE LINK! WE PAY DAILY! BEST JOB EVER!",
+    "skills": ["Sales", "Marketing"],
+    "budget_or_hourly_rate": "$84/hr",
+    "source": "Upwork"
+  },
+  {
+    "id": 29,
+    "title": "Junior Developer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["React", "TypeScript", "Terraform"],
+    "budget_or_hourly_rate": "$75k/yr",
+    "source": "Junk_Feed"
+  },
+  {
+    "id": 30,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "LinkedIn"
+  },
+  {
+    "id": 31,
+    "title": "Senior DevOps Specialist",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["Python", "Redis", "SQL", "React", "FastAPI"],
+    "budget_or_hourly_rate": "$209k/yr",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 32,
+    "title": "Staff Backend Developer",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["FastAPI", "AWS", "CI/CD", "Django"],
+    "budget_or_hourly_rate": "$217k/yr",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 33,
+    "title": "Junior Developer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["TypeScript", "Python"],
+    "budget_or_hourly_rate": "$78k/yr",
+    "source": "Indeed"
+  },
+  {
+    "id": 34,
+    "title": "Senior DevOps Specialist",
+    "description": "We are seeking an expert with 8+ years experience in building scalable systems and mentoring teams.",
+    "skills": ["SQL", "Django", "FastAPI", "AWS", "CI/CD", "React"],
+    "budget_or_hourly_rate": "$218k/yr",
+    "source": "Telegram_Bot"
+  },
+  {
+    "id": 35,
+    "title": "Developer [REMOTE] [URGENT] [$$$]",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "LinkedIn"
+  },
+  {
+    "id": 36,
+    "title": "Associate Software Engineer",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["React", "SQL", "CI/CD"],
+    "budget_or_hourly_rate": "$70k/yr",
+    "source": "Indeed"
+  },
+  {
+    "id": 37,
+    "title": "Pyth0n Dev!!!",
+    "description": "Pythen Pythen Pythen!!! AWS AWS AWS!!! We need dev who knows Pythen and Django. Contact at junk@mail.com",
+    "skills": ["Pythen", "Djnago", "AWS!!!"],
+    "budget_or_hourly_rate": "Negotiable / DOE",
+    "source": "Upwork"
+  },
+  {
+    "id": 38,
+    "title": "Undefined Role",
+    "description": null,
+    "skills": [],
+    "budget_or_hourly_rate": null,
+    "source": "Indeed"
+  },
+  {
+    "id": 39,
+    "title": "Python Intern",
+    "description": "Great opportunity for a recent grad. Learn on the job and contribute to production codebases.",
+    "skills": ["CI/CD"],
+    "budget_or_hourly_rate": "$67k/yr",
+    "source": "Internal_Scraper"
+  },
+  {
+    "id": 40,
+    "title": "MAKE MONEY FAST!",
+    "description": "NO INTERVIEW! JUST CLICK THE LINK! WE PAY DAILY! BEST JOB EVER!",
+    "skills": ["Sales", "Marketing"],
+    "budget_or_hourly_rate": "$94/hr",
+    "source": "LinkedIn"
+  }
+]

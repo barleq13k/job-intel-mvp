@@ -1,0 +1,31 @@
+{
+  "id": "job_001",
+  "title": "Junior QA Analyst",
+  "company": "Example Corp",
+  "location": "Remote",
+  "employment_type": "Full-time",
+  "salary": null,
+  "source": "LinkedIn",
+  "url": "https://example.com/job/123",
+
+  "normalized": {
+    "title": "junior qa analyst",
+    "company": "example corp"
+  },
+
+  "scoring": {
+    "score": 91,
+    "match_reasons": [
+      "Matches QA-related keywords",
+      "Remote-friendly role",
+      "Entry-level compatible"
+    ]
+  },
+
+  "summary": "Entry-level QA role focused on manual testing and bug reporting.",
+
+  "metadata": {
+    "ingested_at": "2026-05-11T12:00:00Z",
+    "source_type": "scraper"
+  }
+}
