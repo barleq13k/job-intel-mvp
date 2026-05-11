@@ -1,0 +1,12 @@
+{
+  "profile": {
+    "target_roles": ["QA Tester", "Python Automation"],
+    "skills": ["Python", "Selenium", "QA"],
+    "keywords": ["remote", "entry level"],
+    "location": "Philippines",
+    "work_mode": "remote"
+  },
+  "source": {
+    "type": "realpython_fake_jobs"
+  }
+}

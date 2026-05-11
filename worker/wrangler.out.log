@@ -1,0 +1,108 @@
+
+> job-intel-worker@0.1.0 dev
+> wrangler dev --host 127.0.0.1 --port 8787
+
+
+ ⛅️ wrangler 4.90.0
+───────────────────
+
+Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+⎔ Starting local server...
+[wrangler:info] Ready on http://127.0.0.1:8787
+[wrangler:info] POST /api/jobs/search 200 OK (1049ms)
+[wrangler:info] POST /api/jobs/search 200 OK (408ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (776ms)
+[wrangler:info] POST /api/jobs/search 200 OK (405ms)
+[wrangler:info] POST /api/jobs/search 200 OK (663ms)
+[wrangler:info] POST /api/jobs/search 200 OK (353ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (832ms)
+[wrangler:info] POST /api/jobs/search 200 OK (796ms)
+[wrangler:info] POST /api/jobs/search 200 OK (692ms)
+[wrangler:info] POST /api/jobs/search 200 OK (711ms)
+[wrangler:info] POST /api/jobs/search 200 OK (362ms)
+[wrangler:info] POST /api/jobs/search 200 OK (406ms)
+[wrangler:info] POST /api/jobs/search 200 OK (365ms)
+[wrangler:info] POST /api/jobs/search 200 OK (415ms)
+[wrangler:info] POST /api/jobs/search 200 OK (402ms)
+[wrangler:info] POST /api/jobs/search 200 OK (407ms)
+[wrangler:info] POST /api/jobs/search 200 OK (103ms)
+[wrangler:info] POST /api/jobs/search 200 OK (404ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (1050ms)
+[wrangler:info] POST /api/jobs/search 200 OK (760ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (740ms)
+[wrangler:info] POST /api/jobs/search 200 OK (759ms)
+[wrangler:info] POST /api/jobs/search 200 OK (771ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (793ms)
+[wrangler:info] POST /api/jobs/search 200 OK (727ms)
+[wrangler:info] POST /api/jobs/search 200 OK (773ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (800ms)
+[wrangler:info] POST /api/jobs/search 200 OK (362ms)
+[wrangler:info] POST /api/jobs/search 200 OK (412ms)
+[wrangler:info] POST /api/jobs/search 200 OK (416ms)
+[wrangler:info] POST /api/jobs/search 200 OK (367ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (997ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (730ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (788ms)
+[wrangler:info] POST /api/jobs/search 200 OK (797ms)
+[wrangler:info] POST /api/jobs/search 200 OK (815ms)
+[wrangler:info] POST /api/jobs/search 200 OK (427ms)
+[wrangler:info] POST /api/jobs/search 200 OK (376ms)
+[wrangler:info] POST /api/jobs/search 200 OK (125ms)
+[wrangler:info] POST /api/jobs/search 200 OK (126ms)
+[wrangler:info] POST /api/jobs/search 200 OK (384ms)
+[wrangler:info] POST /api/jobs/search 200 OK (111ms)
+[wrangler:info] POST /api/jobs/search 200 OK (402ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (871ms)
+[wrangler:info] POST /api/jobs/search 200 OK (1010ms)
+[wrangler:info] POST /api/jobs/search 200 OK (499ms)
+[wrangler:info] POST /api/jobs/search 200 OK (525ms)
+[wrangler:info] POST /api/jobs/search 200 OK (840ms)
+[wrangler:info] POST /api/jobs/search 200 OK (533ms)
+[wrangler:info] POST /api/jobs/search 200 OK (132ms)
+[wrangler:info] POST /api/jobs/search 200 OK (498ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (896ms)
+[wrangler:info] POST /api/jobs/search 200 OK (1079ms)
+[wrangler:info] POST /api/jobs/search 200 OK (1096ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (807ms)
+[wrangler:info] POST /api/jobs/search 200 OK (813ms)
+[wrangler:info] POST /api/jobs/search 200 OK (1123ms)
+[wrangler:info] POST /api/jobs/search 200 OK (765ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] POST /api/jobs/search 200 OK (425ms)
+[wrangler:info] POST /api/jobs/search 200 OK (522ms)
+[wrangler:info] POST /api/jobs/search 200 OK (418ms)
+[wrangler:info] POST /api/jobs/search 200 OK (596ms)
+[wrangler:info] POST /api/jobs/search 200 OK (533ms)
