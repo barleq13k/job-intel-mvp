@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ArrowUpRight, BriefcaseBusiness, Loader2, MapPin, Moon, Search, Sparkles, Sun } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, Sparkles, Sun } from "lucide-react";
 import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
@@ -44,10 +44,12 @@ function App() {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
+  const [showExploreMore, setShowExploreMore] = useState(false);
 
   const visibleJobs = useMemo(() => jobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE), [jobs]);
-  const hiddenCount = jobs.length - visibleJobs.length;
+  const lowerMatchJobs = useMemo(() => jobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE), [jobs]);
   const sourceLabel = form.source_type === "remotive" ? "Remotive" : "Real Python Fake Jobs";
+  const isExploreMoreOpen = showExploreMore || visibleJobs.length === 0;
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -68,6 +70,7 @@ function App() {
     setStatus("loading");
     setError("");
     setJobs([]);
+    setShowExploreMore(false);
 
     const payload = {
       profile: {
@@ -237,7 +240,7 @@ function App() {
               <h2 className="text-2xl font-semibold">Ranked Results</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {status === "success"
-                  ? `${visibleJobs.length} relevant jobs shown${hiddenCount ? `, ${hiddenCount} hidden` : ""}`
+                  ? `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
                   : "Submit a profile to fetch and score jobs."}
               </p>
             </div>
@@ -255,19 +258,54 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                Showing relevant matches only. Low-relevance jobs are hidden.
+                Recommended matches are shown first. Lower-confidence opportunities stay available under Explore More.
               </div>
               {visibleJobs.length > 0 ? (
-                <div className="grid gap-4">
-                  {visibleJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
-                </div>
+                <>
+                  <h3 className="mb-3 text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Recommended Matches</h3>
+                  <div className="grid gap-4">
+                    {visibleJobs.map((job) => (
+                      <JobCard key={job.id} job={job} />
+                    ))}
+                  </div>
+                </>
               ) : (
                 <EmptyState
-                  title="No relevant matches"
-                  message="The selected source did not return jobs that met the relevance threshold for this profile."
+                  title="No recommended matches"
+                  message="The selected source returned lower-confidence opportunities for this profile."
                 />
+              )}
+
+              {lowerMatchJobs.length > 0 && (
+                <section className="mt-6">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Explore More</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Stretch roles and weaker matches that may still be worth a look.
+                      </p>
+                    </div>
+                    {visibleJobs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowExploreMore((current) => !current)}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+                        aria-expanded={isExploreMoreOpen}
+                      >
+                        {isExploreMoreOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {isExploreMoreOpen ? "Hide" : "Show"} {lowerMatchJobs.length}
+                      </button>
+                    )}
+                  </div>
+
+                  {isExploreMoreOpen && (
+                    <div className="grid gap-4">
+                      {lowerMatchJobs.map((job) => (
+                        <JobCard key={job.id} job={job} variant="lower" />
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
             </>
           )}
@@ -318,7 +356,10 @@ function LoadingState() {
   );
 }
 
-function JobCard({ job }) {
+function JobCard({ job, variant = "recommended" }) {
+  const scoreColor =
+    variant === "lower" ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300";
+
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -336,7 +377,7 @@ function JobCard({ job }) {
         </div>
         <div className="flex min-w-20 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
           <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{job.scoring.score}</div>
+            <div className={`text-2xl font-bold ${scoreColor}`}>{job.scoring.score}</div>
             <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Score</div>
             <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
               {formatFitLabel(job.scoring.execution_likelihood)}
@@ -382,8 +423,10 @@ function formatFitLabel(value) {
   return {
     strong_fit: "Strong fit",
     possible_fit: "Possible fit",
+    adjacent: "Adjacent",
     stretch: "Stretch",
-    poor_fit: "Poor fit",
+    lower_match: "Lower match",
+    poor_fit: "Lower match",
     unclear: "Unclear"
   }[value] || "Unclear";
 }

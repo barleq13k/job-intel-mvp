@@ -33,6 +33,10 @@ Role relevance:
 - Exact phrase matches are strongest.
 - Broad single-word roles, such as `Python` or `AI`, are weighted by title context.
 - Primary title focus ranks higher than secondary technology mentions.
+- Job category is stronger role evidence than description text, but weaker than title.
+- Broad target-role matches found only in description text are intentionally light support signals.
+- Software/technical profiles get a narrow title/category alignment boost for technical roles.
+- Admin, sales, and office roles get a narrow off-domain drag for software/technical profiles unless the user explicitly asks for those domains.
 
 Skill match:
 - User skills are matched against title and available details.
@@ -68,9 +72,12 @@ Execution likelihood:
 - Current labels:
   - `strong_fit`
   - `possible_fit`
+  - `adjacent`
   - `stretch`
-  - `poor_fit`
+  - `lower_match`
 - This label influences ranking but is still heuristic.
+- `stretch` is reserved for concrete gap signals such as seniority mismatch, platform mismatch, architecture/leadership, or other complexity.
+- Lower-score but related roles can be labeled `adjacent`; weak or off-domain roles are labeled `lower_match`.
 - Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
 - Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
 
@@ -85,7 +92,8 @@ Tie-break calibration:
 
 Display filtering:
 - Backend returns all scored jobs.
-- Frontend displays only jobs with `score >= 25`.
+- Frontend displays jobs with `score >= 25` as recommended matches.
+- Frontend groups lower-score jobs under Explore More so stretch roles remain inspectable.
 
 ## Current Limitations
 

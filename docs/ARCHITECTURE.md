@@ -23,7 +23,7 @@ Backend:
 4. Worker validates the selected source type.
 5. Worker fetches jobs from the selected source.
 6. Worker normalizes, validates, deduplicates, scores, sorts, and formats jobs.
-7. Frontend receives frontend-ready jobs and displays only jobs with `score >= 25`.
+7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, and keeps lower-score jobs available under Explore More.
 
 ## Data Flow
 
@@ -53,6 +53,7 @@ Current scoring is rule-based:
 - role relevance
 - skill and strongest skill matches
 - keyword matches
+- title/category role-domain alignment
 - seniority fit
 - complexity penalties
 - script/implementation intent
@@ -80,4 +81,4 @@ Deployment is not fully automated in this repo yet.
 - Real Python jobs are fake/static and have limited details.
 - Scoring is transparent but heuristic.
 - Salary is shown only when a source provides it.
-- Frontend filtering hides low-relevance jobs but backend still returns all scored jobs.
+- Frontend groups low-relevance jobs under Explore More while the backend still returns all scored jobs.

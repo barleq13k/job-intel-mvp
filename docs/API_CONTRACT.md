@@ -115,4 +115,5 @@ Unsupported source types return `400`.
 - `details` contains 2-4 simple description bullets when possible.
 - `metadata.source_type` is currently `api` for Remotive and `scraper` for Real Python.
 - Backend returns all jobs sorted by score.
-- Frontend hides jobs below score `25`.
+- Frontend shows jobs with score `25` or higher as recommended matches and groups lower-score jobs under Explore More.
+- `scoring.execution_likelihood` values are `strong_fit`, `possible_fit`, `adjacent`, `stretch`, or `lower_match`.

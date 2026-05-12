@@ -86,7 +86,7 @@ assert.deepEqual(results, [
   {
     title: "Senior Python Engineer",
     score: 0,
-    execution_likelihood: "poor_fit",
+    execution_likelihood: "lower_match",
     components: {
       role_match_score: 36,
       skill_match_score: 14,
@@ -106,7 +106,7 @@ assert.deepEqual(results, [
   {
     title: "Data Entry Clerk",
     score: 17,
-    execution_likelihood: "stretch",
+    execution_likelihood: "lower_match",
     components: {
       role_match_score: 0,
       skill_match_score: 0,
@@ -121,7 +121,7 @@ assert.deepEqual(results, [
   {
     title: "Regional Manager",
     score: 0,
-    execution_likelihood: "poor_fit",
+    execution_likelihood: "lower_match",
     components: {
       role_match_score: 0,
       skill_match_score: 0,
@@ -174,5 +174,84 @@ assert.equal(simplePythonScoring.components.execution_likelihood_score, 6);
 assert.equal(seniorPythonScoring.components.penalties, -8);
 assert(simplePythonScoring.match_reasons.includes("Description suggests simpler execution tasks"));
 assert(seniorPythonScoring.match_reasons.includes("Description suggests senior/platform complexity"));
+
+const softwareRemotiveProfile = __test.normalizeProfile({
+  target_roles: ["software"],
+  skills: ["javascript", "node.js", "typescript", "react"],
+  keywords: ["entry", "junior", "support"],
+  avoid_keywords: ["senior", "lead"],
+  location: "Philippines",
+  experience_level: "beginner",
+  work_mode: "remote"
+});
+const remotiveOfficeAssistant = {
+  title: "Office Assistant",
+  company: "AdminCo",
+  location: "Remote",
+  source: "Remotive",
+  description:
+    "Entry level support role helping teams use office software, documents, calendars, and internal tools. Remote role open to candidates in the Philippines.",
+  category: "Administrative"
+};
+const remotiveOperationsSoftwareAssistant = {
+  title: "Operations software assistant",
+  company: "OpsTech",
+  location: "Remote",
+  source: "Remotive",
+  description:
+    "Junior support role helping maintain internal software workflows, triage bugs, test React dashboards, and coordinate Node.js automation tasks. Remote Philippines friendly.",
+  category: "Software Development"
+};
+const remotiveIosDeveloper = {
+  title: "iOS Developer",
+  company: "MobileCo",
+  location: "Remote",
+  source: "Remotive",
+  description: "Build and test mobile app features, collaborate with software engineers, and support API integrations. Remote team.",
+  category: "Software Development"
+};
+const weakRelatedTechnicalSupport = {
+  title: "Technical Support Assistant",
+  company: "HelpTech",
+  location: "Remote",
+  source: "Remotive",
+  description: "Entry support role helping users troubleshoot internal tools and triage issues for the product team. Remote team.",
+  category: "Customer Support"
+};
+const seniorIosDeveloper = {
+  ...remotiveIosDeveloper,
+  title: "Senior Lead iOS Developer",
+  description:
+    "Lead mobile architecture, mentor engineers, own platform decisions, and guide scalable systems for a remote product team."
+};
+
+const officeScoring = __test.scoreJob(remotiveOfficeAssistant, softwareRemotiveProfile);
+const operationsScoring = __test.scoreJob(remotiveOperationsSoftwareAssistant, softwareRemotiveProfile);
+const iosScoring = __test.scoreJob(remotiveIosDeveloper, softwareRemotiveProfile);
+const weakRelatedScoring = __test.scoreJob(weakRelatedTechnicalSupport, softwareRemotiveProfile);
+const seniorIosScoring = __test.scoreJob(seniorIosDeveloper, softwareRemotiveProfile);
+
+assert(operationsScoring.score > officeScoring.score);
+assert(iosScoring.score > officeScoring.score);
+assert(officeScoring.components.role_match_score <= 12);
+assert.equal(officeScoring.execution_likelihood, "lower_match");
+assert.equal(weakRelatedScoring.execution_likelihood, "adjacent");
+assert.equal(iosScoring.execution_likelihood, "stretch");
+assert.equal(seniorIosScoring.execution_likelihood, "lower_match");
+assert(seniorIosScoring.score < iosScoring.score);
+
+const adminProfile = __test.normalizeProfile({
+  target_roles: ["office assistant"],
+  skills: ["support"],
+  keywords: ["entry"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "beginner"
+});
+const adminOfficeScoring = __test.scoreJob(remotiveOfficeAssistant, adminProfile);
+
+assert(adminOfficeScoring.score >= 70);
+assert(adminOfficeScoring.components.penalties >= 0);
+assert.notEqual(adminOfficeScoring.execution_likelihood, "lower_match");
 
 console.log("Scoring regression checks passed.");

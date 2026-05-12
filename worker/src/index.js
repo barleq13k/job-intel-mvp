@@ -2,6 +2,7 @@ const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
+const MIN_STRETCH_SCORE = 25;
 const GENERIC_TOKENS = new Set([
   "data",
   "job",
@@ -15,6 +16,59 @@ const GENERIC_TOKENS = new Set([
   "manager",
   "engineer"
 ]);
+const TECH_PROFILE_TERMS = [
+  "software",
+  "developer",
+  "development",
+  "engineer",
+  "engineering",
+  "frontend",
+  "front end",
+  "backend",
+  "back end",
+  "full stack",
+  "javascript",
+  "node.js",
+  "typescript",
+  "react",
+  "ios",
+  "mobile",
+  "qa",
+  "automation",
+  "technical support"
+];
+const TECH_ROLE_TERMS = [
+  "software",
+  "developer",
+  "development",
+  "engineer",
+  "engineering",
+  "frontend",
+  "front end",
+  "backend",
+  "back end",
+  "full stack",
+  "javascript",
+  "node",
+  "typescript",
+  "react",
+  "ios",
+  "mobile",
+  "qa",
+  "automation",
+  "technical",
+  "programmer"
+];
+const OFF_DOMAIN_ROLE_TERMS = [
+  "office assistant",
+  "administrative",
+  "admin",
+  "sales",
+  "account executive",
+  "customer success",
+  "operations assistant"
+];
+const PLATFORM_MISMATCH_TERMS = ["ios", "android", "mobile", "swift", "kotlin"];
 const ENTRY_LEVEL_TERMS = ["entry level", "junior", "beginner", "intern", "internship", "graduate"];
 const SENIOR_LEVEL_TERMS = ["senior", "staff", "principal", "lead", "head"];
 const COMPLEXITY_TERMS = [
@@ -68,6 +122,8 @@ const SCORING_WEIGHTS = Object.freeze({
   signalWeights: {
     titlePhrase: 1,
     secondaryPhrase: 0.72,
+    categoryPhrase: 0.62,
+    roleSecondaryPhrase: 0.34,
     titleSkillToken: 0.64,
     titleToken: 0.58,
     secondaryToken: 0.28,
@@ -132,6 +188,10 @@ const SCORING_WEIGHTS = Object.freeze({
     simpleBoostCap: 6,
     complexityTermPenalty: 2,
     complexityPenaltyCap: 8
+  },
+  roleDomain: {
+    technicalAlignment: 8,
+    offDomainPenalty: 14
   }
 });
 
@@ -439,6 +499,8 @@ function buildScoringContext(job, profile) {
   const title = normalizeSearchText(job.title);
   const company = normalizeSearchText(job.company);
   const location = normalizeSearchText(job.location);
+  const categoryText = normalizeSearchText(job.category || "");
+  const descriptionText = normalizeSearchText(job.description || "");
   const summaryText = normalizeSearchText(`${job.company} ${job.location} ${job.category || ""} ${job.description || ""}`);
   const searchableText = `${title} ${summaryText}`;
   const profileText = normalizeSearchText(
@@ -451,6 +513,8 @@ function buildScoringContext(job, profile) {
     title,
     company,
     location,
+    categoryText,
+    descriptionText,
     summaryText,
     searchableText,
     profileText
@@ -459,12 +523,13 @@ function buildScoringContext(job, profile) {
 
 function scoreJob(job, profile) {
   const context = buildScoringContext(job, profile);
-  const roleSignal = evaluateSignals(profile.target_roles, context.title, context.summaryText, "role");
+  const roleSignal = evaluateSignals(profile.target_roles, context.title, context.descriptionText, "role", context.categoryText);
   const skillSignal = evaluateSignals(profile.skills, context.title, context.summaryText, "skill");
   const keywordSignal = evaluateSignals(profile.keywords, context.title, context.summaryText, "keyword");
   const strongestSkillSignal = evaluateSignals(profile.strongest_skills, context.title, context.summaryText, "strongest_skill");
   const senioritySignal = evaluateSeniority(context);
   const roleContextSignal = evaluateRoleContext(context);
+  const roleDomainSignal = evaluateRoleDomain(context);
   const complexitySignal = evaluateComplexity(context);
   const scriptIntentSignal = evaluateScriptIntent(context);
   const avoidSignal = evaluateAvoidKeywords(context);
@@ -490,12 +555,13 @@ function scoreJob(job, profile) {
   };
 
   components.role_match_score += roleContextSignal.points;
+  components.role_match_score += roleDomainSignal.points;
   components.skill_match_score += scriptIntentSignal.points;
-  components.penalties += roleContextSignal.penalty + complexitySignal.penalty + scriptIntentSignal.penalty;
+  components.penalties += roleContextSignal.penalty + roleDomainSignal.penalty + complexitySignal.penalty + scriptIntentSignal.penalty;
   components.penalties += taskFitTieBreakerSignal.penalty;
   components.penalties += locationWorkModeSignal.penalty;
 
-  const score =
+  const rawScore =
     SCORING_WEIGHTS.baseScore +
     components.role_match_score +
     components.skill_match_score +
@@ -504,6 +570,17 @@ function scoreJob(job, profile) {
     components.execution_likelihood_score +
     components.location_workmode_score +
     components.penalties;
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  executionSignal.label = executionLabel({
+    score,
+    value: executionSignal.value,
+    roleSignal,
+    skillSignal,
+    senioritySignal,
+    roleDomainSignal,
+    complexitySignal,
+    avoidSignal
+  });
 
   const matchReasons = buildMatchReasons({
     roleSignal,
@@ -512,6 +589,7 @@ function scoreJob(job, profile) {
     keywordSignal,
     senioritySignal,
     roleContextSignal,
+    roleDomainSignal,
     complexitySignal,
     scriptIntentSignal,
     avoidSignal,
@@ -521,14 +599,14 @@ function scoreJob(job, profile) {
   });
 
   return {
-    score: Math.max(0, Math.min(100, Math.round(score))),
+    score,
     match_reasons: matchReasons,
     execution_likelihood: executionSignal.label,
     components: roundComponents(components)
   };
 }
 
-function evaluateSignals(queries, title, secondaryText, category) {
+function evaluateSignals(queries, title, secondaryText, category, categoryText = "") {
   if (!queries.length) {
     return makeScoringSignal({ bestStrength: "none", weakMatches: 0, matchedQueries: [] });
   }
@@ -540,7 +618,7 @@ function evaluateSignals(queries, title, secondaryText, category) {
   const matchedQueries = [];
 
   for (const query of queries) {
-    const signal = evaluateQuerySignal(query, title, secondaryText, category);
+    const signal = evaluateQuerySignal(query, title, secondaryText, category, categoryText);
     totalWeight += signal.weight;
 
     if (signal.strength === "weak" || signal.strength === "partial_token") {
@@ -569,7 +647,7 @@ function evaluateSignals(queries, title, secondaryText, category) {
   return signal;
 }
 
-function evaluateQuerySignal(query, title, secondaryText, category) {
+function evaluateQuerySignal(query, title, secondaryText, category, categoryText = "") {
   const phrase = normalizeSearchText(query);
 
   if (!phrase) {
@@ -580,8 +658,18 @@ function evaluateQuerySignal(query, title, secondaryText, category) {
     return { strength: "title_phrase", weight: SCORING_WEIGHTS.signalWeights.titlePhrase };
   }
 
+  if (category === "role" && containsPhrase(categoryText, phrase)) {
+    return { strength: "category_phrase", weight: SCORING_WEIGHTS.signalWeights.categoryPhrase };
+  }
+
   if (containsPhrase(secondaryText, phrase)) {
-    return { strength: "secondary_phrase", weight: SCORING_WEIGHTS.signalWeights.secondaryPhrase };
+    return {
+      strength: "secondary_phrase",
+      weight:
+        category === "role"
+          ? SCORING_WEIGHTS.signalWeights.roleSecondaryPhrase
+          : SCORING_WEIGHTS.signalWeights.secondaryPhrase
+    };
   }
 
   const words = phrase.split(" ").filter(Boolean);
@@ -739,6 +827,41 @@ function evaluateRoleContext({ profile, title, job }) {
   });
 }
 
+function evaluateRoleDomain({ profile, profileText, title, categoryText }) {
+  const text = `${title} ${categoryText}`;
+  const isTechnicalProfile = TECH_PROFILE_TERMS.some((term) => containsPhrase(profileText, normalizeSearchText(term)));
+  const requestedOffDomain = OFF_DOMAIN_ROLE_TERMS.some((term) => containsPhrase(profileText, term));
+
+  if (!isTechnicalProfile) {
+    return makeScoringSignal({ status: "neutral", related: false, offDomain: false, platformMismatch: false });
+  }
+
+  const technicalMatch = TECH_ROLE_TERMS.some((term) => containsPhrase(text, normalizeSearchText(term)));
+  const offDomainMatch = OFF_DOMAIN_ROLE_TERMS.some((term) => containsPhrase(text, term));
+  const requestedPlatform = PLATFORM_MISMATCH_TERMS.some((term) => containsPhrase(profileText, term));
+  const platformMismatch =
+    !requestedPlatform && PLATFORM_MISMATCH_TERMS.some((term) => containsPhrase(text, term));
+  const reasons = [];
+
+  if (technicalMatch) {
+    reasons.push("Role title/category aligns with a software profile");
+  }
+
+  if (offDomainMatch && !requestedOffDomain) {
+    reasons.push("Role title/category is outside the requested software focus");
+  }
+
+  return makeScoringSignal({
+    status: technicalMatch ? "technical_alignment" : offDomainMatch && !requestedOffDomain ? "off_domain" : "neutral",
+    related: technicalMatch,
+    offDomain: offDomainMatch && !requestedOffDomain,
+    platformMismatch,
+    points: technicalMatch ? SCORING_WEIGHTS.roleDomain.technicalAlignment : 0,
+    penalty: offDomainMatch && !requestedOffDomain ? -SCORING_WEIGHTS.roleDomain.offDomainPenalty : 0,
+    reasons
+  });
+}
+
 function titleContainsParentheticalTerm(rawTitle, term) {
   const matches = String(rawTitle).match(/\(([^)]+)\)/g) || [];
   return matches.some((match) => containsWholeWord(normalizeSearchText(match), term));
@@ -864,25 +987,42 @@ function evaluateExecutionLikelihood({ profile, title, searchableText, strongest
   return makeScoringSignal({
     value,
     points: Math.round((value - SCORING_WEIGHTS.executionLikelihood.base) * SCORING_WEIGHTS.executionLikelihood.scoreMultiplier),
-    label: executionLabel(value),
+    label: "lower_match",
     reasons: makeExecutionLikelihoodReasons(value)
   });
 }
 
-function executionLabel(value) {
-  if (value >= SCORING_WEIGHTS.executionLikelihood.strongFitThreshold) {
-    return "strong_fit";
-  }
+function executionLabel({ score, value, roleSignal, skillSignal, senioritySignal, roleDomainSignal, complexitySignal, avoidSignal }) {
+  const hasRealGap =
+    ["senior_too_high", "too_junior"].includes(senioritySignal.status) ||
+    complexitySignal.status === "more_complex" ||
+    roleDomainSignal.platformMismatch ||
+    avoidSignal.penalty < 0;
+  const hasRelatedDomain =
+    roleDomainSignal.related ||
+    ["title_phrase", "title_token", "category_phrase"].includes(roleSignal.bestStrength) ||
+    skillSignal.bestStrength !== "none";
+  const hasWeakAlignment =
+    roleDomainSignal.offDomain ||
+    (!hasRelatedDomain && ["secondary_phrase", "secondary_token", "weak", "none"].includes(roleSignal.bestStrength));
 
-  if (value >= SCORING_WEIGHTS.executionLikelihood.possibleFitThreshold) {
-    return "possible_fit";
-  }
-
-  if (value >= SCORING_WEIGHTS.executionLikelihood.stretchThreshold) {
+  if (hasRealGap && score >= MIN_STRETCH_SCORE) {
     return "stretch";
   }
 
-  return "poor_fit";
+  if (score >= 76 && value >= SCORING_WEIGHTS.executionLikelihood.strongFitThreshold && !hasWeakAlignment) {
+    return "strong_fit";
+  }
+
+  if (score >= 50 && value >= SCORING_WEIGHTS.executionLikelihood.possibleFitThreshold && !hasWeakAlignment) {
+    return "possible_fit";
+  }
+
+  if (score >= 25 && hasRelatedDomain && !hasRealGap) {
+    return "adjacent";
+  }
+
+  return "lower_match";
 }
 
 function evaluateScriptIntent({ profile, title }) {
@@ -943,6 +1083,7 @@ function strengthRank(strength) {
     title_token: 3,
     near_words: 4,
     secondary_phrase: 5,
+    category_phrase: 5,
     title_phrase: 6
   }[strength] || 0;
 }
@@ -1004,6 +1145,7 @@ function buildMatchReasons({
   keywordSignal,
   senioritySignal,
   roleContextSignal,
+  roleDomainSignal,
   complexitySignal,
   scriptIntentSignal,
   avoidSignal,
@@ -1019,6 +1161,7 @@ function buildMatchReasons({
     ...skillSignal.reasons,
     ...strongestSkillSignal.reasons,
     ...senioritySignal.reasons,
+    ...roleDomainSignal.reasons,
     ...complexitySignal.reasons,
     ...avoidSignal.reasons,
     ...scriptIntentSignal.reasons,
@@ -1055,6 +1198,10 @@ function makeSignalReasons(signal, category) {
 
     if (signal.bestStrength === "title_token") {
       return [`${displayTerm(signal.matchedQueries[0]?.query || "Role")} appears in the job title`];
+    }
+
+    if (signal.bestStrength === "category_phrase") {
+      return ["Target role phrase appears in the job category"];
     }
 
     if (signal.bestStrength === "secondary_phrase") {
@@ -1106,21 +1253,15 @@ function makeSignalReasons(signal, category) {
 }
 
 function makeExecutionLikelihoodReasons(value) {
-  const label = executionLabel(value);
-
-  if (label === "strong_fit") {
+  if (value >= SCORING_WEIGHTS.executionLikelihood.strongFitThreshold) {
     return ["Execution likelihood is strong"];
   }
 
-  if (label === "possible_fit") {
+  if (value >= SCORING_WEIGHTS.executionLikelihood.possibleFitThreshold) {
     return ["Execution likelihood is possible"];
   }
 
-  if (label === "stretch") {
-    return ["Execution likelihood is a stretch"];
-  }
-
-  return ["Execution likelihood is poor"];
+  return ["Execution likelihood needs review"];
 }
 
 function makeTitleMatchReason(signal, label) {

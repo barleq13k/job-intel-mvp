@@ -14,12 +14,12 @@
 - Remotive public API ingestion.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Rule-based scoring with match reasons.
-- Execution likelihood labels.
+- Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
 - Legacy `strongest_skills` compatibility in the API.
 - Experience level input.
 - Dark mode toggle with localStorage persistence.
-- Frontend display threshold of `score >= 25`.
+- Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
 - Ranked job cards with score, fit label, summary, details, salary when available, reasons, and outbound job link.
 
 ## Partially Implemented
@@ -40,6 +40,7 @@
 - Execution likelihood scoring.
 - Complexity and seniority penalties.
 - Broad-role title context ranking.
+- Software/technical role-domain alignment and off-domain drag.
 - Script-oriented profile boosts.
 
 These are implemented heuristics, not AI judgments.
