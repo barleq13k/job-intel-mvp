@@ -77,10 +77,10 @@ assert.deepEqual(results, [
       penalties: 0
     },
     match_reasons: [
-      "Python is the primary title focus",
-      "Strongest skill matched: Python",
-      "Entry-level role matches your preference",
-      "Script-oriented profile favors implementation roles"
+      "Implementation-oriented role signal",
+      "Junior/entry-level workflow detected",
+      "Remote-friendly workflow",
+      "Python role is central to the title"
     ]
   },
   {
@@ -97,10 +97,10 @@ assert.deepEqual(results, [
       penalties: -64
     },
     match_reasons: [
-      "Python appears in a more complex role title",
-      "Strongest skill matched: Python",
       "Seniority may be higher than requested",
-      "Role appears more senior/complex than requested"
+      "Avoid keyword detected: senior",
+      "Remote-friendly workflow",
+      "Core skill matched: Python"
     ]
   },
   {
@@ -116,7 +116,7 @@ assert.deepEqual(results, [
       location_workmode_score: 13,
       penalties: 0
     },
-    match_reasons: ["Location mentions Remote", "Remote work mode aligned"]
+    match_reasons: ["Remote-friendly workflow"]
   },
   {
     title: "Regional Manager",
@@ -132,10 +132,9 @@ assert.deepEqual(results, [
       penalties: -28
     },
     match_reasons: [
-      "Role appears more senior/complex than requested",
-      "Contains avoided keyword: manager",
-      "Location mentions Remote",
-      "Remote work mode aligned"
+      "Seniority or architecture complexity detected",
+      "Avoid keyword detected: manager",
+      "Remote-friendly workflow"
     ]
   }
 ]);
@@ -172,8 +171,8 @@ assert.notEqual(simplePythonScoring.score, seniorPythonScoring.score);
 assert(simplePythonScoring.score > seniorPythonScoring.score);
 assert.equal(simplePythonScoring.components.execution_likelihood_score, 6);
 assert.equal(seniorPythonScoring.components.penalties, -8);
-assert(simplePythonScoring.match_reasons.includes("Description suggests simpler execution tasks"));
-assert(seniorPythonScoring.match_reasons.includes("Description suggests senior/platform complexity"));
+assert(simplePythonScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+assert(seniorPythonScoring.match_reasons.includes("Platform or architecture complexity detected"));
 
 const softwareRemotiveProfile = __test.normalizeProfile({
   target_roles: ["software"],

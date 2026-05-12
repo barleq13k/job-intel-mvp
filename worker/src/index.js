@@ -709,7 +709,7 @@ function evaluateSeniority({ profileText, title }) {
         points: SCORING_WEIGHTS.seniority.matchedEntry,
         preference: "entry",
         status: "matched_entry",
-        reasons: ["Entry-level role matches your preference"]
+        reasons: ["Junior/entry-level workflow detected"]
       });
     }
 
@@ -731,7 +731,7 @@ function evaluateSeniority({ profileText, title }) {
         points: SCORING_WEIGHTS.seniority.matchedSenior,
         preference: "senior",
         status: "matched_senior",
-        reasons: ["Senior role matches your preference"]
+        reasons: ["Senior-level workflow matches your profile"]
       });
     }
 
@@ -770,7 +770,7 @@ function evaluateRoleContext({ profile, title, job }) {
       points: SCORING_WEIGHTS.roleContext.primaryProgrammer,
       status: "primary",
       term: broadRole,
-      reasons: [`${roleTerm} is the primary title focus`]
+      reasons: [`${roleTerm} role is central to the title`]
     });
   }
 
@@ -779,7 +779,7 @@ function evaluateRoleContext({ profile, title, job }) {
       points: SCORING_WEIGHTS.roleContext.primaryDeveloper,
       status: "primary",
       term: broadRole,
-      reasons: [`${roleTerm} is the primary title focus`]
+      reasons: [`${roleTerm} role is central to the title`]
     });
   }
 
@@ -788,7 +788,7 @@ function evaluateRoleContext({ profile, title, job }) {
       points: SCORING_WEIGHTS.roleContext.primary,
       status: "primary",
       term: broadRole,
-      reasons: [`${roleTerm} is the primary title focus`]
+      reasons: [`${roleTerm} role is central to the title`]
     });
   }
 
@@ -797,7 +797,7 @@ function evaluateRoleContext({ profile, title, job }) {
       ...SCORING_WEIGHTS.roleContext.secondaryTechnology,
       status: "secondary_technology",
       term: broadRole,
-      reasons: [`${roleTerm} appears as a secondary technology`]
+      reasons: [`${roleTerm} is a secondary technical specialization`]
     });
   }
 
@@ -806,7 +806,7 @@ function evaluateRoleContext({ profile, title, job }) {
       ...SCORING_WEIGHTS.roleContext.complexSecondary,
       status: "complex_secondary",
       term: broadRole,
-      reasons: [`${roleTerm} appears in a more complex role title`]
+      reasons: [`${roleTerm} appears in a higher-complexity title`]
     });
   }
 
@@ -815,7 +815,7 @@ function evaluateRoleContext({ profile, title, job }) {
       points: SCORING_WEIGHTS.roleContext.mainPhrase,
       status: "main_phrase",
       term: broadRole,
-      reasons: [`${roleTerm} is central to the role title`]
+      reasons: [`${roleTerm} role is central to the title`]
     });
   }
 
@@ -823,7 +823,7 @@ function evaluateRoleContext({ profile, title, job }) {
     ...SCORING_WEIGHTS.roleContext.fallbackSecondary,
     status: "secondary_technology",
     term: broadRole,
-    reasons: [`${roleTerm} appears as a secondary technology`]
+    reasons: [`${roleTerm} is a secondary technical specialization`]
   });
 }
 
@@ -844,11 +844,11 @@ function evaluateRoleDomain({ profile, profileText, title, categoryText }) {
   const reasons = [];
 
   if (technicalMatch) {
-    reasons.push("Role title/category aligns with a software profile");
+    reasons.push(makeRoleDomainReason(text));
   }
 
   if (offDomainMatch && !requestedOffDomain) {
-    reasons.push("Role title/category is outside the requested software focus");
+    reasons.push("Office/admin/sales focus may be outside this software search");
   }
 
   return makeScoringSignal({
@@ -860,6 +860,22 @@ function evaluateRoleDomain({ profile, profileText, title, categoryText }) {
     penalty: offDomainMatch && !requestedOffDomain ? -SCORING_WEIGHTS.roleDomain.offDomainPenalty : 0,
     reasons
   });
+}
+
+function makeRoleDomainReason(text) {
+  if (["ios", "android", "mobile", "swift", "kotlin"].some((term) => containsPhrase(text, term))) {
+    return "Mobile platform specialization may require additional skills";
+  }
+
+  if (["support", "operations", "assistant"].some((term) => containsPhrase(text, term))) {
+    return "Technical support/operations overlap detected";
+  }
+
+  if (["frontend", "front end", "react", "javascript", "typescript"].some((term) => containsPhrase(text, term))) {
+    return "Frontend-oriented technical role";
+  }
+
+  return "Software/technical role alignment";
 }
 
 function titleContainsParentheticalTerm(rawTitle, term) {
@@ -891,7 +907,7 @@ function evaluateComplexity({ profileText, title }) {
     status: "more_complex",
     penalty: -Math.min(SCORING_WEIGHTS.complexity.cap, penalty),
     terms: unrequestedTerms,
-    reasons: ["Role appears more senior/complex than requested"]
+    reasons: ["Seniority or architecture complexity detected"]
   });
 }
 
@@ -905,7 +921,7 @@ function evaluateAvoidKeywords({ profile, title, summaryText }) {
   return makeScoringSignal({
     matches,
     penalty: -Math.min(SCORING_WEIGHTS.avoidKeywords.cap, matches.length * SCORING_WEIGHTS.avoidKeywords.penaltyPerMatch),
-    reasons: matches.map((keyword) => `Contains avoided keyword: ${keyword}`)
+    reasons: matches.map((keyword) => `Avoid keyword detected: ${keyword}`)
   });
 }
 
@@ -923,11 +939,11 @@ function evaluateTaskFitTieBreaker({ summaryText }) {
   const reasons = [];
 
   if (points > 0) {
-    reasons.push("Description suggests simpler execution tasks");
+    reasons.push(makeTaskFitReason(simpleMatches));
   }
 
   if (penalty < 0) {
-    reasons.push("Description suggests senior/platform complexity");
+    reasons.push("Platform or architecture complexity detected");
   }
 
   return makeScoringSignal({
@@ -937,6 +953,14 @@ function evaluateTaskFitTieBreaker({ summaryText }) {
     complexityMatches,
     reasons
   });
+}
+
+function makeTaskFitReason(simpleMatches) {
+  if (simpleMatches.some((term) => ["script", "automation", "scraper", "testing"].includes(term))) {
+    return "Automation-oriented responsibilities detected";
+  }
+
+  return "Lower-complexity implementation work";
 }
 
 function evaluateExecutionLikelihood({ profile, title, searchableText, strongestSkillSignal, complexitySignal, avoidSignal }) {
@@ -1051,7 +1075,7 @@ function evaluateScriptIntent({ profile, title }) {
     status: isImplementationRole ? "implementation_favored" : "neutral",
     points: implementationPoints,
     penalty: isComplexRole ? SCORING_WEIGHTS.scriptIntent.complexPenalty : 0,
-    reasons: isImplementationRole ? ["Script-oriented profile favors implementation roles"] : []
+    reasons: isImplementationRole ? ["Implementation-oriented role signal"] : []
   });
 }
 
@@ -1097,12 +1121,12 @@ function evaluateLocationWorkMode({ profile, location, searchableText }) {
   const penalty = workModeMatch === "conflict" ? SCORING_WEIGHTS.locationWorkMode.conflictPenalty : 0;
   const reasons = [];
 
-  if (locationMatch) {
-    reasons.push(`Location mentions ${profile.location}`);
+  if (workModeMatch === "matched") {
+    reasons.push(makeWorkModeReason(profile.work_mode));
   }
 
-  if (workModeMatch === "matched") {
-    reasons.push(`${capitalize(profile.work_mode)} work mode aligned`);
+  if (locationMatch) {
+    reasons.push("Location preference matched");
   }
 
   return makeScoringSignal({
@@ -1138,6 +1162,22 @@ function getWorkModeMatch(workMode, haystack) {
   return "unknown";
 }
 
+function makeWorkModeReason(workMode) {
+  if (workMode === "remote") {
+    return "Remote-friendly workflow";
+  }
+
+  if (workMode === "hybrid") {
+    return "Hybrid work mode aligned";
+  }
+
+  if (workMode === "onsite") {
+    return "Onsite work mode aligned";
+  }
+
+  return "Work mode aligned";
+}
+
 function buildMatchReasons({
   roleSignal,
   skillSignal,
@@ -1153,22 +1193,28 @@ function buildMatchReasons({
   taskFitTieBreakerSignal,
   locationWorkModeSignal
 }) {
-  const reasons = [];
+  const highPriorityReasons = [];
+  const supportingReasons = [];
   const roleReasons = roleContextSignal.reasons.length ? roleContextSignal.reasons : roleSignal.reasons;
 
-  reasons.push(
+  highPriorityReasons.push(
+    ...taskFitTieBreakerSignal.reasons,
+    ...scriptIntentSignal.reasons,
+    ...roleDomainSignal.reasons,
+    ...senioritySignal.reasons,
+    ...complexitySignal.reasons,
+    ...avoidSignal.reasons,
+    ...locationWorkModeSignal.reasons
+  );
+
+  supportingReasons.push(
     ...roleReasons,
     ...skillSignal.reasons,
     ...strongestSkillSignal.reasons,
-    ...senioritySignal.reasons,
-    ...roleDomainSignal.reasons,
-    ...complexitySignal.reasons,
-    ...avoidSignal.reasons,
-    ...scriptIntentSignal.reasons,
-    ...taskFitTieBreakerSignal.reasons,
-    ...locationWorkModeSignal.reasons,
     ...keywordSignal.reasons
   );
+
+  const reasons = [...highPriorityReasons, ...supportingReasons];
 
   if (reasons.length === 0) {
     if (roleSignal.weakMatches || skillSignal.weakMatches || keywordSignal.weakMatches) {
@@ -1178,7 +1224,7 @@ function buildMatchReasons({
     }
   }
 
-  return uniqueReasons(reasons).slice(0, SCORING_WEIGHTS.maxReasons);
+  return uniqueReasonsByMeaning(reasons).slice(0, SCORING_WEIGHTS.maxReasons);
 }
 
 function makeScoringSignal({ points = 0, penalty = 0, reasons = [], ...details } = {}) {
@@ -1197,19 +1243,19 @@ function makeSignalReasons(signal, category) {
     }
 
     if (signal.bestStrength === "title_token") {
-      return [`${displayTerm(signal.matchedQueries[0]?.query || "Role")} appears in the job title`];
+      return ["Role title overlaps with your target"];
     }
 
     if (signal.bestStrength === "category_phrase") {
-      return ["Target role phrase appears in the job category"];
+      return ["Job category overlaps with your target role"];
     }
 
     if (signal.bestStrength === "secondary_phrase") {
-      return ["Target role phrase appears in job details"];
+      return ["Role appears as a supporting detail"];
     }
 
     if (signal.bestStrength === "near_words") {
-      return ["Target role words appear close together"];
+      return ["Related role terms appear together"];
     }
 
     return [];
@@ -1221,11 +1267,11 @@ function makeSignalReasons(signal, category) {
     }
 
     if (signal.bestStrength === "title_token") {
-      return [`${displayTerm(signal.matchedQueries[0]?.query || "Skill")} appears in the job title`];
+      return ["Skill is visible in the role title"];
     }
 
     if (signal.bestStrength === "near_words") {
-      return ["Relevant skill words appear close together"];
+      return ["Related skill terms appear together"];
     }
 
     return [];
@@ -1233,7 +1279,7 @@ function makeSignalReasons(signal, category) {
 
   if (category === "strongest_skill") {
     return signal.bestStrength !== "none"
-      ? [`Strongest skill matched: ${displayTerm(signal.matchedQueries[0]?.query || "skill")}`]
+      ? [`Core skill matched: ${displayTerm(signal.matchedQueries[0]?.query || "skill")}`]
       : [];
   }
 
@@ -1242,11 +1288,11 @@ function makeSignalReasons(signal, category) {
   }
 
   if (signal.bestStrength === "title_token") {
-    return [`${displayTerm(signal.matchedQueries[0]?.query || "Keyword")} appears in the job title`];
+    return ["Keyword is visible in the role title"];
   }
 
   if (signal.bestStrength === "near_words") {
-    return ["Keyword words appear close together"];
+    return ["Related keyword terms appear together"];
   }
 
   return [];
@@ -1268,10 +1314,10 @@ function makeTitleMatchReason(signal, label) {
   const query = signal.matchedQueries[0]?.query || label;
 
   if (normalizeSearchText(query).split(" ").length === 1) {
-    return `${displayTerm(query)} appears in the job title`;
+    return `${displayTerm(query)} role is central to the title`;
   }
 
-  return `Exact ${label} phrase in title`;
+  return `Direct ${label} match in title`;
 }
 
 function makePhraseReason(signal, label) {
@@ -1280,10 +1326,12 @@ function makePhraseReason(signal, label) {
   const place = match?.strength === "secondary_phrase" ? "job details" : "job title";
 
   if (normalizeSearchText(query).split(" ").length === 1) {
-    return `${displayTerm(query)} appears in the ${place}`;
+    return place === "job details"
+      ? `${displayTerm(query)} appears in supporting details`
+      : `${displayTerm(query)} is visible in the role title`;
   }
 
-  return `Exact ${label} phrase match`;
+  return `Direct ${label} phrase match`;
 }
 
 function makeSummary(job, scoring) {
@@ -1367,6 +1415,52 @@ function roundComponents(components) {
 
 function uniqueReasons(reasons) {
   return [...new Set(reasons)];
+}
+
+function uniqueReasonsByMeaning(reasons) {
+  const seen = new Set();
+  const result = [];
+
+  for (const reason of reasons) {
+    const key = reasonMeaningKey(reason);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(reason);
+    }
+  }
+
+  return result;
+}
+
+function reasonMeaningKey(reason) {
+  const normalized = normalizeSearchText(reason);
+
+  if (normalized.includes("remote") || normalized.includes("location") || normalized.includes("work mode")) {
+    return "work_location";
+  }
+
+  if (normalized.includes("automation") || normalized.includes("implementation") || normalized.includes("lower complexity")) {
+    return "execution_fit";
+  }
+
+  if (normalized.includes("technical") || normalized.includes("software") || normalized.includes("frontend") || normalized.includes("mobile")) {
+    return "technical_alignment";
+  }
+
+  if (normalized.includes("seniority") || normalized.includes("architecture") || normalized.includes("complexity")) {
+    return "complexity_gap";
+  }
+
+  if (normalized.includes("avoid keyword")) {
+    return "avoid_keyword";
+  }
+
+  if (normalized.includes("keyword")) {
+    return "keyword";
+  }
+
+  return normalized;
 }
 
 function capitalize(value) {

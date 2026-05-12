@@ -156,6 +156,7 @@ function App() {
             value={form.target_roles}
             onChange={updateField}
             placeholder="QA Tester, Python Automation"
+            helper="Examples: Python Automation, QA Tester, Frontend Developer"
           />
           <Field
             label="Skills"
@@ -163,6 +164,7 @@ function App() {
             value={form.skills}
             onChange={updateField}
             placeholder="java script, css, node js"
+            helper="Examples: javascript, node.js, react, css"
           />
           <Field
             label="Keywords"
@@ -170,6 +172,7 @@ function App() {
             value={form.keywords}
             onChange={updateField}
             placeholder="remote, entry level"
+            helper="Examples: entry, junior, support, automation"
           />
           <Field
             label="Avoid keywords"
@@ -177,6 +180,7 @@ function App() {
             value={form.avoid_keywords}
             onChange={updateField}
             placeholder="senior, manager"
+            helper="Examples: senior, lead, architect"
           />
           <Field label="Location" name="location" value={form.location} onChange={updateField} placeholder="Philippines" />
 
@@ -258,7 +262,7 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                Recommended matches are shown first. Lower-confidence opportunities stay available under Explore More.
+                These are the clearest matches from the current profile. Explore More keeps adjacent and lower-confidence roles available for review.
               </div>
               {visibleJobs.length > 0 ? (
                 <>
@@ -272,7 +276,7 @@ function App() {
               ) : (
                 <EmptyState
                   title="No recommended matches"
-                  message="The selected source returned lower-confidence opportunities for this profile."
+                  message="Explore More is open below. Try broadening target roles, trimming avoid keywords, or using simpler skill terms if the list feels too narrow."
                 />
               )}
 
@@ -282,7 +286,7 @@ function App() {
                     <div>
                       <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Explore More</h3>
                       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Stretch roles and weaker matches that may still be worth a look.
+                        Adjacent, stretch, and lower-confidence roles that may still be useful to inspect.
                       </p>
                     </div>
                     {visibleJobs.length > 0 && (
@@ -315,7 +319,7 @@ function App() {
   );
 }
 
-function Field({ label, name, value, onChange, placeholder }) {
+function Field({ label, name, value, onChange, placeholder, helper }) {
   return (
     <label className="mb-4 block">
       <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
@@ -326,6 +330,7 @@ function Field({ label, name, value, onChange, placeholder }) {
         placeholder={placeholder}
         className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
       />
+      {helper && <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{helper}</span>}
     </label>
   );
 }
