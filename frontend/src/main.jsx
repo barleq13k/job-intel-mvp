@@ -21,9 +21,16 @@ const SOURCE_LABELS = {
   himalayas: "Himalayas"
 };
 const REASON_CHIP_CLASSES = {
-  positive: "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  caution: "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  negative: "rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-200"
+  positive: "max-w-full rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium leading-5 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  caution: "max-w-full rounded-full bg-amber-50 px-3 py-1 text-xs font-medium leading-5 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  negative: "max-w-full rounded-full bg-red-50 px-3 py-1 text-xs font-medium leading-5 text-red-800 dark:bg-red-950 dark:text-red-200"
+};
+const DECISION_BADGE_CLASSES = {
+  apply: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+  review: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
+  restricted: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
+  stretch: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  low: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
 };
 const JOB_STATUSES = [
   { value: "new", label: "New" },
@@ -349,11 +356,16 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                {sourceInfo?.message || "These are the clearest matches from the current profile. Explore More keeps adjacent and lower-confidence roles available for review."}
+                {sourceInfo?.message || "Recommended is for first-pass decisions. Explore More keeps useful leads, stretches, and low-confidence roles available."}
               </div>
               {filteredVisibleJobs.length > 0 ? (
                 <>
-                  <h3 className="mb-3 text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Recommended Matches</h3>
+                  <div className="mb-3">
+                    <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Recommended - apply or inspect first</h3>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Stronger role alignment. Check red chips before applying.
+                    </p>
+                  </div>
                   <div className="grid gap-4">
                     {filteredVisibleJobs.map((job) => (
                       <JobCard
@@ -373,7 +385,7 @@ function App() {
                       ? sourceInfo?.message || "The selected source returned no usable jobs for this profile."
                       : statusFilter !== "all"
                         ? `No recommended matches with ${getStatusLabel(statusFilter)} status. Try another status filter or Explore More.`
-                      : "Explore More is open below. Try broadening target roles, trimming avoid keywords, or using simpler skill terms if the list feels too narrow."
+                      : "Explore More is open below with adjacent, restricted, and lower-confidence leads."
                   }
                 />
               )}
@@ -382,9 +394,9 @@ function App() {
                 <section className="mt-6">
                   <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Explore More</h3>
+                      <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Explore More - inspect later</h3>
                       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Adjacent, stretch, and lower-confidence roles that may still be useful to inspect.
+                        Adjacent, stretch, restricted, or weak leads. Useful for review, not the first pass.
                       </p>
                     </div>
                     {filteredVisibleJobs.length > 0 && (
@@ -466,14 +478,27 @@ function LoadingState() {
 }
 
 function JobCard({ job, variant = "recommended", status = "new", onStatusChange }) {
+  const decision = getDecisionSummary(job, variant);
   const scoreColor =
-    variant === "lower" ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300";
+    decision.tone === "restricted"
+      ? "text-red-700 dark:text-red-300"
+      : decision.tone === "stretch"
+        ? "text-amber-700 dark:text-amber-300"
+        : variant === "lower"
+          ? "text-slate-600 dark:text-slate-300"
+          : "text-emerald-700 dark:text-emerald-300";
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <article className={`rounded-lg border bg-white p-5 shadow-sm dark:bg-slate-900 ${getCardBorderClass(decision.tone)}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-slate-950 dark:text-white">{job.title}</h3>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${DECISION_BADGE_CLASSES[decision.tone]}`}>
+              {decision.label}
+            </span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{decision.helper}</span>
+          </div>
+          <h3 className="text-xl font-semibold leading-7 text-slate-950 dark:text-white">{job.title}</h3>
           <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">{job.company}</p>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">
@@ -484,7 +509,7 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
             {job.salary && <span>{job.salary}</span>}
           </div>
         </div>
-        <div className="flex min-w-20 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+        <div className={`flex min-w-24 items-center justify-center rounded-lg border px-4 py-3 ${getScorePanelClass(decision.tone)}`}>
           <div className="text-center">
             <div className={`text-2xl font-bold ${scoreColor}`}>{job.scoring.score}</div>
             <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Score</div>
@@ -497,12 +522,15 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
 
       <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">{job.summary}</p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Why shown</div>
+        <div className="flex flex-wrap gap-2">
         {job.scoring.match_reasons.map((reason) => (
           <span key={reason} className={getReasonChipClass(reason)}>
             {reason}
           </span>
         ))}
+        </div>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -678,6 +706,70 @@ function getStatusButtonClass(currentStatus, buttonStatus) {
   }
 
   return `${baseClass} border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950`;
+}
+
+function getDecisionSummary(job, variant) {
+  const hasNegative = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "negative");
+  const hasCaution = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "caution");
+  const fit = job.scoring.execution_likelihood;
+
+  if (hasNegative) {
+    return {
+      tone: "restricted",
+      label: "Check eligibility",
+      helper: "Relevant signals may be blocked"
+    };
+  }
+
+  if (fit === "strong_fit" || fit === "possible_fit") {
+    return {
+      tone: "apply",
+      label: "Apply first",
+      helper: hasCaution ? "Good fit with caveats" : "Best aligned"
+    };
+  }
+
+  if (fit === "adjacent") {
+    return {
+      tone: "review",
+      label: "Inspect later",
+      helper: "Related but not exact"
+    };
+  }
+
+  if (fit === "stretch") {
+    return {
+      tone: "stretch",
+      label: "Stretch",
+      helper: "Potential gap to review"
+    };
+  }
+
+  return {
+    tone: variant === "lower" ? "low" : "review",
+    label: variant === "lower" ? "Low priority" : "Manual review",
+    helper: "Weak or noisy match"
+  };
+}
+
+function getCardBorderClass(tone) {
+  return {
+    apply: "border-slate-200 dark:border-slate-800",
+    review: "border-slate-200 dark:border-slate-800",
+    restricted: "border-red-200 dark:border-red-900",
+    stretch: "border-amber-200 dark:border-amber-900",
+    low: "border-slate-200 opacity-95 dark:border-slate-800"
+  }[tone] || "border-slate-200 dark:border-slate-800";
+}
+
+function getScorePanelClass(tone) {
+  return {
+    apply: "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950",
+    review: "border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950",
+    restricted: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950",
+    stretch: "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950",
+    low: "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950"
+  }[tone] || "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950";
 }
 
 function getReasonChipClass(reason) {
