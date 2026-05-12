@@ -50,8 +50,12 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    if (url.pathname === "/api/jobs/search" && request.method === "POST") {
-      return handleJobSearch(request);
+    if (url.pathname === "/api/jobs/search") {
+      if (request.method === "POST") {
+        return handleJobSearch(request);
+      }
+
+      return json({ error: "Method not allowed. Use POST." }, 405);
     }
 
     return json({ error: "Not found" }, 404);

@@ -4,6 +4,7 @@ import { ArrowUpRight, BriefcaseBusiness, Loader2, MapPin, Moon, Search, Sparkle
 import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 const initialForm = {
   target_roles: "",
@@ -72,16 +73,16 @@ function App() {
     };
 
     try {
-      const response = await fetch("/api/jobs/search", {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || "Search failed. Please try again.");
+        throw new Error(data.error || `Search failed with status ${response.status}.`);
       }
 
       setJobs(data.jobs || []);
