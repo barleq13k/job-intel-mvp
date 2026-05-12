@@ -44,8 +44,11 @@ User profile form
 Implemented sources:
 - `realpython_fake_jobs`: scrapes static HTML from Real Python Fake Jobs.
 - `remotive`: fetches jobs from Remotive's public jobs API.
+- `himalayas`: fetches jobs from Himalayas' public remote jobs search API.
 
 There is no source registry, plugin system, crawler system, browser automation, or background ingestion. Source selection is a simple conditional branch in the Worker.
+
+Real sources use one request per search and share timeout, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas outbound links are preserved from source/application URLs for attribution and user navigation.
 
 ## Scoring Pipeline
 
@@ -78,6 +81,7 @@ Deployment is not fully automated in this repo yet.
 - No Groq/AI reranking yet.
 - No embeddings or vector search.
 - Remotive descriptions can be noisy HTML converted to text.
+- Himalayas descriptions can be rich HTML converted to text.
 - Real Python jobs are fake/static and have limited details.
 - Scoring is transparent but heuristic.
 - Salary is shown only when a source provides it.

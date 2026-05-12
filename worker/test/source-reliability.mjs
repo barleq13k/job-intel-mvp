@@ -20,8 +20,24 @@ const validRemotiveJob = {
   description: "<p>Build Python automation scripts for a remote product team.</p>",
   category: "Software Development"
 };
+const validHimalayasJob = {
+  guid: "himalayas-python-42",
+  title: "Junior Python Automation Engineer",
+  companyName: "Remote Tools Co",
+  employmentType: "Full Time",
+  minSalary: 70000,
+  maxSalary: 90000,
+  currency: "USD",
+  locationRestrictions: [{ name: "Philippines", alpha2: "PH", slug: "philippines" }],
+  timezoneRestrictions: [],
+  categories: ["Engineering", "Quality Assurance"],
+  excerpt: "Build test automation for remote software teams.",
+  description: "<p>Write Python scripts, QA checks, and workflow automation.</p>",
+  applicationLink: "https://himalayas.app/companies/remote-tools/jobs/junior-python-automation-engineer?utm_campaign=feed#apply"
+};
 
 const normalized = __test.normalizeRemotiveJob(validRemotiveJob);
+const normalizedHimalayas = __test.normalizeHimalayasJob(validHimalayasJob);
 
 assert.equal(normalized.title, "Python Developer");
 assert.equal(normalized.company, "Example Co");
@@ -32,6 +48,18 @@ assert.equal(__test.normalizeRemotiveJob(null), null);
 assert.equal(__test.normalizeRemotiveJob({ ...validRemotiveJob, title: undefined }), null);
 assert.equal(__test.normalizeRemotiveJob({ ...validRemotiveJob, company_name: null }), null);
 assert.equal(__test.normalizeRemotiveJob({ ...validRemotiveJob, url: "mailto:jobs@example.com" }).url, null);
+assert.equal(normalizedHimalayas.title, "Junior Python Automation Engineer");
+assert.equal(normalizedHimalayas.company, "Remote Tools Co");
+assert.equal(normalizedHimalayas.source_job_id, "himalayas-python-42");
+assert.equal(normalizedHimalayas.location, "Philippines");
+assert.equal(normalizedHimalayas.employment_type, "Full Time");
+assert.equal(normalizedHimalayas.salary, "USD 70,000 - 90,000");
+assert.equal(normalizedHimalayas.category, "Engineering, Quality Assurance");
+assert.equal(normalizedHimalayas.description, "Build test automation for remote software teams. Write Python scripts, QA checks, and workflow automation.");
+assert.equal(__test.normalizeHimalayasJob(null), null);
+assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, title: undefined }), null);
+assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, companyName: null }), null);
+assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, applicationLink: "mailto:jobs@example.com" }).url, null);
 
 assert.equal(
   __test.dedupeJobs([
@@ -48,9 +76,25 @@ assert.equal(
   ]).length,
   1
 );
+assert.equal(
+  __test.dedupeJobs([
+    normalizedHimalayas,
+    { ...normalizedHimalayas, title: "Different title from duplicate Himalayas guid" }
+  ]).length,
+  1
+);
+assert.equal(
+  __test.dedupeJobs([
+    { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42?utm_source=a#apply" },
+    { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42" }
+  ]).length,
+  1
+);
 
 const formatted = __test.formatJob(normalized, profile, "2026-05-12T12:00:00.000Z");
+const formattedHimalayas = __test.formatJob(normalizedHimalayas, profile, "2026-05-12T12:00:00.000Z");
 assert.equal(__test.makeStableJobId(formatted), "remotive_42");
+assert.equal(__test.makeStableJobId(formattedHimalayas), "himalayas_himalayas_python_42");
 
 const originalFetch = globalThis.fetch;
 
@@ -93,6 +137,32 @@ try {
       headers: { "Content-Type": "application/json" }
     });
   await assert.rejects(() => __test.fetchRemotiveJobs(profile), /unexpected response shape/);
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({
+      jobs: [
+        validHimalayasJob,
+        null,
+        { ...validHimalayasJob, guid: "himalayas-python-43", title: "" },
+        { ...validHimalayasJob, guid: "himalayas-python-44", companyName: undefined }
+      ]
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+
+  const himalayasResult = await __test.fetchHimalayasJobs(profile);
+  assert.equal(himalayasResult.jobs.length, 1);
+  assert.equal(himalayasResult.droppedCount, 3);
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ jobs: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+
+  const emptyHimalayasResult = await __test.fetchHimalayasJobs(profile);
+  assert.deepEqual(emptyHimalayasResult, { jobs: [], droppedCount: 0 });
 
   globalThis.fetch = async (_url, options = {}) =>
     new Promise((_resolve, reject) => {

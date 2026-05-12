@@ -7,12 +7,15 @@
 - Source selector with:
   - Real Python Fake Jobs
   - Remotive
+  - Himalayas
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - `POST /api/jobs/search` Worker endpoint.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
+- Himalayas public API ingestion.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
+- Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
 - Rule-based scoring with match reasons.
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
@@ -30,6 +33,7 @@
   - No production deployment automation yet.
 - Job details:
   - Remotive descriptions produce 2-4 simple bullets.
+  - Himalayas descriptions produce 2-4 simple bullets.
   - Real Python has limited detail, so bullets fall back to basic metadata.
 - Compensation:
   - Displayed when source data includes salary/hourly/budget text.

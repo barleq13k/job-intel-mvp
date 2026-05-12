@@ -1,7 +1,9 @@
 const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
+const HIMALAYAS_URL = "https://himalayas.app/jobs/api/search";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
+const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const MIN_STRETCH_SCORE = 25;
 const GENERIC_TOKENS = new Set([
@@ -234,17 +236,15 @@ async function handleJobSearch(request) {
   const profile = normalizeProfile(body.profile);
   const sourceType = body.source?.type;
 
-  if (!["realpython_fake_jobs", "remotive"].includes(sourceType)) {
-    return json({ error: "Unsupported source. Use realpython_fake_jobs or remotive." }, 400);
+  if (!["realpython_fake_jobs", "remotive", "himalayas"].includes(sourceType)) {
+    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, or himalayas." }, 400);
   }
 
   let sourceResult;
-  const sourceName = sourceType === "remotive" ? REMOTIVE_SOURCE_NAME : SOURCE_NAME;
+  const sourceName = getSourceName(sourceType);
 
   try {
-    sourceResult = sourceType === "remotive"
-      ? await fetchRemotiveJobs(profile)
-      : makeSourceResult(await fetchRealPythonJobs());
+    sourceResult = await fetchJobsForSource(sourceType, profile);
   } catch (error) {
     const sourceError = normalizeSourceError(error, sourceType, sourceName);
     return json({
@@ -273,6 +273,26 @@ async function handleJobSearch(request) {
       dropped_count: sourceResult.droppedCount
     }
   });
+}
+
+async function fetchJobsForSource(sourceType, profile) {
+  if (sourceType === "remotive") {
+    return fetchRemotiveJobs(profile);
+  }
+
+  if (sourceType === "himalayas") {
+    return fetchHimalayasJobs(profile);
+  }
+
+  return makeSourceResult(await fetchRealPythonJobs());
+}
+
+function getSourceName(sourceType) {
+  return {
+    remotive: REMOTIVE_SOURCE_NAME,
+    himalayas: HIMALAYAS_SOURCE_NAME,
+    realpython_fake_jobs: SOURCE_NAME
+  }[sourceType] || SOURCE_NAME;
 }
 
 function makeSourceResult(jobs, droppedCount = 0) {
@@ -478,6 +498,147 @@ function normalizeRemotiveJob(job) {
   };
 }
 
+async function fetchHimalayasJobs(profile) {
+  const url = new URL(HIMALAYAS_URL);
+  const search = buildHimalayasSearch(profile);
+
+  url.searchParams.set("sort", "recent");
+  url.searchParams.set("page", "1");
+
+  if (search) {
+    url.searchParams.set("q", search);
+  }
+
+  let response;
+
+  try {
+    response = await fetchWithTimeout(url.toString(), {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "job-intel-mvp/0.1"
+      }
+    }, REMOTIVE_TIMEOUT_MS);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw makeSourceError(`Himalayas request timed out after ${REMOTIVE_TIMEOUT_MS}ms.`, "timeout");
+    }
+
+    throw makeSourceError("Himalayas request failed before a response was received.", "network_error");
+  }
+
+  if (!response.ok) {
+    throw makeSourceError(`Himalayas fetch failed with status ${response.status}.`, "http_error");
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw makeSourceError("Himalayas returned invalid JSON.", "invalid_json");
+  }
+
+  if (!data || typeof data !== "object" || !Array.isArray(data.jobs)) {
+    throw makeSourceError("Himalayas returned an unexpected response shape.", "invalid_shape");
+  }
+
+  let droppedCount = 0;
+  const jobs = [];
+
+  for (const job of data.jobs) {
+    const normalizedJob = normalizeHimalayasJob(job);
+
+    if (normalizedJob) {
+      jobs.push(normalizedJob);
+    } else {
+      droppedCount += 1;
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount);
+}
+
+function normalizeHimalayasJob(job) {
+  if (!job || typeof job !== "object") {
+    return null;
+  }
+
+  const title = cleanOptionalText(job.title);
+  const company = cleanOptionalText(job.companyName);
+
+  if (!title || !company) {
+    return null;
+  }
+
+  const location = formatHimalayasLocation(job.locationRestrictions, job.timezoneRestrictions || job.timezoneRestriction);
+
+  return {
+    title,
+    company,
+    location: location || "Remote",
+    source: HIMALAYAS_SOURCE_NAME,
+    source_job_id: cleanSourceId(job.guid),
+    url: normalizeUrlFromBase(job.applicationLink, HIMALAYAS_URL),
+    employment_type: cleanOptionalText(job.employmentType) || null,
+    salary: normalizeHimalayasCompensation(job),
+    description: cleanHtml(`${cleanOptionalText(job.excerpt)} ${cleanOptionalText(job.description)}`),
+    category: normalizeHimalayasCategory(job)
+  };
+}
+
+function buildHimalayasSearch(profile) {
+  return buildRemotiveSearch(profile);
+}
+
+function formatHimalayasLocation(locationRestrictions, timezoneRestrictions) {
+  if (Array.isArray(locationRestrictions) && locationRestrictions.length) {
+    return locationRestrictions
+      .map((location) => cleanOptionalText(location?.name || location?.slug || location?.alpha2 || location))
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (Array.isArray(timezoneRestrictions) && timezoneRestrictions.length) {
+    const timezones = timezoneRestrictions.map(cleanOptionalText).filter(Boolean);
+
+    if (timezones.length) {
+      return `Remote (${timezones.join(", ")})`;
+    }
+  }
+
+  return "Remote";
+}
+
+function normalizeHimalayasCategory(job) {
+  const categories = Array.isArray(job.categories) ? job.categories : job.category;
+  const categoryList = Array.isArray(categories) ? categories : [];
+  return categoryList.map(cleanOptionalText).filter(Boolean).join(", ");
+}
+
+function normalizeHimalayasCompensation(job) {
+  const minSalary = Number(job.minSalary);
+  const maxSalary = Number(job.maxSalary);
+  const currency = cleanOptionalText(job.currency);
+  const hasMin = Number.isFinite(minSalary) && minSalary > 0;
+  const hasMax = Number.isFinite(maxSalary) && maxSalary > 0;
+
+  if (!hasMin && !hasMax) {
+    return null;
+  }
+
+  const prefix = currency ? `${currency} ` : "";
+
+  if (hasMin && hasMax) {
+    return `${prefix}${formatSalaryAmount(minSalary)} - ${formatSalaryAmount(maxSalary)}`;
+  }
+
+  return hasMin ? `${prefix}${formatSalaryAmount(minSalary)}+` : `Up to ${prefix}${formatSalaryAmount(maxSalary)}`;
+}
+
+function formatSalaryAmount(value) {
+  return Math.round(value).toLocaleString("en-US");
+}
+
 function buildRemotiveSearch(profile) {
   const terms = [...profile.target_roles, ...profile.strongest_skills, ...profile.skills, ...profile.keywords]
     .map(cleanText)
@@ -623,14 +784,14 @@ function formatJob(job, profile, ingestedAt) {
     details: makeDetails(job),
     metadata: {
       ingested_at: ingestedAt,
-      source_type: job.source === REMOTIVE_SOURCE_NAME ? "api" : "scraper",
+      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
       source_job_id: cleanSourceId(job.source_job_id) || null
     }
   };
 }
 
 function makeStableJobId(job) {
-  const sourceType = job.metadata.source_type === "api" ? "remotive" : "realpython_fake_jobs";
+  const sourceType = getStableSourceKey(job);
   const sourceJobId = cleanSourceId(job.metadata.source_job_id);
 
   if (sourceJobId) {
@@ -642,6 +803,18 @@ function makeStableJobId(job) {
     job.normalized.company,
     canonicalizeUrlForCompare(job.url)
   ].join("|"))}`;
+}
+
+function getStableSourceKey(job) {
+  if (job.source === REMOTIVE_SOURCE_NAME) {
+    return "remotive";
+  }
+
+  if (job.source === HIMALAYAS_SOURCE_NAME) {
+    return "himalayas";
+  }
+
+  return "realpython_fake_jobs";
 }
 
 function slugForId(value) {
@@ -1679,10 +1852,12 @@ export const __test = Object.freeze({
   SCORING_WEIGHTS,
   buildScoringContext,
   dedupeJobs,
+  fetchHimalayasJobs,
   fetchRemotiveJobs,
   fetchWithTimeout,
   formatJob,
   makeStableJobId,
+  normalizeHimalayasJob,
   normalizeRemotiveJob,
   normalizeProfile,
   scoreJob

@@ -12,6 +12,11 @@ const TECH_ALIASES = {
   "react js": "react",
   "type script": "typescript"
 };
+const SOURCE_LABELS = {
+  realpython_fake_jobs: "Real Python Fake Jobs",
+  remotive: "Remotive",
+  himalayas: "Himalayas"
+};
 
 const initialForm = {
   target_roles: "",
@@ -49,7 +54,7 @@ function App() {
 
   const visibleJobs = useMemo(() => jobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE), [jobs]);
   const lowerMatchJobs = useMemo(() => jobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE), [jobs]);
-  const sourceLabel = form.source_type === "remotive" ? "Remotive" : "Real Python Fake Jobs";
+  const sourceLabel = SOURCE_LABELS[form.source_type] || SOURCE_LABELS.realpython_fake_jobs;
   const isExploreMoreOpen = showExploreMore || visibleJobs.length === 0;
   const resultSummary =
     status === "success"
@@ -234,6 +239,7 @@ function App() {
             >
               <option value="realpython_fake_jobs">Real Python Fake Jobs</option>
               <option value="remotive">Remotive</option>
+              <option value="himalayas">Himalayas</option>
             </select>
           </label>
 
