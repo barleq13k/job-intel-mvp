@@ -69,7 +69,7 @@ assert.deepEqual(results, [
     execution_likelihood: "strong_fit",
     components: {
       role_match_score: 49,
-      skill_match_score: 22,
+      skill_match_score: 14,
       keyword_match_score: 16,
       seniority_match_score: 18,
       execution_likelihood_score: 13,
@@ -77,10 +77,10 @@ assert.deepEqual(results, [
       penalties: 0
     },
     match_reasons: [
-      "Implementation-oriented role signal",
       "Junior/entry-level workflow detected",
       "Remote-friendly workflow",
-      "Python role is central to the title"
+      "Python role is central to the title",
+      "Core skill matched: Python"
     ]
   },
   {
@@ -94,7 +94,7 @@ assert.deepEqual(results, [
       seniority_match_score: 0,
       execution_likelihood_score: -17,
       location_workmode_score: 13,
-      penalties: -64
+      penalties: -59
     },
     match_reasons: [
       "Seniority may be higher than requested",
@@ -239,6 +239,170 @@ assert.equal(iosScoring.execution_likelihood, "stretch");
 assert.equal(seniorIosScoring.execution_likelihood, "lower_match");
 assert(seniorIosScoring.score < iosScoring.score);
 
+const philippinesLocationProfile = __test.normalizeProfile({
+  target_roles: ["QA Automation"],
+  skills: ["Python", "testing"],
+  keywords: ["remote"],
+  location: "Philippines",
+  work_mode: "remote",
+  experience_level: "any"
+});
+const baseLocationJob = {
+  title: "QA Automation Specialist",
+  company: "Location Test Co",
+  source: "Himalayas",
+  description: "Remote testing automation role using Python scripts and QA workflows.",
+  category: "Quality Assurance"
+};
+const philippinesLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Philippines" },
+  philippinesLocationProfile
+);
+const remoteLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Remote" },
+  philippinesLocationProfile
+);
+const worldwideLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Worldwide" },
+  philippinesLocationProfile
+);
+const globalLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Global" },
+  philippinesLocationProfile
+);
+const apacLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "APAC" },
+  philippinesLocationProfile
+);
+const unitedStatesLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "United States" },
+  philippinesLocationProfile
+);
+const irelandLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Ireland" },
+  philippinesLocationProfile
+);
+const canadaLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Canada" },
+  philippinesLocationProfile
+);
+const brazilLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Brazil only" },
+  philippinesLocationProfile
+);
+const pakistanLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Pakistan only" },
+  philippinesLocationProfile
+);
+const usOnlyRemoteScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role. United States only. Applicants must be authorized to work in the US."
+  },
+  philippinesLocationProfile
+);
+const blankLocationUsOnlyScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role. United States only. Applicants must be authorized to work in the US."
+  },
+  { ...philippinesLocationProfile, location: "" }
+);
+const anywhereLocationUsOnlyScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role. United States only. Applicants must be authorized to work in the US."
+  },
+  { ...philippinesLocationProfile, location: "Anywhere" }
+);
+const euOnlyRemoteScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role for EU only candidates. Visa sponsorship unavailable."
+  },
+  philippinesLocationProfile
+);
+const stateRestrictedRemoteScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role, hiring in these states for work authorization reasons."
+  },
+  philippinesLocationProfile
+);
+
+assert(philippinesLocationScoring.match_reasons.includes("Location aligns with Philippines"));
+assert.equal(philippinesLocationScoring.components.location_workmode_score, 13);
+assert.equal(philippinesLocationScoring.components.penalties, 0);
+assert(
+  __test
+    .scoreJob({ ...baseLocationJob, location: "Philippines" }, { ...philippinesLocationProfile, location: "PH" })
+    .match_reasons.includes("Location aligns with PH")
+);
+
+for (const compatibleScoring of [remoteLocationScoring, worldwideLocationScoring, globalLocationScoring, apacLocationScoring]) {
+  assert(compatibleScoring.match_reasons.includes("Worldwide/remote location compatible"));
+  assert(compatibleScoring.match_reasons.includes("Remote-friendly workflow"));
+  assert.equal(compatibleScoring.components.location_workmode_score, 13);
+  assert.equal(compatibleScoring.components.penalties, 0);
+}
+
+for (const restrictedScoring of [unitedStatesLocationScoring, irelandLocationScoring, canadaLocationScoring]) {
+  assert(restrictedScoring.match_reasons.some((reason) => reason.startsWith("Remote role restricted to ")));
+  assert(restrictedScoring.match_reasons.includes("Outside preferred location: Philippines"));
+  assert(!restrictedScoring.match_reasons.includes("Remote-friendly workflow"));
+  assert.equal(restrictedScoring.components.location_workmode_score, 0);
+  assert.equal(restrictedScoring.components.penalties, -10);
+  assert(restrictedScoring.score > 0);
+  assert(restrictedScoring.score < philippinesLocationScoring.score);
+}
+
+assert(usOnlyRemoteScoring.match_reasons.includes("Remote role restricted to United States applicants"));
+assert(usOnlyRemoteScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!usOnlyRemoteScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(usOnlyRemoteScoring.components.location_workmode_score, 0);
+assert.equal(usOnlyRemoteScoring.components.penalties, -10);
+assert(usOnlyRemoteScoring.score < remoteLocationScoring.score);
+
+assert(euOnlyRemoteScoring.match_reasons.includes("Remote role restricted to EU applicants"));
+assert(euOnlyRemoteScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!euOnlyRemoteScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(euOnlyRemoteScoring.components.location_workmode_score, 0);
+assert.equal(euOnlyRemoteScoring.components.penalties, -10);
+assert(euOnlyRemoteScoring.score < remoteLocationScoring.score);
+
+assert(stateRestrictedRemoteScoring.match_reasons.includes("Remote role restricted to specific hiring regions"));
+assert(stateRestrictedRemoteScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!stateRestrictedRemoteScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(stateRestrictedRemoteScoring.components.location_workmode_score, 0);
+assert.equal(stateRestrictedRemoteScoring.components.penalties, -10);
+
+assert(blankLocationUsOnlyScoring.match_reasons.includes("Remote role restricted to United States applicants"));
+assert(!blankLocationUsOnlyScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!blankLocationUsOnlyScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(blankLocationUsOnlyScoring.components.location_workmode_score, 0);
+assert.equal(blankLocationUsOnlyScoring.components.penalties, 0);
+
+assert(anywhereLocationUsOnlyScoring.match_reasons.includes("Remote role restricted to United States applicants"));
+assert(!anywhereLocationUsOnlyScoring.match_reasons.includes("Outside preferred location: Anywhere"));
+assert(!anywhereLocationUsOnlyScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(anywhereLocationUsOnlyScoring.components.location_workmode_score, 0);
+assert.equal(anywhereLocationUsOnlyScoring.components.penalties, 0);
+
+for (const restrictedCountryScoring of [brazilLocationScoring, pakistanLocationScoring]) {
+  assert(restrictedCountryScoring.match_reasons.some((reason) => reason.startsWith("Remote role restricted to ")));
+  assert(restrictedCountryScoring.match_reasons.includes("Outside preferred location: Philippines"));
+  assert(!restrictedCountryScoring.match_reasons.includes("Remote-friendly workflow"));
+  assert.equal(restrictedCountryScoring.components.location_workmode_score, 0);
+  assert.equal(restrictedCountryScoring.components.penalties, -10);
+  assert(restrictedCountryScoring.score > 0);
+  assert(restrictedCountryScoring.score < philippinesLocationScoring.score);
+}
+
 const adminProfile = __test.normalizeProfile({
   target_roles: ["office assistant"],
   skills: ["support"],
@@ -252,5 +416,36 @@ const adminOfficeScoring = __test.scoreJob(remotiveOfficeAssistant, adminProfile
 assert(adminOfficeScoring.score >= 70);
 assert(adminOfficeScoring.components.penalties >= 0);
 assert.notEqual(adminOfficeScoring.execution_likelihood, "lower_match");
+
+const supportProfile = __test.normalizeProfile({
+  target_roles: ["Software Support"],
+  skills: ["workflow", "software", "support"],
+  keywords: ["remote", "junior"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "junior"
+});
+const softwareSupportNoAutomation = {
+  title: "Software Support Specialist",
+  company: "SupportCo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Troubleshoot customer issues, triage product questions, update tickets, and help users resolve software problems.",
+  category: "Customer Support"
+};
+const automationSupport = {
+  title: "Automation Support Specialist",
+  company: "AutomationCo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Support Zapier workflow automation, debug API automation issues, and help users improve automated processes.",
+  category: "Customer Support"
+};
+const supportNoAutomationScoring = __test.scoreJob(softwareSupportNoAutomation, supportProfile);
+const automationSupportScoring = __test.scoreJob(automationSupport, supportProfile);
+
+assert(!supportNoAutomationScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+assert(supportNoAutomationScoring.match_reasons.includes("Technical support/operations overlap detected"));
+assert(automationSupportScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
 
 console.log("Scoring regression checks passed.");

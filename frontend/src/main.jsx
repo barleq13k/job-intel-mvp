@@ -408,14 +408,6 @@ function JobCard({ job, variant = "recommended" }) {
 
       <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">{job.summary}</p>
 
-      {job.details?.length > 0 && (
-        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-300">
-          {job.details.slice(0, 4).map((detail) => (
-            <li key={detail}>{detail}</li>
-          ))}
-        </ul>
-      )}
-
       <div className="mt-4 flex flex-wrap gap-2">
         {job.scoring.match_reasons.map((reason) => (
           <span key={reason} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">

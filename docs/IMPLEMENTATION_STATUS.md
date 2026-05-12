@@ -23,7 +23,7 @@
 - Experience level input.
 - Dark mode toggle with localStorage persistence.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
-- Ranked job cards with score, fit label, summary, details, salary when available, reasons, and outbound job link.
+- Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 
 ## Partially Implemented
 
@@ -32,9 +32,9 @@
   - Frontend has Vite build scripts.
   - No production deployment automation yet.
 - Job details:
-  - Remotive descriptions produce 2-4 simple bullets.
-  - Himalayas descriptions produce 2-4 simple bullets.
-  - Real Python has limited detail, so bullets fall back to basic metadata.
+  - Backend still returns simple `details` for compatibility.
+  - Frontend hides detail bullets for MVP trust because they are sliced source text, not AI-generated structured insights.
+  - Structured summaries/bullets are deferred until a later summarization pass.
 - Compensation:
   - Displayed when source data includes salary/hourly/budget text.
   - No salary normalization beyond basic cleanup.

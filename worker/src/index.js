@@ -92,6 +92,21 @@ const COMPLEXITY_TERMS = [
 const JUNIOR_LEVEL_TERMS = ["junior", "entry level", "assistant", "intern", "trainee", "beginner", "graduate"];
 const SCRIPT_INTENT_TERMS = ["script", "scripting", "automation", "simple task"];
 const SCRIPT_FRIENDLY_TERMS = ["programmer", "developer", "automation", "script"];
+const JOB_AUTOMATION_TERMS = [
+  "automation",
+  "automated",
+  "automate",
+  "workflow automation",
+  "scripting",
+  "script",
+  "zapier",
+  "make com",
+  "rpa",
+  "selenium",
+  "playwright",
+  "api automation",
+  "process automation"
+];
 const SIMPLE_TASK_TERMS = ["script", "automation", "cleanup", "data extraction", "scraper", "bug fixing", "testing", "assistant", "junior", "entry"];
 const DESCRIPTION_COMPLEXITY_TERMS = [
   "senior",
@@ -169,6 +184,8 @@ const SCORING_WEIGHTS = Object.freeze({
   locationWorkMode: {
     locationMatch: 6,
     workModeMatch: 7,
+    locationMismatchPenalty: -6,
+    locationRestrictedMismatchPenalty: -10,
     conflictPenalty: -12
   },
   executionLikelihood: {
@@ -581,7 +598,7 @@ function normalizeHimalayasJob(job) {
     url: normalizeUrlFromBase(job.applicationLink, HIMALAYAS_URL),
     employment_type: cleanOptionalText(job.employmentType) || null,
     salary: normalizeHimalayasCompensation(job),
-    description: cleanHtml(`${cleanOptionalText(job.excerpt)} ${cleanOptionalText(job.description)}`),
+    description: cleanSourceDescription(job.excerpt, job.description),
     category: normalizeHimalayasCategory(job)
   };
 }
@@ -613,6 +630,48 @@ function normalizeHimalayasCategory(job) {
   const categories = Array.isArray(job.categories) ? job.categories : job.category;
   const categoryList = Array.isArray(categories) ? categories : [];
   return categoryList.map(cleanOptionalText).filter(Boolean).join(", ");
+}
+
+function cleanSourceDescription(...parts) {
+  const cleanedParts = parts
+    .map((part) => cleanHtml(part || ""))
+    .filter(Boolean);
+
+  return dedupeAdjacentSentences(cleanedParts.join(" "));
+}
+
+function dedupeAdjacentSentences(text) {
+  const cleaned = cleanText(text);
+
+  if (!cleaned) {
+    return "";
+  }
+
+  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [cleaned];
+  const result = [];
+
+  for (const sentence of sentences) {
+    const normalizedSentence = normalizeSearchText(sentence);
+
+    if (!normalizedSentence) {
+      continue;
+    }
+
+    const previous = result[result.length - 1];
+    const normalizedPrevious = previous ? normalizeSearchText(previous) : "";
+
+    if (previous && (
+      normalizedSentence === normalizedPrevious ||
+      normalizedSentence.includes(normalizedPrevious) ||
+      normalizedPrevious.includes(normalizedSentence)
+    )) {
+      result[result.length - 1] = sentence.trim().length > previous.length ? sentence.trim() : previous;
+    } else {
+      result.push(sentence.trim());
+    }
+  }
+
+  return cleanText(result.join(" "));
 }
 
 function normalizeHimalayasCompensation(job) {
@@ -1408,11 +1467,13 @@ function executionLabel({ score, value, roleSignal, skillSignal, senioritySignal
   return "lower_match";
 }
 
-function evaluateScriptIntent({ profile, title }) {
+function evaluateScriptIntent({ profile, title, summaryText, categoryText }) {
   const profileText = normalizeSearchText([...profile.skills, ...profile.keywords].join(" "));
   const hasScriptIntent = SCRIPT_INTENT_TERMS.some((term) => containsPhrase(profileText, term));
+  const jobText = `${title} ${summaryText} ${categoryText}`;
+  const hasJobAutomationEvidence = JOB_AUTOMATION_TERMS.some((term) => containsPhrase(jobText, normalizeSearchText(term)));
 
-  if (!hasScriptIntent) {
+  if (!hasScriptIntent || !hasJobAutomationEvidence) {
     return makeScoringSignal({ status: "none" });
   }
 
@@ -1472,29 +1533,309 @@ function strengthRank(strength) {
 }
 
 function evaluateLocationWorkMode({ profile, location, searchableText }) {
-  const locationMatch = profile.location && location.includes(normalizeForCompare(profile.location));
+  const locationPreference = evaluateLocationPreference(profile.location, location, searchableText);
   const workModeMatch = getWorkModeMatch(profile.work_mode, searchableText);
+  const remoteFriendly = workModeMatch === "matched" && isRemoteEligibleForProfile(locationPreference);
   const points =
-    (locationMatch ? SCORING_WEIGHTS.locationWorkMode.locationMatch : 0) +
-    (workModeMatch === "matched" ? SCORING_WEIGHTS.locationWorkMode.workModeMatch : 0);
-  const penalty = workModeMatch === "conflict" ? SCORING_WEIGHTS.locationWorkMode.conflictPenalty : 0;
+    (locationPreference.status === "matched" || locationPreference.status === "compatible"
+      ? SCORING_WEIGHTS.locationWorkMode.locationMatch
+      : 0) +
+    (remoteFriendly ? SCORING_WEIGHTS.locationWorkMode.workModeMatch : 0);
+  const penalty =
+    (locationPreference.status === "restricted_mismatch" ? locationPreference.penalty : 0) +
+    (locationPreference.status === "mismatch" ? SCORING_WEIGHTS.locationWorkMode.locationMismatchPenalty : 0) +
+    (workModeMatch === "conflict" ? SCORING_WEIGHTS.locationWorkMode.conflictPenalty : 0);
   const reasons = [];
 
-  if (workModeMatch === "matched") {
-    reasons.push(makeWorkModeReason(profile.work_mode));
+  if (locationPreference.status === "matched" && locationPreference.shouldExplain !== false) {
+    reasons.push(`Location aligns with ${locationPreference.label}`);
+  } else if (locationPreference.status === "compatible" && locationPreference.shouldExplain !== false) {
+    reasons.push("Worldwide/remote location compatible");
+  } else if (locationPreference.status === "restricted" || locationPreference.status === "restricted_mismatch") {
+    reasons.push(makeLocationRestrictionReason(locationPreference));
+    if (locationPreference.status === "restricted_mismatch") {
+      reasons.push(`Outside preferred location: ${locationPreference.label}`);
+    }
+  } else if (locationPreference.status === "mismatch") {
+    reasons.push("Remote role, but outside preferred location");
   }
 
-  if (locationMatch) {
-    reasons.push("Location preference matched");
+  if (remoteFriendly) {
+    reasons.push(makeWorkModeReason(profile.work_mode));
   }
 
   return makeScoringSignal({
     points,
     penalty,
-    locationMatch,
+    locationMatch: locationPreference.status === "matched" || locationPreference.status === "compatible",
+    locationPreference,
     workModeMatch,
+    remoteFriendly,
     reasons
   });
+}
+
+function evaluateLocationPreference(preferredLocation, jobLocation, searchableText = "") {
+  const preferred = normalizeSearchText(preferredLocation);
+  const job = normalizeSearchText(jobLocation);
+  const strictPreference = hasStrictLocationPreference(preferred);
+
+  if (!preferred || (!job && !searchableText)) {
+    const restrictionOnly = detectLocationRestriction(job, normalizeSearchText(`${jobLocation || ""} ${searchableText || ""}`), []);
+
+    if (restrictionOnly) {
+      return makeRestrictedLocationPreference(restrictionOnly, preferredLocation, jobLocation, false);
+    }
+
+    return { status: "neutral", label: cleanText(preferredLocation || ""), jobLocation: cleanText(jobLocation || "") };
+  }
+
+  const preferredTerms = expandLocationTerms(preferred);
+  const evidence = normalizeSearchText(`${jobLocation || ""} ${searchableText || ""}`);
+  const restriction = detectLocationRestriction(job, evidence, preferredTerms);
+
+  if (restriction && !restriction.matchesPreferred) {
+    return makeRestrictedLocationPreference(restriction, preferredLocation, jobLocation, strictPreference);
+  }
+
+  if (preferredTerms.some((term) => containsPhrase(job, term))) {
+    return {
+      status: isBroadLocationPreference(preferred) ? "compatible" : "matched",
+      label: cleanText(preferredLocation),
+      jobLocation: cleanText(jobLocation),
+      shouldExplain: !isBroadLocationPreference(preferred)
+    };
+  }
+
+  if (preferredTerms.some((term) => containsPhrase(evidence, term))) {
+    return {
+      status: isBroadLocationPreference(preferred) ? "compatible" : "matched",
+      label: cleanText(preferredLocation),
+      jobLocation: cleanText(jobLocation),
+      shouldExplain: !isBroadLocationPreference(preferred)
+    };
+  }
+
+  if (LOCATION_COMPATIBLE_TERMS.some((term) => containsPhrase(job, term))) {
+    return { status: "compatible", label: cleanText(preferredLocation), jobLocation: cleanText(jobLocation) };
+  }
+
+  return { status: "mismatch", label: cleanText(preferredLocation), jobLocation: cleanText(jobLocation) };
+}
+
+function makeRestrictedLocationPreference(restriction, preferredLocation, jobLocation, strictPreference) {
+  return {
+    status: strictPreference ? "restricted_mismatch" : "restricted",
+    label: cleanText(preferredLocation || ""),
+    jobLocation: cleanText(jobLocation || ""),
+    restrictedRegion: restriction.region,
+    penalty: strictPreference ? SCORING_WEIGHTS.locationWorkMode.locationRestrictedMismatchPenalty : 0
+  };
+}
+
+function isRemoteEligibleForProfile(locationPreference) {
+  return ["matched", "compatible"].includes(locationPreference.status);
+}
+
+function hasStrictLocationPreference(preferred) {
+  return Boolean(preferred) && !isNeutralLocationPreference(preferred);
+}
+
+function detectLocationRestriction(jobLocationText, evidenceText, preferredTerms) {
+  const normalizedJobLocation = normalizeSearchText(jobLocationText);
+
+  if (LOCATION_COMPATIBLE_TERMS.includes(normalizedJobLocation)) {
+    const phraseRestriction = detectPhraseLocationRestriction(evidenceText, preferredTerms);
+
+    return phraseRestriction;
+  }
+
+  for (const region of LOCATION_RESTRICTED_REGIONS) {
+    const regionInLocation = region.terms.some((term) => containsPhrase(jobLocationText, term));
+    const regionInRestrictedPhrase =
+      region.restrictionPhrases.some((phrase) => containsPhrase(evidenceText, phrase)) ||
+      (region.terms.some((term) => containsPhrase(evidenceText, term)) &&
+        LOCATION_RESTRICTION_PHRASES.some((phrase) => containsPhrase(evidenceText, phrase)));
+
+    if (regionInLocation || regionInRestrictedPhrase) {
+      return {
+        region: region.label,
+        matchesPreferred: region.terms.some((term) => preferredTerms.includes(term))
+      };
+    }
+  }
+
+  return detectPhraseLocationRestriction(evidenceText, preferredTerms);
+}
+
+function detectPhraseLocationRestriction(evidenceText, preferredTerms) {
+  for (const region of LOCATION_RESTRICTED_REGIONS) {
+    const regionInRestrictedPhrase =
+      region.restrictionPhrases.some((phrase) => containsPhrase(evidenceText, phrase)) ||
+      (region.terms.some((term) => containsPhrase(evidenceText, term)) &&
+        LOCATION_RESTRICTION_PHRASES.some((phrase) => containsPhrase(evidenceText, phrase)));
+
+    if (regionInRestrictedPhrase) {
+      return {
+        region: region.label,
+        matchesPreferred: region.terms.some((term) => preferredTerms.includes(term))
+      };
+    }
+  }
+
+  if (LOCATION_RESTRICTION_PHRASES.some((phrase) => containsPhrase(evidenceText, phrase))) {
+    const matchesPreferred = preferredTerms.some((term) => containsPhrase(evidenceText, term));
+
+    return matchesPreferred ? null : { region: null, matchesPreferred: false };
+  }
+
+  return null;
+}
+
+function makeLocationRestrictionReason(locationPreference) {
+  if (locationPreference.restrictedRegion) {
+    return `Remote role restricted to ${locationPreference.restrictedRegion} applicants`;
+  }
+
+  return "Remote role restricted to specific hiring regions";
+}
+
+function isNeutralLocationPreference(preferred) {
+  return NEUTRAL_LOCATION_TERMS.includes(preferred);
+}
+
+const LOCATION_COMPATIBLE_TERMS = [
+  "worldwide",
+  "anywhere",
+  "remote",
+  "global",
+  "asia",
+  "apac",
+  "southeast asia",
+  "sea"
+];
+
+const NEUTRAL_LOCATION_TERMS = [
+  "any",
+  "anywhere",
+  "global",
+  "worldwide",
+  "remote",
+  "no preference"
+];
+
+const LOCATION_RESTRICTED_REGIONS = [
+  {
+    label: "United States",
+    terms: ["united states", "us", "u s", "usa"],
+    restrictionPhrases: [
+      "united states only",
+      "us only",
+      "u s only",
+      "usa only",
+      "authorized to work in the united states",
+      "authorized to work in the us",
+      "authorized to work in the u s",
+      "must reside in the united states",
+      "must reside in the us",
+      "must reside in the u s",
+      "hiring in listed us states",
+      "us states only",
+      "u s states only",
+      "u s hours",
+      "us hours",
+      "u s business hours",
+      "us business hours"
+    ]
+  },
+  {
+    label: "Canada",
+    terms: ["canada"],
+    restrictionPhrases: [
+      "canada only",
+      "authorized to work in canada",
+      "must reside in canada"
+    ]
+  },
+  {
+    label: "Ireland",
+    terms: ["ireland"],
+    restrictionPhrases: [
+      "ireland only",
+      "authorized to work in ireland",
+      "must reside in ireland"
+    ]
+  },
+  {
+    label: "Pakistan",
+    terms: ["pakistan"],
+    restrictionPhrases: [
+      "pakistan only",
+      "authorized to work in pakistan",
+      "must reside in pakistan"
+    ]
+  },
+  {
+    label: "Brazil",
+    terms: ["brazil"],
+    restrictionPhrases: [
+      "brazil only",
+      "authorized to work in brazil",
+      "must reside in brazil"
+    ]
+  },
+  {
+    label: "Kenya",
+    terms: ["kenya"],
+    restrictionPhrases: [
+      "kenya only",
+      "authorized to work in kenya",
+      "must reside in kenya"
+    ]
+  },
+  {
+    label: "EU",
+    terms: ["eu", "e u", "europe", "european union"],
+    restrictionPhrases: [
+      "eu only",
+      "e u only",
+      "europe only",
+      "european union only",
+      "authorized to work in the eu",
+      "authorized to work in europe",
+      "must reside in the eu",
+      "must reside in europe"
+    ]
+  }
+];
+
+const LOCATION_RESTRICTION_PHRASES = [
+  "must reside in",
+  "authorized to work in",
+  "eligible to work in",
+  "right to work in",
+  "work authorization",
+  "visa sponsorship unavailable",
+  "visa sponsorship is unavailable",
+  "no visa sponsorship",
+  "hiring in these states",
+  "hiring in listed states",
+  "hiring in the following states"
+];
+
+const LOCATION_ALIASES = {
+  philippines: ["philippines", "ph"],
+  ph: ["ph", "philippines"]
+};
+
+function expandLocationTerms(preferred) {
+  return uniqueReasons([preferred, ...(LOCATION_ALIASES[preferred] || [])])
+    .map(normalizeSearchText)
+    .filter(Boolean);
+}
+
+function isBroadLocationPreference(preferred) {
+  return LOCATION_COMPATIBLE_TERMS.includes(preferred);
 }
 
 function getWorkModeMatch(workMode, haystack) {
@@ -1555,15 +1896,17 @@ function buildMatchReasons({
   const highPriorityReasons = [];
   const supportingReasons = [];
   const roleReasons = roleContextSignal.reasons.length ? roleContextSignal.reasons : roleSignal.reasons;
+  const hasRestrictedLocation = ["restricted", "restricted_mismatch"].includes(locationWorkModeSignal.locationPreference?.status);
 
   highPriorityReasons.push(
+    ...(hasRestrictedLocation ? locationWorkModeSignal.reasons : []),
     ...taskFitTieBreakerSignal.reasons,
     ...scriptIntentSignal.reasons,
     ...roleDomainSignal.reasons,
     ...senioritySignal.reasons,
     ...complexitySignal.reasons,
     ...avoidSignal.reasons,
-    ...locationWorkModeSignal.reasons
+    ...(hasRestrictedLocation ? [] : locationWorkModeSignal.reasons)
   );
 
   supportingReasons.push(
@@ -1807,8 +2150,20 @@ function uniqueReasonsByMeaning(reasons) {
 function reasonMeaningKey(reason) {
   const normalized = normalizeSearchText(reason);
 
-  if (normalized.includes("remote") || normalized.includes("location") || normalized.includes("work mode")) {
-    return "work_location";
+  if (normalized.includes("remote role restricted")) {
+    return "location_restriction";
+  }
+
+  if (normalized.includes("outside preferred location")) {
+    return "location_mismatch";
+  }
+
+  if (normalized.includes("location aligns") || normalized.includes("location compatible")) {
+    return "location_preference";
+  }
+
+  if (normalized.includes("remote friendly") || normalized.includes("work mode") || normalized.includes("hybrid") || normalized.includes("onsite")) {
+    return "work_mode";
   }
 
   if (normalized.includes("automation") || normalized.includes("implementation") || normalized.includes("lower complexity")) {

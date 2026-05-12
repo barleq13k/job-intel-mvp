@@ -38,6 +38,11 @@ const validHimalayasJob = {
 
 const normalized = __test.normalizeRemotiveJob(validRemotiveJob);
 const normalizedHimalayas = __test.normalizeHimalayasJob(validHimalayasJob);
+const duplicateTextHimalayas = __test.normalizeHimalayasJob({
+  ...validHimalayasJob,
+  excerpt: "Build workflow automation for customer teams.",
+  description: "<p>Build workflow automation for customer teams.</p><p>Help users debug Zapier workflows.</p>"
+});
 
 assert.equal(normalized.title, "Python Developer");
 assert.equal(normalized.company, "Example Co");
@@ -56,6 +61,7 @@ assert.equal(normalizedHimalayas.employment_type, "Full Time");
 assert.equal(normalizedHimalayas.salary, "USD 70,000 - 90,000");
 assert.equal(normalizedHimalayas.category, "Engineering, Quality Assurance");
 assert.equal(normalizedHimalayas.description, "Build test automation for remote software teams. Write Python scripts, QA checks, and workflow automation.");
+assert.equal(duplicateTextHimalayas.description, "Build workflow automation for customer teams. Help users debug Zapier workflows.");
 assert.equal(__test.normalizeHimalayasJob(null), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, title: undefined }), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, companyName: null }), null);
@@ -93,8 +99,10 @@ assert.equal(
 
 const formatted = __test.formatJob(normalized, profile, "2026-05-12T12:00:00.000Z");
 const formattedHimalayas = __test.formatJob(normalizedHimalayas, profile, "2026-05-12T12:00:00.000Z");
+const formattedDuplicateText = __test.formatJob(duplicateTextHimalayas, profile, "2026-05-12T12:00:00.000Z");
 assert.equal(__test.makeStableJobId(formatted), "remotive_42");
 assert.equal(__test.makeStableJobId(formattedHimalayas), "himalayas_himalayas_python_42");
+assert(!formattedDuplicateText.summary.includes("Build workflow automation for customer teams. Build workflow automation for customer teams."));
 
 const originalFetch = globalThis.fetch;
 

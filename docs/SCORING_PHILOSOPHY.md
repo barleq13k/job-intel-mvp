@@ -48,6 +48,16 @@ Keyword match:
 - Generic terms do not drive high scores alone.
 - `remote` only helps when the job text actually supports remote/hybrid/onsite matching.
 
+Location and work mode:
+- Work mode and location preference are related but scored separately.
+- Remote-friendly jobs receive the remote work-mode boost only when the job appears globally remote-compatible or compatible with the user's location preference.
+- Neutral location inputs such as `any`, `anywhere`, `global`, `worldwide`, `remote`, and `no preference` disable strict user-location mismatch penalties.
+- If the profile includes a preferred location, exact or alias matches such as `Philippines`/`PH` align with that preference.
+- Broad eligibility terms such as `Worldwide`, `Anywhere`, `Remote`, `Global`, `Asia`, `APAC`, `Southeast Asia`, and `SEA` are treated as compatible.
+- Jobs restricted to another country or region stay visible but receive a modest location mismatch penalty and explain that the remote role appears outside the preferred location.
+- Remote jobs with deterministic restriction phrases such as `United States only`, `US only`, `authorized to work in`, `EU only`, `Canada only`, `hiring in these states`, `work authorization`, or unavailable visa sponsorship are treated as region-restricted and keep explicit restricted-region reasons ahead of generic remote-work reasons.
+- Region-restricted remote jobs do not receive the remote-friendly work-mode boost. If the user has a strict conflicting location, they receive a stronger location mismatch penalty and an `Outside preferred location` reason; blank or neutral location profiles still see the restriction reason without the user-location mismatch penalty.
+
 Seniority fit:
 - Junior/beginner profiles get boosts for junior, entry-level, assistant, intern, trainee, and similar terms.
 - Senior profiles get boosts for senior/staff/lead/principal terms.
@@ -80,6 +90,7 @@ Execution likelihood:
 - Lower-score but related roles can be labeled `adjacent`; weak or off-domain roles are labeled `lower_match`.
 - Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
 - Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
+- Automation-oriented reasons require explicit job-side automation evidence such as automation, scripting, Zapier, Make.com, RPA, Selenium, Playwright, API automation, or process automation. Generic software/support text does not produce an automation reason by itself.
 
 Avoid keyword penalties:
 - `avoid_keywords` matching title/details apply clear penalties.
