@@ -1694,7 +1694,7 @@ function evaluateLocationWorkMode({ profile, location, searchableText }) {
   const reasons = [];
 
   if (locationPreference.status === "matched" && locationPreference.shouldExplain !== false) {
-    reasons.push(`Location aligns with ${locationPreference.label}`);
+    reasons.push(locationPreference.reason || `Location aligns with ${locationPreference.label}`);
   } else if (locationPreference.status === "compatible" && locationPreference.shouldExplain !== false) {
     reasons.push("Worldwide/remote location compatible");
   } else if (locationPreference.status === "restricted" || locationPreference.status === "restricted_mismatch") {
@@ -1738,7 +1738,32 @@ function evaluateLocationPreference(preferredLocation, jobLocation, searchableTe
 
   const preferredTerms = expandLocationTerms(preferred);
   const evidence = normalizeSearchText(`${jobLocation || ""} ${searchableText || ""}`);
+
+  if (isNeutralLocationPreference(preferred)) {
+    const neutralRestriction = detectLocationRestriction(job, evidence, preferredTerms);
+
+    if (neutralRestriction) {
+      return makeRestrictedLocationPreference(neutralRestriction, preferredLocation, jobLocation, false);
+    }
+
+    if (LOCATION_COMPATIBLE_TERMS.some((term) => containsPhrase(job, term))) {
+      return { status: "compatible", label: cleanText(preferredLocation), jobLocation: cleanText(jobLocation), shouldExplain: false };
+    }
+
+    return { status: "neutral", label: cleanText(preferredLocation), jobLocation: cleanText(jobLocation) };
+  }
+
   const restriction = detectLocationRestriction(job, evidence, preferredTerms);
+
+  if (restriction?.matchesPreferred && restriction.kind === "listed_countries") {
+    return {
+      status: isBroadLocationPreference(preferred) ? "compatible" : "matched",
+      label: cleanText(preferredLocation),
+      jobLocation: cleanText(jobLocation),
+      reason: `Listed countries include ${cleanText(preferredLocation)}`,
+      shouldExplain: !isBroadLocationPreference(preferred)
+    };
+  }
 
   if (restriction && !restriction.matchesPreferred) {
     return makeRestrictedLocationPreference(restriction, preferredLocation, jobLocation, strictPreference);
@@ -1790,6 +1815,7 @@ function hasStrictLocationPreference(preferred) {
 
 function detectLocationRestriction(jobLocationText, evidenceText, preferredTerms) {
   const normalizedJobLocation = normalizeSearchText(jobLocationText);
+  const hasStrictPreferredTerms = preferredTerms.length > 0 && !preferredTerms.some(isNeutralLocationPreference);
 
   if (LOCATION_COMPATIBLE_TERMS.includes(normalizedJobLocation)) {
     const phraseRestriction = detectPhraseLocationRestriction(evidenceText, preferredTerms);
@@ -1804,7 +1830,7 @@ function detectLocationRestriction(jobLocationText, evidenceText, preferredTerms
   }
 
   for (const region of LOCATION_RESTRICTED_REGIONS) {
-    const regionInLocation = region.terms.some((term) => containsPhrase(jobLocationText, term));
+    const regionInLocation = hasStrictPreferredTerms && region.terms.some((term) => containsPhrase(jobLocationText, term));
     const regionInRestrictedPhrase =
       region.restrictionPhrases.some((phrase) => containsPhrase(evidenceText, phrase)) ||
       (region.terms.some((term) => containsPhrase(evidenceText, term)) &&

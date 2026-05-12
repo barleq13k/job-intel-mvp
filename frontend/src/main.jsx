@@ -545,7 +545,7 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
               onClick={() => onStatusChange?.(job, option.value)}
               className={getStatusButtonClass(status, option.value)}
             >
-              {option.label}
+              {getStatusButtonLabel(status, option.value)}
             </button>
           ))}
           {status !== "new" && (
@@ -686,7 +686,7 @@ function getJobStatus(job, jobStatuses) {
 }
 
 function getJobStatusKey(job) {
-  return job?.id || [job?.source, job?.title, job?.company, job?.url].filter(Boolean).join("|");
+  return job?.id || [job?.source, job?.title, job?.company, job?.location, job?.url].filter(Boolean).join("|");
 }
 
 function isKnownStatus(status) {
@@ -708,16 +708,47 @@ function getStatusButtonClass(currentStatus, buttonStatus) {
   return `${baseClass} border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950`;
 }
 
+function getStatusButtonLabel(currentStatus, buttonStatus) {
+  if (currentStatus === buttonStatus) {
+    return getStatusLabel(buttonStatus);
+  }
+
+  return {
+    saved: "Save",
+    applied: "Mark applied",
+    skipped: "Skip"
+  }[buttonStatus] || getStatusLabel(buttonStatus);
+}
+
 function getDecisionSummary(job, variant) {
   const hasNegative = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "negative");
   const hasCaution = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "caution");
+  const hasStrongRoleEvidence = hasDirectRoleEvidence(job);
   const fit = job.scoring.execution_likelihood;
+  const isActionableFit = ["strong_fit", "possible_fit"].includes(fit) || job.scoring.score >= 60;
+  const isRelevantBlocked = hasNegative && (hasStrongRoleEvidence || isActionableFit);
 
-  if (hasNegative) {
+  if (isRelevantBlocked) {
     return {
       tone: "restricted",
       label: "Check eligibility",
       helper: "Relevant signals may be blocked"
+    };
+  }
+
+  if (hasNegative && variant === "lower") {
+    return {
+      tone: "low",
+      label: "Low priority",
+      helper: "Restricted and weak match"
+    };
+  }
+
+  if (hasNegative) {
+    return {
+      tone: "review",
+      label: "Inspect later",
+      helper: "Restriction may matter"
     };
   }
 
@@ -726,6 +757,16 @@ function getDecisionSummary(job, variant) {
       tone: "apply",
       label: "Apply first",
       helper: hasCaution ? "Good fit with caveats" : "Best aligned"
+    };
+  }
+
+  if (hasStrongRoleEvidence && job.scoring.score >= MIN_RELEVANCE_SCORE) {
+    const isApplyFirst = job.scoring.score >= 45;
+
+    return {
+      tone: isApplyFirst ? "apply" : "review",
+      label: isApplyFirst ? "Apply first" : "Inspect first",
+      helper: "Direct role match"
     };
   }
 
@@ -750,6 +791,19 @@ function getDecisionSummary(job, variant) {
     label: variant === "lower" ? "Low priority" : "Manual review",
     helper: "Weak or noisy match"
   };
+}
+
+function hasDirectRoleEvidence(job) {
+  return job.scoring.match_reasons.some((reason) => {
+    const normalized = reason.toLowerCase();
+    return (
+      normalized.includes("direct target role match") ||
+      normalized.includes("role is central to the title") ||
+      normalized.includes("support is visible in the role title") ||
+      normalized.includes("role title overlaps with your target") ||
+      normalized.includes("job category overlaps with your target role")
+    );
+  });
 }
 
 function getCardBorderClass(tone) {
