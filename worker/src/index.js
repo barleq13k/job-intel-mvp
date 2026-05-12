@@ -35,6 +35,20 @@ const COMPLEXITY_TERMS = [
 const JUNIOR_LEVEL_TERMS = ["junior", "entry level", "assistant", "intern", "trainee", "beginner", "graduate"];
 const SCRIPT_INTENT_TERMS = ["script", "scripting", "automation", "simple task"];
 const SCRIPT_FRIENDLY_TERMS = ["programmer", "developer", "automation", "script"];
+const SIMPLE_TASK_TERMS = ["script", "automation", "cleanup", "data extraction", "scraper", "bug fixing", "testing", "assistant", "junior", "entry"];
+const DESCRIPTION_COMPLEXITY_TERMS = [
+  "senior",
+  "staff",
+  "principal",
+  "architect",
+  "lead",
+  "enterprise",
+  "infrastructure",
+  "kubernetes",
+  "microservices",
+  "ownership",
+  "scalable systems"
+];
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -112,6 +126,12 @@ const SCORING_WEIGHTS = Object.freeze({
     strongFitThreshold: 76,
     possibleFitThreshold: 58,
     stretchThreshold: 25
+  },
+  taskFitTieBreaker: {
+    simpleTermBoost: 2,
+    simpleBoostCap: 6,
+    complexityTermPenalty: 2,
+    complexityPenaltyCap: 8
   }
 });
 
@@ -448,6 +468,7 @@ function scoreJob(job, profile) {
   const complexitySignal = evaluateComplexity(context);
   const scriptIntentSignal = evaluateScriptIntent(context);
   const avoidSignal = evaluateAvoidKeywords(context);
+  const taskFitTieBreakerSignal = evaluateTaskFitTieBreaker(context);
   const executionSignal = evaluateExecutionLikelihood({
     profile,
     title: context.title,
@@ -463,7 +484,7 @@ function scoreJob(job, profile) {
     skill_match_score: skillSignal.points + strongestSkillSignal.points,
     keyword_match_score: keywordSignal.points,
     seniority_match_score: senioritySignal.points,
-    execution_likelihood_score: executionSignal.points,
+    execution_likelihood_score: executionSignal.points + taskFitTieBreakerSignal.points,
     location_workmode_score: locationWorkModeSignal.points,
     penalties: senioritySignal.penalty + avoidSignal.penalty
   };
@@ -471,6 +492,7 @@ function scoreJob(job, profile) {
   components.role_match_score += roleContextSignal.points;
   components.skill_match_score += scriptIntentSignal.points;
   components.penalties += roleContextSignal.penalty + complexitySignal.penalty + scriptIntentSignal.penalty;
+  components.penalties += taskFitTieBreakerSignal.penalty;
   components.penalties += locationWorkModeSignal.penalty;
 
   const score =
@@ -494,6 +516,7 @@ function scoreJob(job, profile) {
     scriptIntentSignal,
     avoidSignal,
     executionSignal,
+    taskFitTieBreakerSignal,
     locationWorkModeSignal
   });
 
@@ -763,6 +786,36 @@ function evaluateAvoidKeywords({ profile, title, summaryText }) {
   });
 }
 
+function evaluateTaskFitTieBreaker({ summaryText }) {
+  const simpleMatches = SIMPLE_TASK_TERMS.filter((term) => containsPhrase(summaryText, term));
+  const complexityMatches = DESCRIPTION_COMPLEXITY_TERMS.filter((term) => containsPhrase(summaryText, term));
+  const points = Math.min(
+    SCORING_WEIGHTS.taskFitTieBreaker.simpleBoostCap,
+    simpleMatches.length * SCORING_WEIGHTS.taskFitTieBreaker.simpleTermBoost
+  );
+  const penalty = -Math.min(
+    SCORING_WEIGHTS.taskFitTieBreaker.complexityPenaltyCap,
+    complexityMatches.length * SCORING_WEIGHTS.taskFitTieBreaker.complexityTermPenalty
+  );
+  const reasons = [];
+
+  if (points > 0) {
+    reasons.push("Description suggests simpler execution tasks");
+  }
+
+  if (penalty < 0) {
+    reasons.push("Description suggests senior/platform complexity");
+  }
+
+  return makeScoringSignal({
+    points,
+    penalty,
+    simpleMatches,
+    complexityMatches,
+    reasons
+  });
+}
+
 function evaluateExecutionLikelihood({ profile, title, searchableText, strongestSkillSignal, complexitySignal, avoidSignal }) {
   let value = SCORING_WEIGHTS.executionLikelihood.base;
   const wantsJunior = ["beginner", "junior"].includes(profile.experience_level);
@@ -955,6 +1008,7 @@ function buildMatchReasons({
   scriptIntentSignal,
   avoidSignal,
   executionSignal,
+  taskFitTieBreakerSignal,
   locationWorkModeSignal
 }) {
   const reasons = [];
@@ -968,6 +1022,7 @@ function buildMatchReasons({
     ...complexitySignal.reasons,
     ...avoidSignal.reasons,
     ...scriptIntentSignal.reasons,
+    ...taskFitTieBreakerSignal.reasons,
     ...locationWorkModeSignal.reasons,
     ...keywordSignal.reasons
   );

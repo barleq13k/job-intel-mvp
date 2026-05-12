@@ -140,4 +140,39 @@ assert.deepEqual(results, [
   }
 ]);
 
+const pythonTieBreakerProfile = __test.normalizeProfile({
+  target_roles: ["Python"],
+  skills: ["Python"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "junior"
+});
+const simplePythonAutomation = {
+  title: "Python Developer",
+  company: "Simple Apps",
+  location: "Remote",
+  source: "Remotive",
+  url: "https://example.com/simple-python",
+  description: "Build Python scripts for automation, cleanup, testing, and data extraction tasks.",
+  category: "Software Development"
+};
+const seniorPythonArchitecture = {
+  title: "Python Developer",
+  company: "Platform Systems",
+  location: "Remote",
+  source: "Remotive",
+  url: "https://example.com/senior-python",
+  description: "Senior platform role owning enterprise architecture, infrastructure, kubernetes, microservices, and scalable systems.",
+  category: "Software Development"
+};
+const simplePythonScoring = __test.scoreJob(simplePythonAutomation, pythonTieBreakerProfile);
+const seniorPythonScoring = __test.scoreJob(seniorPythonArchitecture, pythonTieBreakerProfile);
+
+assert.notEqual(simplePythonScoring.score, seniorPythonScoring.score);
+assert(simplePythonScoring.score > seniorPythonScoring.score);
+assert.equal(simplePythonScoring.components.execution_likelihood_score, 6);
+assert.equal(seniorPythonScoring.components.penalties, -8);
+assert(simplePythonScoring.match_reasons.includes("Description suggests simpler execution tasks"));
+assert(seniorPythonScoring.match_reasons.includes("Description suggests senior/platform complexity"));
+
 console.log("Scoring regression checks passed.");

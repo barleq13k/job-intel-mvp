@@ -71,10 +71,17 @@ Execution likelihood:
   - `stretch`
   - `poor_fit`
 - This label influences ranking but is still heuristic.
+- Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
+- Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
 
 Avoid keyword penalties:
 - `avoid_keywords` matching title/details apply clear penalties.
 - Reasons include `Contains avoided keyword: X`.
+
+Tie-break calibration:
+- Simple/task-based description terms can add up to `+6` through `execution_likelihood_score`.
+- Platform/architecture complexity description terms can apply up to `-8` through `penalties`.
+- These signals are intended to separate similarly matched title results, not replace title, skill, seniority, or avoid-keyword scoring.
 
 Display filtering:
 - Backend returns all scored jobs.
