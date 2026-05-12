@@ -294,6 +294,18 @@ const pakistanLocationScoring = __test.scoreJob(
   { ...baseLocationJob, location: "Pakistan only" },
   philippinesLocationProfile
 );
+const spainLocationScoring = __test.scoreJob(
+  { ...baseLocationJob, location: "Spain" },
+  philippinesLocationProfile
+);
+const bulgariaOnlyRemoteScoring = __test.scoreJob(
+  {
+    ...baseLocationJob,
+    location: "Remote",
+    description: "Remote testing automation role for Bulgaria only applicants."
+  },
+  philippinesLocationProfile
+);
 const usOnlyRemoteScoring = __test.scoreJob(
   {
     ...baseLocationJob,
@@ -336,6 +348,7 @@ const stateRestrictedRemoteScoring = __test.scoreJob(
 );
 
 assert(philippinesLocationScoring.match_reasons.includes("Location aligns with Philippines"));
+assert(!philippinesLocationScoring.match_reasons.some((reason) => reason.startsWith("Remote role restricted to ")));
 assert.equal(philippinesLocationScoring.components.location_workmode_score, 13);
 assert.equal(philippinesLocationScoring.components.penalties, 0);
 assert(
@@ -346,6 +359,7 @@ assert(
 
 for (const compatibleScoring of [remoteLocationScoring, worldwideLocationScoring, globalLocationScoring, apacLocationScoring]) {
   assert(compatibleScoring.match_reasons.includes("Worldwide/remote location compatible"));
+  assert(!compatibleScoring.match_reasons.some((reason) => reason.startsWith("Remote role restricted to ")));
   assert(compatibleScoring.match_reasons.includes("Remote-friendly workflow"));
   assert.equal(compatibleScoring.components.location_workmode_score, 13);
   assert.equal(compatibleScoring.components.penalties, 0);
@@ -402,6 +416,18 @@ for (const restrictedCountryScoring of [brazilLocationScoring, pakistanLocationS
   assert(restrictedCountryScoring.score > 0);
   assert(restrictedCountryScoring.score < philippinesLocationScoring.score);
 }
+
+assert(spainLocationScoring.match_reasons.includes("Remote role restricted to Spain applicants"));
+assert(spainLocationScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!spainLocationScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(spainLocationScoring.components.location_workmode_score, 0);
+assert.equal(spainLocationScoring.components.penalties, -10);
+
+assert(bulgariaOnlyRemoteScoring.match_reasons.includes("Remote role restricted to Bulgaria applicants"));
+assert(bulgariaOnlyRemoteScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(!bulgariaOnlyRemoteScoring.match_reasons.includes("Remote-friendly workflow"));
+assert.equal(bulgariaOnlyRemoteScoring.components.location_workmode_score, 0);
+assert.equal(bulgariaOnlyRemoteScoring.components.penalties, -10);
 
 const adminProfile = __test.normalizeProfile({
   target_roles: ["office assistant"],

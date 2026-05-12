@@ -5,6 +5,7 @@ const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
 const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const REMOTIVE_TIMEOUT_MS = 8000;
+const HIMALAYAS_MAX_PAGES = 3;
 const MIN_STRETCH_SCORE = 25;
 const GENERIC_TOKENS = new Set([
   "data",
@@ -295,7 +296,7 @@ async function handleJobSearch(request) {
       type: sourceType,
       name: sourceName,
       status: "ok",
-      message: makeSourceSuccessMessage(sourceName, jobs.length, sourceResult.droppedCount),
+      message: makeSourceSuccessMessage(sourceName, jobs.length, sourceResult),
       dropped_count: sourceResult.droppedCount
     }
   });
@@ -321,23 +322,32 @@ function getSourceName(sourceType) {
   }[sourceType] || SOURCE_NAME;
 }
 
-function makeSourceResult(jobs, droppedCount = 0) {
+function makeSourceResult(jobs, droppedCount = 0, diagnostics = {}) {
   return {
     jobs: Array.isArray(jobs) ? jobs : [],
-    droppedCount
+    droppedCount,
+    ...diagnostics
   };
 }
 
-function makeSourceSuccessMessage(sourceName, jobCount, droppedCount = 0) {
+function makeSourceSuccessMessage(sourceName, jobCount, sourceResult = {}) {
+  const droppedCount = sourceResult.droppedCount || 0;
+  const pageText = sourceResult.pagesFetched > 1 ? ` from ${sourceResult.pagesFetched} pages` : "";
+  const remotiveBatchText = sourceName === REMOTIVE_SOURCE_NAME ? " from its public API batch" : "";
+  const suffix = sourceResult.warning ? ` ${sourceResult.warning}` : "";
+
   if (jobCount === 0) {
-    return droppedCount > 0
-      ? `${sourceName} returned jobs, but none were usable after normalization.`
-      : `${sourceName} returned no jobs for this search.`;
+    const emptyMessage = droppedCount > 0
+      ? `${sourceName} returned jobs${pageText || remotiveBatchText}, but none were usable after normalization.`
+      : `${sourceName} returned no jobs${pageText || remotiveBatchText} for this search.`;
+    return `${emptyMessage}${suffix}`;
   }
 
-  return droppedCount > 0
-    ? `${sourceName} returned ${jobCount} usable jobs; ${droppedCount} malformed rows were skipped.`
-    : `${sourceName} returned ${jobCount} jobs.`;
+  const successMessage = droppedCount > 0
+    ? `${sourceName} returned ${jobCount} usable jobs${pageText || remotiveBatchText}; ${droppedCount} malformed rows were skipped.`
+    : `${sourceName} returned ${jobCount} jobs${pageText || remotiveBatchText}.`;
+
+  return `${successMessage}${suffix}`;
 }
 
 function makeSourceError(message, code = "source_error", httpStatus = 502) {
@@ -429,6 +439,7 @@ async function fetchRemotiveJobs(profile) {
   const url = new URL(REMOTIVE_URL);
   const search = buildRemotiveSearch(profile);
 
+  // Remotive's public API may return a limited batch for a search; keep it as a reliable secondary source for MVP.
   url.searchParams.set("limit", "50");
 
   if (search) {
@@ -525,11 +536,54 @@ function normalizeRemotiveJob(job) {
 }
 
 async function fetchHimalayasJobs(profile) {
-  const url = new URL(HIMALAYAS_URL);
   const search = buildHimalayasSearch(profile);
+  let droppedCount = 0;
+  const jobs = [];
+  let pagesFetched = 0;
+  let warning = "";
+
+  for (let page = 1; page <= HIMALAYAS_MAX_PAGES; page += 1) {
+    let data;
+
+    try {
+      data = await fetchHimalayasJobsPage(search, page);
+    } catch (error) {
+      if (jobs.length === 0) {
+        throw error;
+      }
+
+      warning = `Stopped after ${pagesFetched} successful page${pagesFetched === 1 ? "" : "s"} because page ${page} could not be fetched.`;
+      break;
+    }
+
+    pagesFetched += 1;
+
+    if (data.jobs.length === 0) {
+      break;
+    }
+
+    for (const job of data.jobs) {
+      const normalizedJob = normalizeHimalayasJob(job);
+
+      if (normalizedJob) {
+        jobs.push(normalizedJob);
+      } else {
+        droppedCount += 1;
+      }
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount, {
+    pagesFetched,
+    warning
+  });
+}
+
+async function fetchHimalayasJobsPage(search, page) {
+  const url = new URL(HIMALAYAS_URL);
 
   url.searchParams.set("sort", "recent");
-  url.searchParams.set("page", "1");
+  url.searchParams.set("page", String(page));
 
   if (search) {
     url.searchParams.set("q", search);
@@ -568,20 +622,7 @@ async function fetchHimalayasJobs(profile) {
     throw makeSourceError("Himalayas returned an unexpected response shape.", "invalid_shape");
   }
 
-  let droppedCount = 0;
-  const jobs = [];
-
-  for (const job of data.jobs) {
-    const normalizedJob = normalizeHimalayasJob(job);
-
-    if (normalizedJob) {
-      jobs.push(normalizedJob);
-    } else {
-      droppedCount += 1;
-    }
-  }
-
-  return makeSourceResult(jobs, droppedCount);
+  return data;
 }
 
 function normalizeHimalayasJob(job) {
@@ -1801,6 +1842,178 @@ const NEUTRAL_LOCATION_TERMS = [
   "no preference"
 ];
 
+const COUNTRY_RESTRICTION_LABELS = [
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Congo",
+  "Costa Rica",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hong Kong",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kosovo",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Moldova",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saudi Arabia",
+  "Serbia",
+  "Senegal",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Togo",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "Uruguay",
+  "Uzbekistan",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe"
+];
+
 const LOCATION_RESTRICTED_REGIONS = [
   {
     label: "United States",
@@ -1883,7 +2096,8 @@ const LOCATION_RESTRICTED_REGIONS = [
       "must reside in the eu",
       "must reside in europe"
     ]
-  }
+  },
+  ...COUNTRY_RESTRICTION_LABELS.map(makeCountryRestrictionRegion)
 ];
 
 const LOCATION_RESTRICTION_PHRASES = [
@@ -1904,6 +2118,22 @@ const LOCATION_ALIASES = {
   philippines: ["philippines", "ph"],
   ph: ["ph", "philippines"]
 };
+
+function makeCountryRestrictionRegion(label) {
+  const term = normalizeSearchText(label);
+
+  return {
+    label,
+    terms: [term],
+    restrictionPhrases: [
+      `${term} only`,
+      `authorized to work in ${term}`,
+      `eligible to work in ${term}`,
+      `right to work in ${term}`,
+      `must reside in ${term}`
+    ]
+  };
+}
 
 function expandLocationTerms(preferred) {
   return uniqueReasons([preferred, ...(LOCATION_ALIASES[preferred] || [])])

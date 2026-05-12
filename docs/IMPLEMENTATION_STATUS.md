@@ -13,15 +13,17 @@
 - `POST /api/jobs/search` Worker endpoint.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
-- Himalayas public API ingestion.
+- Himalayas public API ingestion with conservative pagination.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
+- Himalayas is treated as the primary real source; Remotive remains a secondary limited public API source; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
 - Legacy `strongest_skills` compatibility in the API.
 - Experience level input.
 - Dark mode toggle with localStorage persistence.
+- Local application status tracking with localStorage-only `New`, `Saved`, `Applied`, and `Skipped` statuses.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 

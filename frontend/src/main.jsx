@@ -5,6 +5,7 @@ import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const TRACKER_STORAGE_KEY = "job-intel-application-statuses";
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -22,6 +23,13 @@ const REASON_CHIP_CLASSES = {
   caution: "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200",
   negative: "rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-200"
 };
+const JOB_STATUSES = [
+  { value: "new", label: "New" },
+  { value: "saved", label: "Saved" },
+  { value: "applied", label: "Applied" },
+  { value: "skipped", label: "Skipped" }
+];
+const STATUS_FILTERS = [{ value: "all", label: "All" }, ...JOB_STATUSES];
 
 const initialForm = {
   target_roles: "",
@@ -56,22 +64,39 @@ function App() {
   const [sourceInfo, setSourceInfo] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
   const [showExploreMore, setShowExploreMore] = useState(false);
+  const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const visibleJobs = useMemo(() => jobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE), [jobs]);
   const lowerMatchJobs = useMemo(() => jobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE), [jobs]);
+  const filteredVisibleJobs = useMemo(
+    () => filterJobsByStatus(visibleJobs, statusFilter, jobStatuses),
+    [visibleJobs, statusFilter, jobStatuses]
+  );
+  const filteredLowerMatchJobs = useMemo(
+    () => filterJobsByStatus(lowerMatchJobs, statusFilter, jobStatuses),
+    [lowerMatchJobs, statusFilter, jobStatuses]
+  );
   const sourceLabel = SOURCE_LABELS[form.source_type] || SOURCE_LABELS.realpython_fake_jobs;
-  const isExploreMoreOpen = showExploreMore || visibleJobs.length === 0;
+  const isExploreMoreOpen = showExploreMore || filteredVisibleJobs.length === 0;
+  const filteredJobCount = filteredVisibleJobs.length + filteredLowerMatchJobs.length;
   const resultSummary =
     status === "success"
       ? jobs.length === 0
         ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
-        : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
+        : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}${
+            statusFilter === "all" ? "" : `, ${filteredJobCount} shown for ${getStatusLabel(statusFilter)}`
+          }`
       : "Submit a profile to fetch and score jobs.";
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("job-intel-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    saveStoredJobStatuses(jobStatuses);
+  }, [jobStatuses]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -80,6 +105,26 @@ function App() {
 
   function toggleTheme() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
+
+  function updateJobStatus(job, nextStatus) {
+    const key = getJobStatusKey(job);
+
+    if (!key || !isKnownStatus(nextStatus)) {
+      return;
+    }
+
+    setJobStatuses((current) => {
+      const updated = { ...current };
+
+      if (nextStatus === "new") {
+        delete updated[key];
+      } else {
+        updated[key] = nextStatus;
+      }
+
+      return updated;
+    });
   }
 
   async function searchJobs(event) {
@@ -264,6 +309,22 @@ function App() {
               <h2 className="text-2xl font-semibold">Ranked Results</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">{resultSummary}</p>
             </div>
+            {status === "success" && jobs.length > 0 && (
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                Status
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+                >
+                  {STATUS_FILTERS.map((filter) => (
+                    <option key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           {error && (
@@ -280,12 +341,17 @@ function App() {
               <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                 {sourceInfo?.message || "These are the clearest matches from the current profile. Explore More keeps adjacent and lower-confidence roles available for review."}
               </div>
-              {visibleJobs.length > 0 ? (
+              {filteredVisibleJobs.length > 0 ? (
                 <>
                   <h3 className="mb-3 text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Recommended Matches</h3>
                   <div className="grid gap-4">
-                    {visibleJobs.map((job) => (
-                      <JobCard key={job.id} job={job} />
+                    {filteredVisibleJobs.map((job) => (
+                      <JobCard
+                        key={job.id || getJobStatusKey(job)}
+                        job={job}
+                        status={getJobStatus(job, jobStatuses)}
+                        onStatusChange={updateJobStatus}
+                      />
                     ))}
                   </div>
                 </>
@@ -295,12 +361,14 @@ function App() {
                   message={
                     jobs.length === 0
                       ? sourceInfo?.message || "The selected source returned no usable jobs for this profile."
+                      : statusFilter !== "all"
+                        ? `No recommended matches with ${getStatusLabel(statusFilter)} status. Try another status filter or Explore More.`
                       : "Explore More is open below. Try broadening target roles, trimming avoid keywords, or using simpler skill terms if the list feels too narrow."
                   }
                 />
               )}
 
-              {lowerMatchJobs.length > 0 && (
+              {filteredLowerMatchJobs.length > 0 && (
                 <section className="mt-6">
                   <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -309,7 +377,7 @@ function App() {
                         Adjacent, stretch, and lower-confidence roles that may still be useful to inspect.
                       </p>
                     </div>
-                    {visibleJobs.length > 0 && (
+                    {filteredVisibleJobs.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setShowExploreMore((current) => !current)}
@@ -317,15 +385,21 @@ function App() {
                         aria-expanded={isExploreMoreOpen}
                       >
                         {isExploreMoreOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        {isExploreMoreOpen ? "Hide" : "Show"} {lowerMatchJobs.length}
+                        {isExploreMoreOpen ? "Hide" : "Show"} {filteredLowerMatchJobs.length}
                       </button>
                     )}
                   </div>
 
                   {isExploreMoreOpen && (
                     <div className="grid gap-4">
-                      {lowerMatchJobs.map((job) => (
-                        <JobCard key={job.id} job={job} variant="lower" />
+                      {filteredLowerMatchJobs.map((job) => (
+                        <JobCard
+                          key={job.id || getJobStatusKey(job)}
+                          job={job}
+                          variant="lower"
+                          status={getJobStatus(job, jobStatuses)}
+                          onStatusChange={updateJobStatus}
+                        />
                       ))}
                     </div>
                   )}
@@ -381,7 +455,7 @@ function LoadingState() {
   );
 }
 
-function JobCard({ job, variant = "recommended" }) {
+function JobCard({ job, variant = "recommended", status = "new", onStatusChange }) {
   const scoreColor =
     variant === "lower" ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300";
 
@@ -421,19 +495,105 @@ function JobCard({ job, variant = "recommended" }) {
         ))}
       </div>
 
-      {job.url && (
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+            {getStatusLabel(status)}
+          </span>
+          {JOB_STATUSES.filter((option) => option.value !== "new").map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onStatusChange?.(job, option.value)}
+              className={getStatusButtonClass(status, option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+          {status !== "new" && (
+            <button
+              type="button"
+              onClick={() => onStatusChange?.(job, "new")}
+              className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {job.url && (
         <a
           href={job.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-950 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:bg-slate-950"
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-950 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:bg-slate-950"
         >
           Open job
           <ArrowUpRight className="h-4 w-4" />
         </a>
-      )}
+        )}
+      </div>
     </article>
   );
+}
+
+function loadStoredJobStatuses() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(TRACKER_STORAGE_KEY) || "{}");
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => isKnownStatus(value) && value !== "new")
+    );
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredJobStatuses(statuses) {
+  try {
+    localStorage.setItem(TRACKER_STORAGE_KEY, JSON.stringify(statuses));
+  } catch {
+    // Tracking is a convenience layer; failed local persistence should not block search.
+  }
+}
+
+function filterJobsByStatus(jobs, statusFilter, jobStatuses) {
+  if (statusFilter === "all") {
+    return jobs;
+  }
+
+  return jobs.filter((job) => getJobStatus(job, jobStatuses) === statusFilter);
+}
+
+function getJobStatus(job, jobStatuses) {
+  return jobStatuses[getJobStatusKey(job)] || "new";
+}
+
+function getJobStatusKey(job) {
+  return job?.id || [job?.source, job?.title, job?.company, job?.url].filter(Boolean).join("|");
+}
+
+function isKnownStatus(status) {
+  return JOB_STATUSES.some((option) => option.value === status);
+}
+
+function getStatusLabel(status) {
+  return STATUS_FILTERS.find((option) => option.value === status)?.label || "New";
+}
+
+function getStatusButtonClass(currentStatus, buttonStatus) {
+  const isActive = currentStatus === buttonStatus;
+  const baseClass = "rounded-md border px-2.5 py-1 text-xs font-semibold transition";
+
+  if (isActive) {
+    return `${baseClass} border-slate-950 bg-slate-950 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-slate-950`;
+  }
+
+  return `${baseClass} border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950`;
 }
 
 function getReasonChipClass(reason) {

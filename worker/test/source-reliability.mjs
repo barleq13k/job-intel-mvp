@@ -146,22 +146,66 @@ try {
     });
   await assert.rejects(() => __test.fetchRemotiveJobs(profile), /unexpected response shape/);
 
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({
-      jobs: [
-        validHimalayasJob,
-        null,
-        { ...validHimalayasJob, guid: "himalayas-python-43", title: "" },
-        { ...validHimalayasJob, guid: "himalayas-python-44", companyName: undefined }
-      ]
+  globalThis.fetch = async (url) => {
+    const page = new URL(url).searchParams.get("page");
+
+    return new Response(JSON.stringify({
+      jobs: page === "1"
+        ? [
+            validHimalayasJob,
+            null,
+            { ...validHimalayasJob, guid: "himalayas-python-43", title: "" },
+            { ...validHimalayasJob, guid: "himalayas-python-44", companyName: undefined }
+          ]
+        : []
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
+  };
 
   const himalayasResult = await __test.fetchHimalayasJobs(profile);
   assert.equal(himalayasResult.jobs.length, 1);
   assert.equal(himalayasResult.droppedCount, 3);
+  assert.equal(himalayasResult.pagesFetched, 2);
+
+  globalThis.fetch = async (url) => {
+    const page = new URL(url).searchParams.get("page");
+    const pageJobs = {
+      1: [validHimalayasJob],
+      2: [{ ...validHimalayasJob, guid: "himalayas-python-43", title: "Python Support Engineer" }],
+      3: []
+    };
+
+    return new Response(JSON.stringify({ jobs: pageJobs[page] || [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  const pagedHimalayasResult = await __test.fetchHimalayasJobs(profile);
+  assert.equal(pagedHimalayasResult.jobs.length, 2);
+  assert.equal(pagedHimalayasResult.droppedCount, 0);
+  assert.equal(pagedHimalayasResult.pagesFetched, 3);
+
+  globalThis.fetch = async (url) => {
+    const page = new URL(url).searchParams.get("page");
+
+    if (page === "2") {
+      return new Response("temporary outage", { status: 503 });
+    }
+
+    return new Response(JSON.stringify({ jobs: [validHimalayasJob] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  const partialHimalayasResult = await __test.fetchHimalayasJobs(profile);
+  assert.equal(partialHimalayasResult.jobs.length, 1);
+  assert.equal(partialHimalayasResult.droppedCount, 0);
+  assert.equal(partialHimalayasResult.pagesFetched, 1);
+  assert.match(partialHimalayasResult.warning, /page 2/);
 
   globalThis.fetch = async () =>
     new Response(JSON.stringify({ jobs: [] }), {
@@ -170,7 +214,9 @@ try {
     });
 
   const emptyHimalayasResult = await __test.fetchHimalayasJobs(profile);
-  assert.deepEqual(emptyHimalayasResult, { jobs: [], droppedCount: 0 });
+  assert.equal(emptyHimalayasResult.jobs.length, 0);
+  assert.equal(emptyHimalayasResult.droppedCount, 0);
+  assert.equal(emptyHimalayasResult.pagesFetched, 1);
 
   globalThis.fetch = async (_url, options = {}) =>
     new Promise((_resolve, reject) => {

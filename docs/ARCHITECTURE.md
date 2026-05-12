@@ -8,6 +8,7 @@ Frontend:
 - Tailwind CSS for styling
 - `lucide-react` for icons
 - No router, auth client, data fetching library, or state management library
+- Local application tracking is stored only in browser localStorage keyed by stable job IDs
 
 Backend:
 - Cloudflare Worker in `worker/`
@@ -48,7 +49,9 @@ Implemented sources:
 
 There is no source registry, plugin system, crawler system, browser automation, or background ingestion. Source selection is a simple conditional branch in the Worker.
 
-Real sources use one request per search and share timeout, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas outbound links are preserved from source/application URLs for attribution and user navigation.
+Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
+
+Real sources share timeout handling, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas outbound links are preserved from source/application URLs for attribution and user navigation.
 
 ## Scoring Pipeline
 
@@ -82,6 +85,8 @@ Deployment is not fully automated in this repo yet.
 - No embeddings or vector search.
 - Remotive descriptions can be noisy HTML converted to text.
 - Himalayas descriptions can be rich HTML converted to text.
+- Himalayas pagination is intentionally capped to prioritize stable source behavior over maximum volume.
+- Remotive public API result volume can be limited for some searches.
 - Real Python jobs are fake/static and have limited details.
 - Scoring is transparent but heuristic.
 - Salary is shown only when a source provides it.
