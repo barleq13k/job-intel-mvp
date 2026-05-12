@@ -35,6 +35,78 @@ const COMPLEXITY_TERMS = [
 const JUNIOR_LEVEL_TERMS = ["junior", "entry level", "assistant", "intern", "trainee", "beginner", "graduate"];
 const SCRIPT_INTENT_TERMS = ["script", "scripting", "automation", "simple task"];
 const SCRIPT_FRIENDLY_TERMS = ["programmer", "developer", "automation", "script"];
+const SCORING_WEIGHTS = Object.freeze({
+  baseScore: 4,
+  maxReasons: 4,
+  signalMaxPoints: {
+    role: 34,
+    skill: 26,
+    strongest_skill: 14,
+    keyword: 16
+  },
+  signalWeights: {
+    titlePhrase: 1,
+    secondaryPhrase: 0.72,
+    titleSkillToken: 0.64,
+    titleToken: 0.58,
+    secondaryToken: 0.28,
+    nearWords: 0.5,
+    weak: 0.16,
+    weakCapRatio: 0.22
+  },
+  roleContext: {
+    primaryProgrammer: 15,
+    primaryDeveloper: 11,
+    primary: 10,
+    secondaryTechnology: { points: 2, penalty: -4 },
+    complexSecondary: { points: 2, penalty: -6 },
+    mainPhrase: 8,
+    fallbackSecondary: { points: 3, penalty: -3 }
+  },
+  seniority: {
+    matchedEntry: 18,
+    seniorTooHighPenalty: -18,
+    matchedSenior: 18,
+    tooJuniorPenalty: -14
+  },
+  complexity: {
+    highPenalty: 10,
+    mediumPenalty: 7,
+    fallbackPenalty: 4,
+    cap: 18
+  },
+  scriptIntent: {
+    programmer: 8,
+    simpleDeveloper: 5,
+    complexDeveloper: 3,
+    implementation: 4,
+    complexPenalty: -5
+  },
+  avoidKeywords: {
+    penaltyPerMatch: 18,
+    cap: 35
+  },
+  locationWorkMode: {
+    locationMatch: 6,
+    workModeMatch: 7,
+    conflictPenalty: -12
+  },
+  executionLikelihood: {
+    base: 50,
+    juniorTitleBoost: 22,
+    juniorSeniorPenalty: -28,
+    juniorComplexityPenalty: -18,
+    seniorTitleBoost: 22,
+    seniorJuniorPenalty: -18,
+    intermediateSeniorPenalty: -12,
+    strongestSkillBoostCap: 14,
+    complexityPenaltyCap: 18,
+    scoreMultiplier: 0.35,
+    strongFitThreshold: 76,
+    possibleFitThreshold: 58,
+    stretchThreshold: 25
+  }
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -329,32 +401,48 @@ function formatJob(job, profile, ingestedAt) {
   };
 }
 
-function scoreJob(job, profile) {
+function buildScoringContext(job, profile) {
   const title = normalizeSearchText(job.title);
   const company = normalizeSearchText(job.company);
   const location = normalizeSearchText(job.location);
   const summaryText = normalizeSearchText(`${job.company} ${job.location} ${job.category || ""} ${job.description || ""}`);
   const searchableText = `${title} ${summaryText}`;
+  const profileText = normalizeSearchText(
+    [...profile.target_roles, ...profile.skills, ...profile.keywords, profile.experience_level].join(" ")
+  );
 
-  const roleSignal = evaluateSignals(profile.target_roles, title, summaryText, "role");
-  const skillSignal = evaluateSignals(profile.skills, title, summaryText, "skill");
-  const keywordSignal = evaluateSignals(profile.keywords, title, summaryText, "keyword");
-  const strongestSkillSignal = evaluateSignals(profile.strongest_skills, title, summaryText, "strongest_skill");
-  const senioritySignal = evaluateSeniority(profile, title);
-  const roleContextSignal = evaluateRoleContext(profile, title, job.title);
-  const complexitySignal = evaluateComplexity(profile, title);
-  const scriptIntentSignal = evaluateScriptIntent(profile, title);
-  const avoidSignal = evaluateAvoidKeywords(profile, title, summaryText);
-  const executionSignal = evaluateExecutionLikelihood({
+  return {
+    job,
     profile,
     title,
+    company,
+    location,
+    summaryText,
     searchableText,
+    profileText
+  };
+}
+
+function scoreJob(job, profile) {
+  const context = buildScoringContext(job, profile);
+  const roleSignal = evaluateSignals(profile.target_roles, context.title, context.summaryText, "role");
+  const skillSignal = evaluateSignals(profile.skills, context.title, context.summaryText, "skill");
+  const keywordSignal = evaluateSignals(profile.keywords, context.title, context.summaryText, "keyword");
+  const strongestSkillSignal = evaluateSignals(profile.strongest_skills, context.title, context.summaryText, "strongest_skill");
+  const senioritySignal = evaluateSeniority(context);
+  const roleContextSignal = evaluateRoleContext(context);
+  const complexitySignal = evaluateComplexity(context);
+  const scriptIntentSignal = evaluateScriptIntent(context);
+  const avoidSignal = evaluateAvoidKeywords(context);
+  const executionSignal = evaluateExecutionLikelihood({
+    profile,
+    title: context.title,
+    searchableText: context.searchableText,
     strongestSkillSignal,
     complexitySignal,
     avoidSignal
   });
-  const locationMatch = profile.location && location.includes(normalizeForCompare(profile.location));
-  const workModeMatch = getWorkModeMatch(profile.work_mode, searchableText);
+  const locationWorkModeSignal = evaluateLocationWorkMode(context);
 
   const components = {
     role_match_score: roleSignal.points,
@@ -362,26 +450,17 @@ function scoreJob(job, profile) {
     keyword_match_score: keywordSignal.points,
     seniority_match_score: senioritySignal.points,
     execution_likelihood_score: executionSignal.points,
-    location_workmode_score: 0,
+    location_workmode_score: locationWorkModeSignal.points,
     penalties: senioritySignal.penalty + avoidSignal.penalty
   };
 
   components.role_match_score += roleContextSignal.points;
   components.skill_match_score += scriptIntentSignal.points;
   components.penalties += roleContextSignal.penalty + complexitySignal.penalty + scriptIntentSignal.penalty;
-
-  if (locationMatch) {
-    components.location_workmode_score += 6;
-  }
-
-  if (workModeMatch === "matched") {
-    components.location_workmode_score += 7;
-  } else if (workModeMatch === "conflict") {
-    components.penalties -= 12;
-  }
+  components.penalties += locationWorkModeSignal.penalty;
 
   const score =
-    4 +
+    SCORING_WEIGHTS.baseScore +
     components.role_match_score +
     components.skill_match_score +
     components.keyword_match_score +
@@ -401,9 +480,7 @@ function scoreJob(job, profile) {
     scriptIntentSignal,
     avoidSignal,
     executionSignal,
-    locationMatch,
-    workModeMatch,
-    profile
+    locationWorkModeSignal
   });
 
   return {
@@ -416,10 +493,10 @@ function scoreJob(job, profile) {
 
 function evaluateSignals(queries, title, secondaryText, category) {
   if (!queries.length) {
-    return { points: 0, bestStrength: "none", weakMatches: 0, matchedQueries: [] };
+    return makeScoringSignal({ bestStrength: "none", weakMatches: 0, matchedQueries: [] });
   }
 
-  const maxPoints = category === "role" ? 34 : category === "skill" ? 26 : category === "strongest_skill" ? 14 : 16;
+  const maxPoints = SCORING_WEIGHTS.signalMaxPoints[category] || SCORING_WEIGHTS.signalMaxPoints.keyword;
   let totalWeight = 0;
   let bestStrength = "none";
   let weakMatches = 0;
@@ -443,14 +520,16 @@ function evaluateSignals(queries, title, secondaryText, category) {
   }
 
   const averageWeight = Math.min(1, totalWeight / queries.length);
-  const weakCap = bestStrength === "weak" ? maxPoints * 0.22 : maxPoints;
-
-  return {
+  const weakCap = bestStrength === "weak" ? maxPoints * SCORING_WEIGHTS.signalWeights.weakCapRatio : maxPoints;
+  const signal = makeScoringSignal({
     points: Math.min(weakCap, averageWeight * maxPoints),
     bestStrength,
     weakMatches,
     matchedQueries
-  };
+  });
+
+  signal.reasons = makeSignalReasons(signal, category);
+  return signal;
 }
 
 function evaluateQuerySignal(query, title, secondaryText, category) {
@@ -461,39 +540,39 @@ function evaluateQuerySignal(query, title, secondaryText, category) {
   }
 
   if (containsPhrase(title, phrase)) {
-    return { strength: "title_phrase", weight: 1 };
+    return { strength: "title_phrase", weight: SCORING_WEIGHTS.signalWeights.titlePhrase };
   }
 
   if (containsPhrase(secondaryText, phrase)) {
-    return { strength: "secondary_phrase", weight: 0.72 };
+    return { strength: "secondary_phrase", weight: SCORING_WEIGHTS.signalWeights.secondaryPhrase };
   }
 
   const words = phrase.split(" ").filter(Boolean);
   const importantWords = words.filter((word) => !GENERIC_TOKENS.has(word) && word.length > 2);
 
   if (words.length === 1 && importantWords.length === 1 && containsWholeWord(title, importantWords[0])) {
-    return { strength: "title_token", weight: category === "skill" ? 0.64 : 0.58 };
+    return {
+      strength: "title_token",
+      weight: category === "skill" ? SCORING_WEIGHTS.signalWeights.titleSkillToken : SCORING_WEIGHTS.signalWeights.titleToken
+    };
   }
 
   if (words.length === 1 && importantWords.length === 1 && containsWholeWord(secondaryText, importantWords[0])) {
-    return { strength: "secondary_token", weight: 0.28 };
+    return { strength: "secondary_token", weight: SCORING_WEIGHTS.signalWeights.secondaryToken };
   }
 
   if (importantWords.length >= 2 && wordsNearEachOther(importantWords, `${title} ${secondaryText}`)) {
-    return { strength: "near_words", weight: 0.5 };
+    return { strength: "near_words", weight: SCORING_WEIGHTS.signalWeights.nearWords };
   }
 
   if (importantWords.length === 1 && containsWholeWord(`${title} ${secondaryText}`, importantWords[0])) {
-    return { strength: "weak", weight: 0.16 };
+    return { strength: "weak", weight: SCORING_WEIGHTS.signalWeights.weak };
   }
 
   return { strength: "none", weight: 0 };
 }
 
-function evaluateSeniority(profile, title) {
-  const profileText = normalizeSearchText(
-    [...profile.target_roles, ...profile.skills, ...profile.keywords, profile.experience_level].join(" ")
-  );
+function evaluateSeniority({ profileText, title }) {
   const wantsEntry = ENTRY_LEVEL_TERMS.some((term) => containsPhrase(profileText, term));
   const wantsSenior = SENIOR_LEVEL_TERMS.some((term) => containsPhrase(profileText, term));
   const titleHasEntry = ENTRY_LEVEL_TERMS.some((term) => containsPhrase(title, term));
@@ -501,70 +580,126 @@ function evaluateSeniority(profile, title) {
 
   if (wantsEntry && !wantsSenior) {
     if (titleHasEntry) {
-      return { preference: "entry", points: 18, penalty: 0, status: "matched_entry" };
+      return makeScoringSignal({
+        points: SCORING_WEIGHTS.seniority.matchedEntry,
+        preference: "entry",
+        status: "matched_entry",
+        reasons: ["Entry-level role matches your preference"]
+      });
     }
 
     if (titleHasSenior) {
-      return { preference: "entry", points: 0, penalty: -18, status: "senior_too_high" };
+      return makeScoringSignal({
+        penalty: SCORING_WEIGHTS.seniority.seniorTooHighPenalty,
+        preference: "entry",
+        status: "senior_too_high",
+        reasons: ["Seniority may be higher than requested"]
+      });
     }
 
-    return { preference: "entry", points: 0, penalty: 0, status: "neutral" };
+    return makeScoringSignal({ preference: "entry", status: "neutral" });
   }
 
   if (wantsSenior) {
     if (titleHasSenior) {
-      return { preference: "senior", points: 18, penalty: 0, status: "matched_senior" };
+      return makeScoringSignal({
+        points: SCORING_WEIGHTS.seniority.matchedSenior,
+        preference: "senior",
+        status: "matched_senior",
+        reasons: ["Senior role matches your preference"]
+      });
     }
 
     if (titleHasEntry) {
-      return { preference: "senior", points: 0, penalty: -14, status: "too_junior" };
+      return makeScoringSignal({
+        penalty: SCORING_WEIGHTS.seniority.tooJuniorPenalty,
+        preference: "senior",
+        status: "too_junior",
+        reasons: ["Seniority may be lower than requested"]
+      });
     }
 
-    return { preference: "senior", points: 0, penalty: 0, status: "neutral" };
+    return makeScoringSignal({ preference: "senior", status: "neutral" });
   }
 
-  return { preference: "none", points: 0, penalty: 0, status: "neutral" };
+  return makeScoringSignal({ preference: "none", status: "neutral" });
 }
 
-function evaluateRoleContext(profile, title, rawTitle) {
+function evaluateRoleContext({ profile, title, job }) {
   const broadRole = profile.target_roles
     .map(normalizeSearchText)
     .find((role) => role && role.split(" ").length === 1 && !GENERIC_TOKENS.has(role));
 
   if (!broadRole || !containsWholeWord(title, broadRole)) {
-    return { status: "none", points: 0, penalty: 0, term: null };
+    return makeScoringSignal({ status: "none", term: null });
   }
 
   const tokens = title.split(" ").filter(Boolean);
   const index = tokens.indexOf(broadRole);
-  const inParentheses = titleContainsParentheticalTerm(rawTitle, broadRole);
+  const inParentheses = titleContainsParentheticalTerm(job.title, broadRole);
   const hasComplexPrefix = tokens.slice(0, index).some((token) => ["senior", "staff", "principal", "lead"].includes(token));
+  const roleTerm = displayTerm(broadRole);
 
   if (index === 0 && tokens.includes("programmer")) {
-    return { status: "primary", points: 15, penalty: 0, term: broadRole };
+    return makeScoringSignal({
+      points: SCORING_WEIGHTS.roleContext.primaryProgrammer,
+      status: "primary",
+      term: broadRole,
+      reasons: [`${roleTerm} is the primary title focus`]
+    });
   }
 
   if (index === 0 && tokens.includes("developer")) {
-    return { status: "primary", points: 11, penalty: 0, term: broadRole };
+    return makeScoringSignal({
+      points: SCORING_WEIGHTS.roleContext.primaryDeveloper,
+      status: "primary",
+      term: broadRole,
+      reasons: [`${roleTerm} is the primary title focus`]
+    });
   }
 
   if (index === 0) {
-    return { status: "primary", points: 10, penalty: 0, term: broadRole };
+    return makeScoringSignal({
+      points: SCORING_WEIGHTS.roleContext.primary,
+      status: "primary",
+      term: broadRole,
+      reasons: [`${roleTerm} is the primary title focus`]
+    });
   }
 
   if (inParentheses) {
-    return { status: "secondary_technology", points: 2, penalty: -4, term: broadRole };
+    return makeScoringSignal({
+      ...SCORING_WEIGHTS.roleContext.secondaryTechnology,
+      status: "secondary_technology",
+      term: broadRole,
+      reasons: [`${roleTerm} appears as a secondary technology`]
+    });
   }
 
   if (hasComplexPrefix) {
-    return { status: "complex_secondary", points: 2, penalty: -6, term: broadRole };
+    return makeScoringSignal({
+      ...SCORING_WEIGHTS.roleContext.complexSecondary,
+      status: "complex_secondary",
+      term: broadRole,
+      reasons: [`${roleTerm} appears in a more complex role title`]
+    });
   }
 
   if (index > 0 && index <= 2 && tokens.some((token) => SCRIPT_FRIENDLY_TERMS.includes(token))) {
-    return { status: "main_phrase", points: 8, penalty: 0, term: broadRole };
+    return makeScoringSignal({
+      points: SCORING_WEIGHTS.roleContext.mainPhrase,
+      status: "main_phrase",
+      term: broadRole,
+      reasons: [`${roleTerm} is central to the role title`]
+    });
   }
 
-  return { status: "secondary_technology", points: 3, penalty: -3, term: broadRole };
+  return makeScoringSignal({
+    ...SCORING_WEIGHTS.roleContext.fallbackSecondary,
+    status: "secondary_technology",
+    term: broadRole,
+    reasons: [`${roleTerm} appears as a secondary technology`]
+  });
 }
 
 function titleContainsParentheticalTerm(rawTitle, term) {
@@ -572,45 +707,50 @@ function titleContainsParentheticalTerm(rawTitle, term) {
   return matches.some((match) => containsWholeWord(normalizeSearchText(match), term));
 }
 
-function evaluateComplexity(profile, title) {
-  const profileText = normalizeSearchText([...profile.target_roles, ...profile.skills, ...profile.keywords, profile.experience_level].join(" "));
+function evaluateComplexity({ profileText, title }) {
   const requestedTerms = COMPLEXITY_TERMS.filter((term) => containsPhrase(profileText, term));
   const titleTerms = COMPLEXITY_TERMS.filter((term) => containsPhrase(title, term));
   const unrequestedTerms = titleTerms.filter((term) => !requestedTerms.includes(term));
 
   if (!unrequestedTerms.length) {
-    return { status: "neutral", penalty: 0, terms: [] };
+    return makeScoringSignal({ status: "neutral", terms: [] });
   }
 
   const penalty = unrequestedTerms.reduce((total, term) => {
     if (["senior", "staff", "principal", "lead", "manager"].includes(term)) {
-      return total + 10;
+      return total + SCORING_WEIGHTS.complexity.highPenalty;
     }
 
     if (["architect", "engineer", "backend", "back end", "5 years", "8 years", "enterprise", "architecture"].includes(term)) {
-      return total + 7;
+      return total + SCORING_WEIGHTS.complexity.mediumPenalty;
     }
 
-    return total + 4;
+    return total + SCORING_WEIGHTS.complexity.fallbackPenalty;
   }, 0);
-  return { status: "more_complex", penalty: -Math.min(18, penalty), terms: unrequestedTerms };
+  return makeScoringSignal({
+    status: "more_complex",
+    penalty: -Math.min(SCORING_WEIGHTS.complexity.cap, penalty),
+    terms: unrequestedTerms,
+    reasons: ["Role appears more senior/complex than requested"]
+  });
 }
 
-function evaluateAvoidKeywords(profile, title, secondaryText) {
-  const text = `${title} ${secondaryText}`;
+function evaluateAvoidKeywords({ profile, title, summaryText }) {
+  const text = `${title} ${summaryText}`;
   const matches = profile.avoid_keywords.filter((keyword) => {
     const normalized = normalizeSearchText(keyword);
     return normalized && containsPhrase(text, normalized);
   });
 
-  return {
+  return makeScoringSignal({
     matches,
-    penalty: -Math.min(35, matches.length * 18)
-  };
+    penalty: -Math.min(SCORING_WEIGHTS.avoidKeywords.cap, matches.length * SCORING_WEIGHTS.avoidKeywords.penaltyPerMatch),
+    reasons: matches.map((keyword) => `Contains avoided keyword: ${keyword}`)
+  });
 }
 
 function evaluateExecutionLikelihood({ profile, title, searchableText, strongestSkillSignal, complexitySignal, avoidSignal }) {
-  let value = 50;
+  let value = SCORING_WEIGHTS.executionLikelihood.base;
   const wantsJunior = ["beginner", "junior"].includes(profile.experience_level);
   const wantsSenior = profile.experience_level === "senior";
   const titleHasJunior = JUNIOR_LEVEL_TERMS.some((term) => containsPhrase(title, term));
@@ -619,70 +759,71 @@ function evaluateExecutionLikelihood({ profile, title, searchableText, strongest
 
   if (wantsJunior) {
     if (titleHasJunior) {
-      value += 22;
+      value += SCORING_WEIGHTS.executionLikelihood.juniorTitleBoost;
     }
 
     if (titleHasSenior) {
-      value -= 28;
+      value += SCORING_WEIGHTS.executionLikelihood.juniorSeniorPenalty;
     }
 
     if (titleHasComplexity) {
-      value -= 18;
+      value += SCORING_WEIGHTS.executionLikelihood.juniorComplexityPenalty;
     }
   } else if (wantsSenior) {
     if (titleHasSenior) {
-      value += 22;
+      value += SCORING_WEIGHTS.executionLikelihood.seniorTitleBoost;
     }
 
     if (titleHasJunior) {
-      value -= 18;
+      value += SCORING_WEIGHTS.executionLikelihood.seniorJuniorPenalty;
     }
   } else if (profile.experience_level === "intermediate") {
     if (titleHasSenior) {
-      value -= 12;
+      value += SCORING_WEIGHTS.executionLikelihood.intermediateSeniorPenalty;
     }
   }
 
   if (strongestSkillSignal.points > 0) {
-    value += Math.min(14, strongestSkillSignal.points);
+    value += Math.min(SCORING_WEIGHTS.executionLikelihood.strongestSkillBoostCap, strongestSkillSignal.points);
   }
 
   if (!wantsSenior && complexitySignal.status === "more_complex") {
-    value -= Math.min(18, Math.abs(complexitySignal.penalty));
+    value -= Math.min(SCORING_WEIGHTS.executionLikelihood.complexityPenaltyCap, Math.abs(complexitySignal.penalty));
   }
 
   value += avoidSignal.penalty;
   value = Math.max(0, Math.min(100, Math.round(value)));
 
-  return {
+  return makeScoringSignal({
     value,
-    points: Math.round((value - 50) * 0.35),
-    label: executionLabel(value)
-  };
+    points: Math.round((value - SCORING_WEIGHTS.executionLikelihood.base) * SCORING_WEIGHTS.executionLikelihood.scoreMultiplier),
+    label: executionLabel(value),
+    reasons: makeExecutionLikelihoodReasons(value)
+  });
 }
 
 function executionLabel(value) {
-  if (value >= 76) {
+  if (value >= SCORING_WEIGHTS.executionLikelihood.strongFitThreshold) {
     return "strong_fit";
   }
 
-  if (value >= 58) {
+  if (value >= SCORING_WEIGHTS.executionLikelihood.possibleFitThreshold) {
     return "possible_fit";
   }
 
-  if (value >= 25) {
+  if (value >= SCORING_WEIGHTS.executionLikelihood.stretchThreshold) {
     return "stretch";
   }
 
   return "poor_fit";
 }
 
-function evaluateScriptIntent(profile, title) {
+function evaluateScriptIntent({ profile, title }) {
   const profileText = normalizeSearchText([...profile.skills, ...profile.keywords].join(" "));
   const hasScriptIntent = SCRIPT_INTENT_TERMS.some((term) => containsPhrase(profileText, term));
 
   if (!hasScriptIntent) {
-    return { status: "none", points: 0, penalty: 0 };
+    return makeScoringSignal({ status: "none" });
   }
 
   const isProgrammer = containsPhrase(title, "programmer");
@@ -691,13 +832,20 @@ function evaluateScriptIntent(profile, title) {
   const isComplexRole = ["senior", "staff", "principal", "lead", "architect", "engineer", "backend", "back end"].some((term) =>
     containsPhrase(title, term)
   );
-  const implementationPoints = isProgrammer ? 8 : isDeveloper ? (isComplexRole ? 3 : 5) : isImplementationRole && !isComplexRole ? 4 : 0;
+  const implementationPoints = isProgrammer
+    ? SCORING_WEIGHTS.scriptIntent.programmer
+    : isDeveloper
+      ? (isComplexRole ? SCORING_WEIGHTS.scriptIntent.complexDeveloper : SCORING_WEIGHTS.scriptIntent.simpleDeveloper)
+      : isImplementationRole && !isComplexRole
+        ? SCORING_WEIGHTS.scriptIntent.implementation
+        : 0;
 
-  return {
+  return makeScoringSignal({
     status: isImplementationRole ? "implementation_favored" : "neutral",
     points: implementationPoints,
-    penalty: isComplexRole ? -5 : 0
-  };
+    penalty: isComplexRole ? SCORING_WEIGHTS.scriptIntent.complexPenalty : 0,
+    reasons: isImplementationRole ? ["Script-oriented profile favors implementation roles"] : []
+  });
 }
 
 function containsPhrase(text, phrase) {
@@ -730,6 +878,32 @@ function strengthRank(strength) {
     secondary_phrase: 5,
     title_phrase: 6
   }[strength] || 0;
+}
+
+function evaluateLocationWorkMode({ profile, location, searchableText }) {
+  const locationMatch = profile.location && location.includes(normalizeForCompare(profile.location));
+  const workModeMatch = getWorkModeMatch(profile.work_mode, searchableText);
+  const points =
+    (locationMatch ? SCORING_WEIGHTS.locationWorkMode.locationMatch : 0) +
+    (workModeMatch === "matched" ? SCORING_WEIGHTS.locationWorkMode.workModeMatch : 0);
+  const penalty = workModeMatch === "conflict" ? SCORING_WEIGHTS.locationWorkMode.conflictPenalty : 0;
+  const reasons = [];
+
+  if (locationMatch) {
+    reasons.push(`Location mentions ${profile.location}`);
+  }
+
+  if (workModeMatch === "matched") {
+    reasons.push(`${capitalize(profile.work_mode)} work mode aligned`);
+  }
+
+  return makeScoringSignal({
+    points,
+    penalty,
+    locationMatch,
+    workModeMatch,
+    reasons
+  });
 }
 
 function getWorkModeMatch(workMode, haystack) {
@@ -767,80 +941,22 @@ function buildMatchReasons({
   scriptIntentSignal,
   avoidSignal,
   executionSignal,
-  locationMatch,
-  workModeMatch,
-  profile
+  locationWorkModeSignal
 }) {
   const reasons = [];
-  const roleTerm = displayTerm(roleContextSignal.term || roleSignal.matchedQueries[0]?.query || "Role");
+  const roleReasons = roleContextSignal.reasons.length ? roleContextSignal.reasons : roleSignal.reasons;
 
-  if (roleContextSignal.status === "primary") {
-    reasons.push(`${roleTerm} is the primary title focus`);
-  } else if (roleContextSignal.status === "main_phrase") {
-    reasons.push(`${roleTerm} is central to the role title`);
-  } else if (roleContextSignal.status === "complex_secondary") {
-    reasons.push(`${roleTerm} appears in a more complex role title`);
-  } else if (roleContextSignal.status === "secondary_technology") {
-    reasons.push(`${roleTerm} appears as a secondary technology`);
-  } else if (roleSignal.bestStrength === "title_phrase") {
-    reasons.push(makeTitleMatchReason(roleSignal, "target role"));
-  } else if (roleSignal.bestStrength === "title_token") {
-    reasons.push(`${displayTerm(roleSignal.matchedQueries[0]?.query || "Role")} appears in the job title`);
-  } else if (roleSignal.bestStrength === "secondary_phrase") {
-    reasons.push("Target role phrase appears in job details");
-  } else if (roleSignal.bestStrength === "near_words") {
-    reasons.push("Target role words appear close together");
-  }
-
-  if (skillSignal.bestStrength === "title_phrase" || skillSignal.bestStrength === "secondary_phrase") {
-    reasons.push(makePhraseReason(skillSignal, "skill"));
-  } else if (skillSignal.bestStrength === "title_token") {
-    reasons.push(`${displayTerm(skillSignal.matchedQueries[0]?.query || "Skill")} appears in the job title`);
-  } else if (skillSignal.bestStrength === "near_words") {
-    reasons.push("Relevant skill words appear close together");
-  }
-
-  if (strongestSkillSignal.bestStrength !== "none") {
-    reasons.push(`Strongest skill matched: ${displayTerm(strongestSkillSignal.matchedQueries[0]?.query || "skill")}`);
-  }
-
-  if (senioritySignal.status === "matched_entry") {
-    reasons.push("Entry-level role matches your preference");
-  } else if (senioritySignal.status === "senior_too_high") {
-    reasons.push("Seniority may be higher than requested");
-  } else if (senioritySignal.status === "matched_senior") {
-    reasons.push("Senior role matches your preference");
-  } else if (senioritySignal.status === "too_junior") {
-    reasons.push("Seniority may be lower than requested");
-  }
-
-  if (complexitySignal.status === "more_complex") {
-    reasons.push("Role appears more senior/complex than requested");
-  }
-
-  for (const keyword of avoidSignal.matches) {
-    reasons.push(`Contains avoided keyword: ${keyword}`);
-  }
-
-  if (scriptIntentSignal.status === "implementation_favored") {
-    reasons.push("Script-oriented profile favors implementation roles");
-  }
-
-  if (locationMatch) {
-    reasons.push(`Location mentions ${profile.location}`);
-  }
-
-  if (workModeMatch === "matched") {
-    reasons.push(`${capitalize(profile.work_mode)} work mode aligned`);
-  }
-
-  if (keywordSignal.bestStrength === "title_phrase" || keywordSignal.bestStrength === "secondary_phrase") {
-    reasons.push(makePhraseReason(keywordSignal, "keyword"));
-  } else if (keywordSignal.bestStrength === "title_token") {
-    reasons.push(`${displayTerm(keywordSignal.matchedQueries[0]?.query || "Keyword")} appears in the job title`);
-  } else if (keywordSignal.bestStrength === "near_words") {
-    reasons.push("Keyword words appear close together");
-  }
+  reasons.push(
+    ...roleReasons,
+    ...skillSignal.reasons,
+    ...strongestSkillSignal.reasons,
+    ...senioritySignal.reasons,
+    ...complexitySignal.reasons,
+    ...avoidSignal.reasons,
+    ...scriptIntentSignal.reasons,
+    ...locationWorkModeSignal.reasons,
+    ...keywordSignal.reasons
+  );
 
   if (reasons.length === 0) {
     if (roleSignal.weakMatches || skillSignal.weakMatches || keywordSignal.weakMatches) {
@@ -850,7 +966,92 @@ function buildMatchReasons({
     }
   }
 
-  return uniqueReasons(reasons).slice(0, 4);
+  return uniqueReasons(reasons).slice(0, SCORING_WEIGHTS.maxReasons);
+}
+
+function makeScoringSignal({ points = 0, penalty = 0, reasons = [], ...details } = {}) {
+  return {
+    points,
+    penalty,
+    reasons,
+    ...details
+  };
+}
+
+function makeSignalReasons(signal, category) {
+  if (category === "role") {
+    if (signal.bestStrength === "title_phrase") {
+      return [makeTitleMatchReason(signal, "target role")];
+    }
+
+    if (signal.bestStrength === "title_token") {
+      return [`${displayTerm(signal.matchedQueries[0]?.query || "Role")} appears in the job title`];
+    }
+
+    if (signal.bestStrength === "secondary_phrase") {
+      return ["Target role phrase appears in job details"];
+    }
+
+    if (signal.bestStrength === "near_words") {
+      return ["Target role words appear close together"];
+    }
+
+    return [];
+  }
+
+  if (category === "skill") {
+    if (signal.bestStrength === "title_phrase" || signal.bestStrength === "secondary_phrase") {
+      return [makePhraseReason(signal, "skill")];
+    }
+
+    if (signal.bestStrength === "title_token") {
+      return [`${displayTerm(signal.matchedQueries[0]?.query || "Skill")} appears in the job title`];
+    }
+
+    if (signal.bestStrength === "near_words") {
+      return ["Relevant skill words appear close together"];
+    }
+
+    return [];
+  }
+
+  if (category === "strongest_skill") {
+    return signal.bestStrength !== "none"
+      ? [`Strongest skill matched: ${displayTerm(signal.matchedQueries[0]?.query || "skill")}`]
+      : [];
+  }
+
+  if (signal.bestStrength === "title_phrase" || signal.bestStrength === "secondary_phrase") {
+    return [makePhraseReason(signal, "keyword")];
+  }
+
+  if (signal.bestStrength === "title_token") {
+    return [`${displayTerm(signal.matchedQueries[0]?.query || "Keyword")} appears in the job title`];
+  }
+
+  if (signal.bestStrength === "near_words") {
+    return ["Keyword words appear close together"];
+  }
+
+  return [];
+}
+
+function makeExecutionLikelihoodReasons(value) {
+  const label = executionLabel(value);
+
+  if (label === "strong_fit") {
+    return ["Execution likelihood is strong"];
+  }
+
+  if (label === "possible_fit") {
+    return ["Execution likelihood is possible"];
+  }
+
+  if (label === "stretch") {
+    return ["Execution likelihood is a stretch"];
+  }
+
+  return ["Execution likelihood is poor"];
 }
 
 function makeTitleMatchReason(signal, label) {
@@ -971,6 +1172,13 @@ function displayTerm(value) {
 
   return capitalize(text);
 }
+
+export const __test = Object.freeze({
+  SCORING_WEIGHTS,
+  buildScoringContext,
+  normalizeProfile,
+  scoreJob
+});
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {

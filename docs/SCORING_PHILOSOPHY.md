@@ -6,6 +6,27 @@ Scoring is rule-based and transparent. The goal is not perfect prediction; the g
 
 The Worker returns `scoring.score` from `0` to `100` plus reasons and component scores.
 
+## Scoring Structure
+
+The Worker keeps scoring in one file for MVP simplicity, but the scoring internals are organized around:
+
+- `SCORING_WEIGHTS`: the current point values, penalties, caps, and thresholds.
+- `buildScoringContext(job, profile)`: deterministic normalized job/profile text used by scoring evaluators.
+- signal evaluators that return points, penalties, status metadata, and candidate human-readable reasons.
+- a final reason collector that dedupes and caps `match_reasons` at 4 items.
+
+Public response fields remain stable. `scoring.components` keeps the existing keys:
+
+- `role_match_score`
+- `skill_match_score`
+- `keyword_match_score`
+- `seniority_match_score`
+- `execution_likelihood_score`
+- `location_workmode_score`
+- `penalties`
+
+Calibration should start with `SCORING_WEIGHTS` and preserve deterministic Fake Jobs regression checks when changing score math.
+
 ## Signals Used Today
 
 Role relevance:
@@ -66,6 +87,7 @@ Display filtering:
 - Real Python jobs have very limited detail.
 - Remotive data quality varies by posting.
 - Some job descriptions contain broad marketing text that can create weak matches.
+- Scoring regression checks use Fake Jobs-style fixtures, not a full production source replay.
 
 ## Future AI/Groq Direction
 
