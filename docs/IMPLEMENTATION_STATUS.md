@@ -24,6 +24,7 @@
 - Experience level input.
 - Dark mode toggle with localStorage persistence.
 - Local application status tracking with localStorage-only `New`, `Saved`, `Applied`, and `Skipped` statuses.
+- Latest successful search profile and ranked results restore from localStorage after refresh.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 

@@ -6,6 +6,8 @@ import "./styles.css";
 const MIN_RELEVANCE_SCORE = 25;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const TRACKER_STORAGE_KEY = "job-intel-application-statuses";
+const LAST_SEARCH_PROFILE_KEY = "job-intel-last-search-profile";
+const LAST_SEARCH_RESULTS_KEY = "job-intel-last-search-results";
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -57,11 +59,12 @@ function normalizeProfileTerm(value) {
 }
 
 function App() {
-  const [form, setForm] = useState(initialForm);
-  const [jobs, setJobs] = useState([]);
-  const [status, setStatus] = useState("idle");
+  const [restoredSearch] = useState(loadStoredSearchResults);
+  const [form, setForm] = useState(() => loadStoredSearchProfile() || initialForm);
+  const [jobs, setJobs] = useState(() => restoredSearch?.jobs || []);
+  const [status, setStatus] = useState(() => (restoredSearch ? "success" : "idle"));
   const [error, setError] = useState("");
-  const [sourceInfo, setSourceInfo] = useState(null);
+  const [sourceInfo, setSourceInfo] = useState(() => restoredSearch?.sourceInfo || null);
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
   const [showExploreMore, setShowExploreMore] = useState(false);
   const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
@@ -158,14 +161,21 @@ function App() {
       });
 
       const data = await response.json().catch(() => ({}));
-      setSourceInfo(data.source || null);
+      const nextSourceInfo = data.source || null;
+      setSourceInfo(nextSourceInfo);
 
       if (!response.ok) {
         throw new Error(data.source?.message || data.error || `Search failed with status ${response.status}.`);
       }
 
-      setJobs(data.jobs || []);
+      const nextJobs = Array.isArray(data.jobs) ? data.jobs : [];
+      setJobs(nextJobs);
       setStatus("success");
+      saveStoredSearchProfile(form);
+      saveStoredSearchResults({
+        jobs: nextJobs,
+        sourceInfo: nextSourceInfo
+      });
     } catch (searchError) {
       setError(searchError.message);
       setStatus("error");
@@ -534,6 +544,80 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
         )}
       </div>
     </article>
+  );
+}
+
+function loadStoredSearchProfile() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LAST_SEARCH_PROFILE_KEY) || "null");
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return {
+      ...initialForm,
+      ...Object.fromEntries(
+        Object.entries(parsed).filter(([, value]) => typeof value === "string")
+      ),
+      work_mode: ["any", "remote", "hybrid", "onsite"].includes(parsed.work_mode) ? parsed.work_mode : initialForm.work_mode,
+      experience_level: ["any", "beginner", "junior", "intermediate", "senior"].includes(parsed.experience_level)
+        ? parsed.experience_level
+        : initialForm.experience_level,
+      source_type: SOURCE_LABELS[parsed.source_type] ? parsed.source_type : initialForm.source_type
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredSearchProfile(form) {
+  try {
+    localStorage.setItem(LAST_SEARCH_PROFILE_KEY, JSON.stringify(form));
+  } catch {
+    // Cached results are helpful, but search should still work if localStorage is unavailable.
+  }
+}
+
+function loadStoredSearchResults() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LAST_SEARCH_RESULTS_KEY) || "null");
+
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.jobs)) {
+      return null;
+    }
+
+    const jobs = parsed.jobs.filter(isRestorableJob);
+
+    return {
+      jobs,
+      sourceInfo: parsed.sourceInfo && typeof parsed.sourceInfo === "object" && !Array.isArray(parsed.sourceInfo)
+        ? parsed.sourceInfo
+        : null
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredSearchResults(results) {
+  try {
+    localStorage.setItem(LAST_SEARCH_RESULTS_KEY, JSON.stringify(results));
+  } catch {
+    // Cached results are helpful, but search should still work if localStorage is unavailable.
+  }
+}
+
+function isRestorableJob(job) {
+  return Boolean(
+    job &&
+    typeof job === "object" &&
+    typeof job.title === "string" &&
+    typeof job.company === "string" &&
+    job.scoring &&
+    typeof job.scoring === "object" &&
+    Number.isFinite(job.scoring.score) &&
+    Array.isArray(job.scoring.match_reasons)
   );
 }
 

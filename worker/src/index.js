@@ -1046,7 +1046,8 @@ function scoreJob(job, profile) {
     complexitySignal,
     avoidSignal
   });
-  const score = Math.max(baseScore, supportRelevanceFloor);
+  const roleFamilyMismatchCap = getRoleFamilyMismatchScoreCap(context);
+  const score = Math.min(Math.max(baseScore, supportRelevanceFloor), roleFamilyMismatchCap);
   executionSignal.label = executionLabel({
     score,
     value: executionSignal.value,
@@ -1081,6 +1082,33 @@ function scoreJob(job, profile) {
     execution_likelihood: executionSignal.label,
     components: roundComponents(components)
   };
+}
+
+function getRoleFamilyMismatchScoreCap(context) {
+  if (!hasSupportTargetRole(context.profile)) {
+    return 100;
+  }
+
+  if (hasSupportRoleEvidence(context)) {
+    return 100;
+  }
+
+  if (hasImplementationRoleTitle(context.title)) {
+    return MIN_STRETCH_SCORE - 1;
+  }
+
+  return 100;
+}
+
+function hasSupportTargetRole(profile) {
+  const targetRoleText = normalizeSearchText(profile.target_roles.join(" "));
+  return SUPPORT_INTENT_TERMS.some((term) => containsPhrase(targetRoleText, normalizeSearchText(term)));
+}
+
+function hasImplementationRoleTitle(title) {
+  return ["programmer", "developer", "engineer", "software engineer", "software developer"].some((term) =>
+    containsPhrase(title, normalizeSearchText(term))
+  );
 }
 
 function evaluateSignals(queries, title, secondaryText, category, categoryText = "") {
@@ -1747,6 +1775,7 @@ function makeRestrictedLocationPreference(restriction, preferredLocation, jobLoc
     label: cleanText(preferredLocation || ""),
     jobLocation: cleanText(jobLocation || ""),
     restrictedRegion: restriction.region,
+    restrictionKind: restriction.kind || "region",
     penalty: strictPreference ? SCORING_WEIGHTS.locationWorkMode.locationRestrictedMismatchPenalty : 0
   };
 }
@@ -1768,6 +1797,12 @@ function detectLocationRestriction(jobLocationText, evidenceText, preferredTerms
     return phraseRestriction;
   }
 
+  const listedLocationRestriction = detectListedLocationRestriction(normalizedJobLocation, preferredTerms);
+
+  if (listedLocationRestriction !== undefined) {
+    return listedLocationRestriction;
+  }
+
   for (const region of LOCATION_RESTRICTED_REGIONS) {
     const regionInLocation = region.terms.some((term) => containsPhrase(jobLocationText, term));
     const regionInRestrictedPhrase =
@@ -1784,6 +1819,46 @@ function detectLocationRestriction(jobLocationText, evidenceText, preferredTerms
   }
 
   return detectPhraseLocationRestriction(evidenceText, preferredTerms);
+}
+
+function detectListedLocationRestriction(jobLocationText, preferredTerms) {
+  if (!jobLocationText) {
+    return undefined;
+  }
+
+  const matchedRegions = getLocationRegionMatches(jobLocationText);
+
+  if (matchedRegions.length <= 1) {
+    return undefined;
+  }
+
+  if (!preferredTerms.length || preferredTerms.some(isNeutralLocationPreference)) {
+    return null;
+  }
+
+  const matchesPreferred = matchedRegions.some((region) =>
+    region.terms.some((term) => preferredTerms.includes(term))
+  );
+
+  return matchesPreferred
+    ? { region: null, matchesPreferred: true, kind: "listed_countries" }
+    : { region: null, matchesPreferred: false, kind: "listed_countries" };
+}
+
+function getLocationRegionMatches(jobLocationText) {
+  const matches = [];
+  const seenLabels = new Set();
+
+  for (const region of LOCATION_RESTRICTED_REGIONS) {
+    const matchesRegion = region.terms.some((term) => containsPhrase(jobLocationText, term));
+
+    if (matchesRegion && !seenLabels.has(region.label)) {
+      seenLabels.add(region.label);
+      matches.push(region);
+    }
+  }
+
+  return matches;
 }
 
 function detectPhraseLocationRestriction(evidenceText, preferredTerms) {
@@ -1811,6 +1886,10 @@ function detectPhraseLocationRestriction(evidenceText, preferredTerms) {
 }
 
 function makeLocationRestrictionReason(locationPreference) {
+  if (locationPreference.restrictionKind === "listed_countries") {
+    return "Remote role restricted to listed countries";
+  }
+
   if (locationPreference.restrictedRegion) {
     return `Remote role restricted to ${locationPreference.restrictedRegion} applicants`;
   }

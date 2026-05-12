@@ -8,7 +8,7 @@ Frontend:
 - Tailwind CSS for styling
 - `lucide-react` for icons
 - No router, auth client, data fetching library, or state management library
-- Local application tracking is stored only in browser localStorage keyed by stable job IDs
+- Local application tracking and the latest successful search snapshot are stored only in browser localStorage
 
 Backend:
 - Cloudflare Worker in `worker/`
