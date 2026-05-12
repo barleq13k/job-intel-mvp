@@ -35,6 +35,13 @@ const COMPLEXITY_TERMS = [
 const JUNIOR_LEVEL_TERMS = ["junior", "entry level", "assistant", "intern", "trainee", "beginner", "graduate"];
 const SCRIPT_INTENT_TERMS = ["script", "scripting", "automation", "simple task"];
 const SCRIPT_FRIENDLY_TERMS = ["programmer", "developer", "automation", "script"];
+const TECH_ALIASES = {
+  "java script": "javascript",
+  "node js": "node.js",
+  nodejs: "node.js",
+  "react js": "react",
+  "type script": "typescript"
+};
 const SCORING_WEIGHTS = Object.freeze({
   baseScore: 4,
   maxReasons: 4,
@@ -197,7 +204,14 @@ function normalizeList(value) {
     return [];
   }
 
-  return value.map((item) => cleanText(String(item))).filter(Boolean);
+  return value.map((item) => normalizeProfileTerm(item)).filter(Boolean);
+}
+
+function normalizeProfileTerm(value) {
+  const cleaned = cleanText(String(value));
+  const aliasKey = cleaned.toLowerCase();
+
+  return TECH_ALIASES[aliasKey] || cleaned;
 }
 
 async function fetchRealPythonJobs() {

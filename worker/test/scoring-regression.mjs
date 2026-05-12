@@ -12,6 +12,13 @@ const profile = __test.normalizeProfile({
   strongest_skills: ["Python"]
 });
 
+assert.deepEqual(
+  __test.normalizeProfile({
+    skills: ["java script", "node js", "nodejs", "react js", "type script", "css"]
+  }).skills,
+  ["javascript", "node.js", "node.js", "react", "typescript", "css"]
+);
+
 const fakeJobs = [
   {
     title: "Python Programmer (Entry-Level)",

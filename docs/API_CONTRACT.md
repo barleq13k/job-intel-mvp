@@ -15,8 +15,7 @@ Searches the selected source, normalizes jobs, scores them against the user prof
     "location": "Philippines",
     "work_mode": "any",
     "experience_level": "junior",
-    "avoid_keywords": ["senior", "manager"],
-    "strongest_skills": ["workflow"]
+    "avoid_keywords": ["senior", "manager"]
   },
   "source": {
     "type": "remotive"
@@ -33,9 +32,19 @@ Searches the selected source, normalizes jobs, scores them against the user prof
 - `work_mode`: `any`, `remote`, `hybrid`, or `onsite`.
 - `experience_level`: `beginner`, `junior`, `intermediate`, `senior`, or `any`.
 - `avoid_keywords`: array of terms that should penalize matching jobs.
-- `strongest_skills`: array of high-confidence skills that should boost only when found.
+- `strongest_skills`: legacy optional array still accepted for compatibility, but no longer sent by the frontend form.
 
 Missing optional fields are treated as empty/default values.
+
+Comma-separated frontend inputs preserve spaces inside each value. For example, `java script, css, node` is parsed as `["javascript", "css", "node"]`, not split on spaces.
+
+Common technology aliases are normalized in frontend parsing and backend profile normalization:
+
+- `java script` -> `javascript`
+- `node js` -> `node.js`
+- `nodejs` -> `node.js`
+- `react js` -> `react`
+- `type script` -> `typescript`
 
 ## Source Fields
 

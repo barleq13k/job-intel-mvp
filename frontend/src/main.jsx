@@ -5,12 +5,18 @@ import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const TECH_ALIASES = {
+  "java script": "javascript",
+  "node js": "node.js",
+  nodejs: "node.js",
+  "react js": "react",
+  "type script": "typescript"
+};
 
 const initialForm = {
   target_roles: "",
   skills: "",
   keywords: "",
-  strongest_skills: "",
   avoid_keywords: "",
   location: "",
   work_mode: "any",
@@ -21,8 +27,15 @@ const initialForm = {
 function splitList(value) {
   return value
     .split(",")
-    .map((item) => item.trim())
+    .map((item) => normalizeProfileTerm(item))
     .filter(Boolean);
+}
+
+function normalizeProfileTerm(value) {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  const aliasKey = cleaned.toLowerCase();
+
+  return TECH_ALIASES[aliasKey] || cleaned;
 }
 
 function App() {
@@ -61,7 +74,6 @@ function App() {
         target_roles: splitList(form.target_roles),
         skills: splitList(form.skills),
         keywords: splitList(form.keywords),
-        strongest_skills: splitList(form.strongest_skills),
         avoid_keywords: splitList(form.avoid_keywords),
         location: form.location.trim(),
         work_mode: form.work_mode,
@@ -131,7 +143,7 @@ function App() {
             </div>
             <div>
               <h2 className="text-lg font-semibold">Search Profile</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Comma-separate roles, skills, and keywords.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Comma-separated roles, skills, and keywords.</p>
             </div>
           </div>
 
@@ -143,18 +155,11 @@ function App() {
             placeholder="QA Tester, Python Automation"
           />
           <Field
-            label="Relevant skills"
+            label="Skills"
             name="skills"
             value={form.skills}
             onChange={updateField}
-            placeholder="Python, Selenium, QA"
-          />
-          <Field
-            label="Strongest skills"
-            name="strongest_skills"
-            value={form.strongest_skills}
-            onChange={updateField}
-            placeholder="Automation, workflows, scripting"
+            placeholder="java script, css, node js"
           />
           <Field
             label="Keywords"

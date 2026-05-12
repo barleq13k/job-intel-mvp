@@ -7,6 +7,8 @@
 - Source selector with:
   - Real Python Fake Jobs
   - Remotive
+- Comma-separated profile parsing that preserves spaces within values.
+- Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - `POST /api/jobs/search` Worker endpoint.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
@@ -14,7 +16,7 @@
 - Rule-based scoring with match reasons.
 - Execution likelihood labels.
 - Avoid keyword penalties.
-- Strongest skill boosts.
+- Legacy `strongest_skills` compatibility in the API.
 - Experience level input.
 - Dark mode toggle with localStorage persistence.
 - Frontend display threshold of `score >= 25`.
