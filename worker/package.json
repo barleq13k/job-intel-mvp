@@ -7,7 +7,9 @@
     "dev": "wrangler dev --config wrangler.jsonc --host 127.0.0.1 --port 8787",
     "deploy": "wrangler deploy --config wrangler.jsonc",
     "check": "wrangler deploy --config wrangler.jsonc --dry-run",
-    "test": "wrangler dev --config wrangler.jsonc --test-scheduled"
+    "test": "wrangler dev --config wrangler.jsonc --test-scheduled",
+    "test:scoring": "node test/scoring-regression.mjs",
+    "test:source": "node test/source-reliability.mjs"
   },
   "dependencies": {
     "wrangler": "^4.43.0"

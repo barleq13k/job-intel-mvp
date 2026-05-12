@@ -43,6 +43,7 @@ function App() {
   const [jobs, setJobs] = useState([]);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [sourceInfo, setSourceInfo] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
   const [showExploreMore, setShowExploreMore] = useState(false);
 
@@ -50,6 +51,12 @@ function App() {
   const lowerMatchJobs = useMemo(() => jobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE), [jobs]);
   const sourceLabel = form.source_type === "remotive" ? "Remotive" : "Real Python Fake Jobs";
   const isExploreMoreOpen = showExploreMore || visibleJobs.length === 0;
+  const resultSummary =
+    status === "success"
+      ? jobs.length === 0
+        ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
+        : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
+      : "Submit a profile to fetch and score jobs.";
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -70,6 +77,7 @@ function App() {
     setStatus("loading");
     setError("");
     setJobs([]);
+    setSourceInfo(null);
     setShowExploreMore(false);
 
     const payload = {
@@ -95,9 +103,10 @@ function App() {
       });
 
       const data = await response.json().catch(() => ({}));
+      setSourceInfo(data.source || null);
 
       if (!response.ok) {
-        throw new Error(data.error || `Search failed with status ${response.status}.`);
+        throw new Error(data.source?.message || data.error || `Search failed with status ${response.status}.`);
       }
 
       setJobs(data.jobs || []);
@@ -242,11 +251,7 @@ function App() {
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-2xl font-semibold">Ranked Results</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {status === "success"
-                  ? `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
-                  : "Submit a profile to fetch and score jobs."}
-              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{resultSummary}</p>
             </div>
           </div>
 
@@ -262,7 +267,7 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                These are the clearest matches from the current profile. Explore More keeps adjacent and lower-confidence roles available for review.
+                {sourceInfo?.message || "These are the clearest matches from the current profile. Explore More keeps adjacent and lower-confidence roles available for review."}
               </div>
               {visibleJobs.length > 0 ? (
                 <>
@@ -275,8 +280,12 @@ function App() {
                 </>
               ) : (
                 <EmptyState
-                  title="No recommended matches"
-                  message="Explore More is open below. Try broadening target roles, trimming avoid keywords, or using simpler skill terms if the list feels too narrow."
+                  title={jobs.length === 0 ? "No jobs returned" : "No recommended matches"}
+                  message={
+                    jobs.length === 0
+                      ? sourceInfo?.message || "The selected source returned no usable jobs for this profile."
+                      : "Explore More is open below. Try broadening target roles, trimming avoid keywords, or using simpler skill terms if the list feels too narrow."
+                  }
                 />
               )}
 

@@ -2,6 +2,7 @@ const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
+const REMOTIVE_TIMEOUT_MS = 8000;
 const MIN_STRETCH_SCORE = 25;
 const GENERIC_TOKENS = new Set([
   "data",
@@ -237,20 +238,27 @@ async function handleJobSearch(request) {
     return json({ error: "Unsupported source. Use realpython_fake_jobs or remotive." }, 400);
   }
 
-  let rawJobs;
+  let sourceResult;
+  const sourceName = sourceType === "remotive" ? REMOTIVE_SOURCE_NAME : SOURCE_NAME;
 
   try {
-    rawJobs = sourceType === "remotive" ? await fetchRemotiveJobs(profile) : await fetchRealPythonJobs();
+    sourceResult = sourceType === "remotive"
+      ? await fetchRemotiveJobs(profile)
+      : makeSourceResult(await fetchRealPythonJobs());
   } catch (error) {
-    return json({ error: error.message || "Unable to fetch jobs from selected source." }, 502);
+    const sourceError = normalizeSourceError(error, sourceType, sourceName);
+    return json({
+      error: sourceError.message,
+      source: sourceError.source
+    }, sourceError.httpStatus);
   }
 
   const ingestedAt = new Date().toISOString();
-  const jobs = dedupeJobs(rawJobs)
+  const jobs = dedupeJobs(sourceResult.jobs)
     .map((job) => formatJob(job, profile, ingestedAt))
     .sort((a, b) => b.scoring.score - a.scoring.score || a.title.localeCompare(b.title))
-    .map((job, index) => ({
-      id: `job_${String(index + 1).padStart(3, "0")}`,
+    .map((job) => ({
+      id: makeStableJobId(job),
       ...job
     }));
 
@@ -259,9 +267,54 @@ async function handleJobSearch(request) {
     count: jobs.length,
     source: {
       type: sourceType,
-      name: sourceType === "remotive" ? REMOTIVE_SOURCE_NAME : SOURCE_NAME
+      name: sourceName,
+      status: "ok",
+      message: makeSourceSuccessMessage(sourceName, jobs.length, sourceResult.droppedCount),
+      dropped_count: sourceResult.droppedCount
     }
   });
+}
+
+function makeSourceResult(jobs, droppedCount = 0) {
+  return {
+    jobs: Array.isArray(jobs) ? jobs : [],
+    droppedCount
+  };
+}
+
+function makeSourceSuccessMessage(sourceName, jobCount, droppedCount = 0) {
+  if (jobCount === 0) {
+    return droppedCount > 0
+      ? `${sourceName} returned jobs, but none were usable after normalization.`
+      : `${sourceName} returned no jobs for this search.`;
+  }
+
+  return droppedCount > 0
+    ? `${sourceName} returned ${jobCount} usable jobs; ${droppedCount} malformed rows were skipped.`
+    : `${sourceName} returned ${jobCount} jobs.`;
+}
+
+function makeSourceError(message, code = "source_error", httpStatus = 502) {
+  const error = new Error(message);
+  error.code = code;
+  error.httpStatus = httpStatus;
+  return error;
+}
+
+function normalizeSourceError(error, sourceType, sourceName) {
+  const message = error?.message || `Unable to fetch jobs from ${sourceName}.`;
+
+  return {
+    message,
+    httpStatus: error?.httpStatus || 502,
+    source: {
+      type: sourceType,
+      name: sourceName,
+      status: "error",
+      message,
+      dropped_count: 0
+    }
+  };
 }
 
 function normalizeProfile(profile = {}) {
@@ -336,33 +389,93 @@ async function fetchRemotiveJobs(profile) {
     url.searchParams.set("search", search);
   }
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "job-intel-mvp/0.1"
-    }
-  });
+  let response;
 
-  if (!response.ok) {
-    throw new Error(`Remotive fetch failed with status ${response.status}`);
+  try {
+    response = await fetchWithTimeout(url.toString(), {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "job-intel-mvp/0.1"
+      }
+    }, REMOTIVE_TIMEOUT_MS);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw makeSourceError(`Remotive request timed out after ${REMOTIVE_TIMEOUT_MS}ms.`, "timeout");
+    }
+
+    throw makeSourceError("Remotive request failed before a response was received.", "network_error");
   }
 
-  const data = await response.json();
-  const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+  if (!response.ok) {
+    throw makeSourceError(`Remotive fetch failed with status ${response.status}.`, "http_error");
+  }
 
-  return jobs
-    .map((job) => ({
-      title: cleanText(job.title),
-      company: cleanText(job.company_name),
-      location: cleanText(job.candidate_required_location || "Remote"),
-      source: REMOTIVE_SOURCE_NAME,
-      url: normalizeUrlFromBase(job.url, REMOTIVE_URL),
-      employment_type: cleanText(job.job_type || "") || null,
-      salary: normalizeCompensation(job.salary),
-      description: cleanHtml(job.description || ""),
-      category: cleanText(job.category || "")
-    }))
-    .filter((job) => job.title && job.company);
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw makeSourceError("Remotive returned invalid JSON.", "invalid_json");
+  }
+
+  if (!data || typeof data !== "object" || !Array.isArray(data.jobs)) {
+    throw makeSourceError("Remotive returned an unexpected response shape.", "invalid_shape");
+  }
+
+  let droppedCount = 0;
+  const jobs = [];
+
+  for (const job of data.jobs) {
+    const normalizedJob = normalizeRemotiveJob(job);
+
+    if (normalizedJob) {
+      jobs.push(normalizedJob);
+    } else {
+      droppedCount += 1;
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount);
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function normalizeRemotiveJob(job) {
+  if (!job || typeof job !== "object") {
+    return null;
+  }
+
+  const title = cleanOptionalText(job.title);
+  const company = cleanOptionalText(job.company_name);
+
+  if (!title || !company) {
+    return null;
+  }
+
+  return {
+    title,
+    company,
+    location: cleanOptionalText(job.candidate_required_location) || "Remote",
+    source: REMOTIVE_SOURCE_NAME,
+    source_job_id: cleanSourceId(job.id),
+    url: normalizeUrlFromBase(job.url, REMOTIVE_URL),
+    employment_type: cleanOptionalText(job.job_type) || null,
+    salary: normalizeCompensation(job.salary),
+    description: cleanHtml(job.description || ""),
+    category: cleanOptionalText(job.category)
+  };
 }
 
 function buildRemotiveSearch(profile) {
@@ -431,24 +544,28 @@ class RealPythonJobParser {
 }
 
 function normalizeUrl(value) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new URL(value, REAL_PYTHON_URL).toString();
-  } catch {
-    return null;
-  }
+  return normalizeHttpUrl(value, REAL_PYTHON_URL);
 }
 
 function normalizeUrlFromBase(value, baseUrl) {
-  if (!value) {
+  return normalizeHttpUrl(value, baseUrl);
+}
+
+function normalizeHttpUrl(value, baseUrl) {
+  const cleaned = cleanOptionalText(value);
+
+  if (!cleaned) {
     return null;
   }
 
   try {
-    return new URL(value, baseUrl).toString();
+    const url = new URL(cleaned, baseUrl);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return null;
+    }
+
+    return url.toString();
   } catch {
     return null;
   }
@@ -459,7 +576,7 @@ function dedupeJobs(jobs) {
   const unique = [];
 
   for (const job of jobs) {
-    const key = [job.title, job.company, job.url || ""].map(normalizeForCompare).join("|");
+    const key = makeDedupeKey(job);
 
     if (!seen.has(key)) {
       seen.add(key);
@@ -468,6 +585,22 @@ function dedupeJobs(jobs) {
   }
 
   return unique;
+}
+
+function makeDedupeKey(job) {
+  const source = normalizeForCompare(job.source || SOURCE_NAME);
+  const sourceId = cleanSourceId(job.source_job_id);
+
+  if (sourceId) {
+    return `${source}|source_id|${normalizeForCompare(sourceId)}`;
+  }
+
+  return [
+    source,
+    normalizeForCompare(job.title),
+    normalizeForCompare(job.company),
+    canonicalizeUrlForCompare(job.url)
+  ].join("|");
 }
 
 function formatJob(job, profile, ingestedAt) {
@@ -490,9 +623,62 @@ function formatJob(job, profile, ingestedAt) {
     details: makeDetails(job),
     metadata: {
       ingested_at: ingestedAt,
-      source_type: job.source === REMOTIVE_SOURCE_NAME ? "api" : "scraper"
+      source_type: job.source === REMOTIVE_SOURCE_NAME ? "api" : "scraper",
+      source_job_id: cleanSourceId(job.source_job_id) || null
     }
   };
+}
+
+function makeStableJobId(job) {
+  const sourceType = job.metadata.source_type === "api" ? "remotive" : "realpython_fake_jobs";
+  const sourceJobId = cleanSourceId(job.metadata.source_job_id);
+
+  if (sourceJobId) {
+    return `${sourceType}_${slugForId(sourceJobId)}`;
+  }
+
+  return `${sourceType}_${stableHash([
+    job.normalized.title,
+    job.normalized.company,
+    canonicalizeUrlForCompare(job.url)
+  ].join("|"))}`;
+}
+
+function slugForId(value) {
+  return normalizeSearchText(value).replace(/\s+/g, "_") || stableHash(value);
+}
+
+function stableHash(value) {
+  let hash = 5381;
+  const text = String(value);
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ text.charCodeAt(index);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function canonicalizeUrlForCompare(value) {
+  const normalized = normalizeHttpUrl(value, REMOTIVE_URL);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const url = new URL(normalized);
+  const removableParams = ["fbclid", "gclid", "msclkid"];
+
+  url.hash = "";
+
+  for (const key of [...url.searchParams.keys()]) {
+    if (key.toLowerCase().startsWith("utm_") || removableParams.includes(key.toLowerCase())) {
+      url.searchParams.delete(key);
+    }
+  }
+
+  url.searchParams.sort();
+  return url.toString();
 }
 
 function buildScoringContext(job, profile) {
@@ -1367,6 +1553,18 @@ function cleanText(value) {
   return String(value).replace(/\s+/g, " ").trim();
 }
 
+function cleanOptionalText(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  return cleanText(value);
+}
+
+function cleanSourceId(value) {
+  return cleanOptionalText(value);
+}
+
 function normalizeForCompare(value) {
   return cleanText(value).toLowerCase();
 }
@@ -1480,6 +1678,12 @@ function displayTerm(value) {
 export const __test = Object.freeze({
   SCORING_WEIGHTS,
   buildScoringContext,
+  dedupeJobs,
+  fetchRemotiveJobs,
+  fetchWithTimeout,
+  formatJob,
+  makeStableJobId,
+  normalizeRemotiveJob,
   normalizeProfile,
   scoreJob
 });

@@ -55,13 +55,30 @@ Supported `source.type` values:
 
 Unsupported source types return `400`.
 
+## Source Error Response
+
+Source fetch, timeout, invalid JSON, or invalid source-shape failures return `502` with the existing `error` field and additive source diagnostics:
+
+```json
+{
+  "error": "Remotive request timed out after 8000ms.",
+  "source": {
+    "type": "remotive",
+    "name": "Remotive",
+    "status": "error",
+    "message": "Remotive request timed out after 8000ms.",
+    "dropped_count": 0
+  }
+}
+```
+
 ## Response
 
 ```json
 {
   "jobs": [
     {
-      "id": "job_001",
+      "id": "remotive_12345",
       "title": "Python Programmer (Entry-Level)",
       "company": "Example Corp",
       "location": "Remote",
@@ -97,23 +114,30 @@ Unsupported source types return `400`.
       ],
       "metadata": {
         "ingested_at": "2026-05-12T12:00:00Z",
-        "source_type": "api"
+        "source_type": "api",
+        "source_job_id": "12345"
       }
     }
   ],
   "count": 1,
   "source": {
     "type": "remotive",
-    "name": "Remotive"
+    "name": "Remotive",
+    "status": "ok",
+    "message": "Remotive returned 1 jobs.",
+    "dropped_count": 0
   }
 }
 ```
 
 ## Notes
 
+- `id` is a stable deterministic string derived from the source job ID when available, otherwise from normalized title, company, and canonical URL. It is no longer based on display rank.
 - `salary` is `null` when unavailable.
 - `details` contains 2-4 simple description bullets when possible.
 - `metadata.source_type` is currently `api` for Remotive and `scraper` for Real Python.
+- `metadata.source_job_id` is populated when a source provides a stable upstream ID, otherwise `null`.
+- `source.status`, `source.message`, and `source.dropped_count` are additive diagnostics. `dropped_count` counts malformed upstream rows skipped during source normalization.
 - Backend returns all jobs sorted by score.
 - Frontend shows jobs with score `25` or higher as recommended matches and groups lower-score jobs under Explore More.
 - `scoring.execution_likelihood` values are `strong_fit`, `possible_fit`, `adjacent`, `stretch`, or `lower_match`.
