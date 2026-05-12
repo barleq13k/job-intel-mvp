@@ -21,7 +21,7 @@
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
 - Legacy `strongest_skills` compatibility in the API.
-- Experience level input.
+- Experience level input that calibrates seniority fit, execution confidence, and complexity tolerance without overriding relevance, avoid keywords, or location restrictions.
 - Dark mode toggle with localStorage persistence.
 - Local application status tracking with localStorage-only `New`, `Saved`, `Applied`, and `Skipped` statuses.
 - Latest successful search profile and ranked results restore from localStorage after refresh.
@@ -46,7 +46,7 @@
 ## Experimental
 
 - Execution likelihood scoring.
-- Complexity and seniority penalties.
+- Complexity and seniority penalties, including Senior-profile tolerance for aligned platform/architecture roles.
 - Broad-role title context ranking.
 - Software/technical role-domain alignment and off-domain drag.
 - Script-oriented profile boosts.

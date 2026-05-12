@@ -199,6 +199,77 @@ assert.equal(seniorPythonScoring.components.penalties, -8);
 assert(simplePythonScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
 assert(seniorPythonScoring.match_reasons.includes("Platform or architecture complexity detected"));
 
+const alignedAiPlatformJob = {
+  title: "Senior AI Platform Engineer",
+  company: "AICo",
+  location: "Remote",
+  source: "Himalayas",
+  url: "https://example.com/senior-ai-platform-engineer",
+  description:
+    "Own AI platform architecture, Python services, machine learning infrastructure, kubernetes, microservices, and scalable systems.",
+  category: "Software Development"
+};
+const seniorAiProfile = __test.normalizeProfile({
+  target_roles: ["AI"],
+  skills: ["Python", "machine learning"],
+  strongest_skills: ["Python"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "senior"
+});
+const juniorAiProfile = __test.normalizeProfile({
+  ...seniorAiProfile,
+  experience_level: "junior"
+});
+const seniorAlignedAiScoring = __test.scoreJob(alignedAiPlatformJob, seniorAiProfile);
+const juniorAlignedAiScoring = __test.scoreJob(alignedAiPlatformJob, juniorAiProfile);
+const seniorUnrelatedScoring = __test.scoreJob(
+  {
+    title: "Senior Account Executive",
+    company: "SalesCo",
+    location: "Remote",
+    source: "Himalayas",
+    url: "https://example.com/senior-account-executive",
+    description: "Lead enterprise sales pipeline and manage account strategy.",
+    category: "Sales"
+  },
+  seniorAiProfile
+);
+const juniorLeadAiScoring = __test.scoreJob(
+  {
+    title: "Lead AI Architect",
+    company: "AICo",
+    location: "Remote",
+    source: "Himalayas",
+    url: "https://example.com/lead-ai-architect",
+    description: "Lead platform architecture and Python machine learning systems.",
+    category: "Software Development"
+  },
+  juniorAiProfile
+);
+const seniorRestrictedAiScoring = __test.scoreJob(
+  { ...alignedAiPlatformJob, location: "United States" },
+  { ...seniorAiProfile, location: "Philippines" }
+);
+
+assert(seniorAlignedAiScoring.score > juniorAlignedAiScoring.score);
+assert.equal(seniorAlignedAiScoring.execution_likelihood, "strong_fit");
+assert.notEqual(seniorAlignedAiScoring.execution_likelihood, "stretch");
+assert(seniorAlignedAiScoring.match_reasons.includes("Senior-level workflow matches your profile"));
+assert(seniorAlignedAiScoring.match_reasons.includes("Platform or architecture complexity detected"));
+assert(juniorAlignedAiScoring.score < 25);
+assert.equal(juniorAlignedAiScoring.execution_likelihood, "lower_match");
+assert(juniorAlignedAiScoring.components.penalties < seniorAlignedAiScoring.components.penalties);
+assert(seniorUnrelatedScoring.score < 25);
+assert.equal(seniorUnrelatedScoring.execution_likelihood, "lower_match");
+assert(!seniorUnrelatedScoring.match_reasons.includes("Senior-level workflow matches your profile"));
+assert(juniorLeadAiScoring.score < 25);
+assert.equal(juniorLeadAiScoring.execution_likelihood, "lower_match");
+assert(seniorRestrictedAiScoring.match_reasons.includes("Remote role restricted to United States applicants"));
+assert(seniorRestrictedAiScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert.equal(seniorRestrictedAiScoring.components.location_workmode_score, 0);
+assert(seniorRestrictedAiScoring.components.penalties < seniorAlignedAiScoring.components.penalties);
+
 const softwareRemotiveProfile = __test.normalizeProfile({
   target_roles: ["software"],
   skills: ["javascript", "node.js", "typescript", "react"],

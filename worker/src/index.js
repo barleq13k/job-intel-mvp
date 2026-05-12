@@ -178,7 +178,9 @@ const SCORING_WEIGHTS = Object.freeze({
     highPenalty: 10,
     mediumPenalty: 7,
     fallbackPenalty: 4,
-    cap: 18
+    cap: 18,
+    seniorAlignedMultiplier: 0.4,
+    seniorAlignedCap: 6
   },
   scriptIntent: {
     programmer: 8,
@@ -217,7 +219,8 @@ const SCORING_WEIGHTS = Object.freeze({
     simpleTermBoost: 2,
     simpleBoostCap: 6,
     complexityTermPenalty: 2,
-    complexityPenaltyCap: 8
+    complexityPenaltyCap: 8,
+    seniorAlignedComplexityPenaltyCap: 3
   },
   roleDomain: {
     technicalAlignment: 8,
@@ -995,13 +998,15 @@ function scoreJob(job, profile) {
   const skillSignal = evaluateSignals(profile.skills, context.title, context.summaryText, "skill");
   const keywordSignal = evaluateSignals(profile.keywords, context.title, context.summaryText, "keyword");
   const strongestSkillSignal = evaluateSignals(profile.strongest_skills, context.title, context.summaryText, "strongest_skill");
-  const senioritySignal = evaluateSeniority(context);
-  const roleContextSignal = evaluateRoleContext(context);
   const roleDomainSignal = evaluateRoleDomain(context);
-  const complexitySignal = evaluateComplexity(context);
+  const hasAlignedRoleOrSkill = hasAlignedRoleOrSkillEvidence({ roleSignal, skillSignal, strongestSkillSignal, roleDomainSignal });
+  const seniorComplexityAligned = profile.experience_level === "senior" && hasAlignedRoleOrSkill;
+  const senioritySignal = evaluateSeniority(context, { hasAlignedRoleOrSkill });
+  const roleContextSignal = evaluateRoleContext(context);
+  const complexitySignal = evaluateComplexity(context, { seniorComplexityAligned });
   const scriptIntentSignal = evaluateScriptIntent(context);
   const avoidSignal = evaluateAvoidKeywords(context);
-  const taskFitTieBreakerSignal = evaluateTaskFitTieBreaker(context);
+  const taskFitTieBreakerSignal = evaluateTaskFitTieBreaker(context, { seniorComplexityAligned });
   const executionSignal = evaluateExecutionLikelihood({
     profile,
     title: context.title,
@@ -1057,6 +1062,7 @@ function scoreJob(job, profile) {
     roleDomainSignal,
     complexitySignal,
     avoidSignal,
+    seniorComplexityAligned,
     supportRelevanceFloorApplied: supportRelevanceFloor > baseScore
   });
 
@@ -1241,7 +1247,18 @@ function evaluateQuerySignal(query, title, secondaryText, category, categoryText
   return { strength: "none", weight: 0 };
 }
 
-function evaluateSeniority({ profileText, title }) {
+function hasAlignedRoleOrSkillEvidence({ roleSignal, skillSignal, strongestSkillSignal, roleDomainSignal }) {
+  const roleStrengths = new Set(["title_phrase", "title_token", "category_phrase"]);
+  const skillStrengths = new Set(["title_phrase", "title_token", "secondary_phrase", "secondary_token", "near_words"]);
+  const hasRoleAlignment = roleStrengths.has(roleSignal.bestStrength);
+  const hasSkillAlignment =
+    skillStrengths.has(skillSignal.bestStrength) ||
+    strongestSkillSignal.bestStrength !== "none";
+
+  return hasRoleAlignment || (hasSkillAlignment && roleDomainSignal.related);
+}
+
+function evaluateSeniority({ profileText, title }, { hasAlignedRoleOrSkill = true } = {}) {
   const wantsEntry = ENTRY_LEVEL_TERMS.some((term) => containsPhrase(profileText, term));
   const wantsSenior = SENIOR_LEVEL_TERMS.some((term) => containsPhrase(profileText, term));
   const titleHasEntry = ENTRY_LEVEL_TERMS.some((term) => containsPhrase(title, term));
@@ -1270,7 +1287,7 @@ function evaluateSeniority({ profileText, title }) {
   }
 
   if (wantsSenior) {
-    if (titleHasSenior) {
+    if (titleHasSenior && hasAlignedRoleOrSkill) {
       return makeScoringSignal({
         points: SCORING_WEIGHTS.seniority.matchedSenior,
         preference: "senior",
@@ -1279,7 +1296,7 @@ function evaluateSeniority({ profileText, title }) {
       });
     }
 
-    if (titleHasEntry) {
+    if (titleHasEntry && hasAlignedRoleOrSkill) {
       return makeScoringSignal({
         penalty: SCORING_WEIGHTS.seniority.tooJuniorPenalty,
         preference: "senior",
@@ -1427,7 +1444,7 @@ function titleContainsParentheticalTerm(rawTitle, term) {
   return matches.some((match) => containsWholeWord(normalizeSearchText(match), term));
 }
 
-function evaluateComplexity({ profileText, title }) {
+function evaluateComplexity({ profileText, title }, { seniorComplexityAligned = false } = {}) {
   const requestedTerms = COMPLEXITY_TERMS.filter((term) => containsPhrase(profileText, term));
   const titleTerms = COMPLEXITY_TERMS.filter((term) => containsPhrase(title, term));
   const unrequestedTerms = titleTerms.filter((term) => !requestedTerms.includes(term));
@@ -1447,9 +1464,14 @@ function evaluateComplexity({ profileText, title }) {
 
     return total + SCORING_WEIGHTS.complexity.fallbackPenalty;
   }, 0);
+  const penaltyCap = seniorComplexityAligned ? SCORING_WEIGHTS.complexity.seniorAlignedCap : SCORING_WEIGHTS.complexity.cap;
+  const adjustedPenalty = seniorComplexityAligned
+    ? Math.ceil(penalty * SCORING_WEIGHTS.complexity.seniorAlignedMultiplier)
+    : penalty;
+
   return makeScoringSignal({
     status: "more_complex",
-    penalty: -Math.min(SCORING_WEIGHTS.complexity.cap, penalty),
+    penalty: -Math.min(penaltyCap, adjustedPenalty),
     terms: unrequestedTerms,
     reasons: ["Seniority or architecture complexity detected"]
   });
@@ -1469,7 +1491,7 @@ function evaluateAvoidKeywords({ profile, title, summaryText }) {
   });
 }
 
-function evaluateTaskFitTieBreaker({ summaryText }) {
+function evaluateTaskFitTieBreaker({ summaryText }, { seniorComplexityAligned = false } = {}) {
   const simpleMatches = SIMPLE_TASK_TERMS.filter((term) => containsPhrase(summaryText, term));
   const complexityMatches = DESCRIPTION_COMPLEXITY_TERMS.filter((term) => containsPhrase(summaryText, term));
   const automationMatches = getJobAutomationMatches(summaryText);
@@ -1477,8 +1499,11 @@ function evaluateTaskFitTieBreaker({ summaryText }) {
     SCORING_WEIGHTS.taskFitTieBreaker.simpleBoostCap,
     simpleMatches.length * SCORING_WEIGHTS.taskFitTieBreaker.simpleTermBoost
   );
+  const complexityPenaltyCap = seniorComplexityAligned
+    ? SCORING_WEIGHTS.taskFitTieBreaker.seniorAlignedComplexityPenaltyCap
+    : SCORING_WEIGHTS.taskFitTieBreaker.complexityPenaltyCap;
   const penalty = -Math.min(
-    SCORING_WEIGHTS.taskFitTieBreaker.complexityPenaltyCap,
+    complexityPenaltyCap,
     complexityMatches.length * SCORING_WEIGHTS.taskFitTieBreaker.complexityTermPenalty
   );
   const reasons = [];
@@ -1575,11 +1600,12 @@ function executionLabel({
   roleDomainSignal,
   complexitySignal,
   avoidSignal,
+  seniorComplexityAligned = false,
   supportRelevanceFloorApplied = false
 }) {
   const hasRealGap =
     ["senior_too_high", "too_junior"].includes(senioritySignal.status) ||
-    complexitySignal.status === "more_complex" ||
+    (complexitySignal.status === "more_complex" && !seniorComplexityAligned) ||
     roleDomainSignal.platformMismatch ||
     avoidSignal.penalty < 0;
   const hasRelatedDomain =

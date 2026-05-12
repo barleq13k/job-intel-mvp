@@ -60,7 +60,7 @@ Location and work mode:
 
 Seniority fit:
 - Junior/beginner profiles get boosts for junior, entry-level, assistant, intern, trainee, and similar terms.
-- Senior profiles get boosts for senior/staff/lead/principal terms.
+- Senior profiles get boosts for senior/staff/lead/principal terms only when the job also has concrete role or skill alignment.
 - Mismatched seniority creates penalties.
 
 Complexity penalties:
@@ -76,6 +76,7 @@ Complexity penalties:
   - 5 years / 8 years
   - enterprise
   - architecture
+- For Senior profiles with concrete role or skill alignment, title-level complexity penalties are reduced instead of treated as a hard execution gap. This changes feasibility interpretation, not relevance.
 
 Execution likelihood:
 - Separate label returned as `execution_likelihood`.
@@ -86,7 +87,7 @@ Execution likelihood:
   - `stretch`
   - `lower_match`
 - This label influences ranking but is still heuristic.
-- `stretch` is reserved for concrete gap signals such as seniority mismatch, platform mismatch, architecture/leadership, or other complexity.
+- `stretch` is reserved for concrete gap signals such as seniority mismatch, platform mismatch, architecture/leadership, or other complexity. Aligned Senior profiles tolerate more architecture/platform complexity before the role is treated as a stretch.
 - Lower-score but related roles can be labeled `adjacent`; weak or off-domain roles are labeled `lower_match`.
 - Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
 - Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
@@ -99,6 +100,7 @@ Avoid keyword penalties:
 Tie-break calibration:
 - Simple/task-based description terms can add up to `+6` through `execution_likelihood_score`.
 - Platform/architecture complexity description terms can apply up to `-8` through `penalties`.
+- For aligned Senior profiles, description-level platform/architecture complexity drag is capped lower so complex but relevant senior roles can remain actionable.
 - These signals are intended to separate similarly matched title results, not replace title, skill, seniority, or avoid-keyword scoring.
 
 Display filtering:
