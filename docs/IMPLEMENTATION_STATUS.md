@@ -24,9 +24,11 @@
 - Experience level input that calibrates seniority fit, execution confidence, and complexity tolerance without overriding relevance, avoid keywords, or location restrictions.
 - Dark mode toggle with localStorage persistence.
 - Local application status tracking with localStorage-only `New`, `Saved`, `Applied`, and `Skipped` statuses.
+- Quick access shortcuts for Saved, Applied, and Skipped jobs within the latest loaded or restored result set.
 - Latest successful search profile and ranked results restore from localStorage after refresh.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
 - Job cards include compact decision labels that distinguish apply-first, inspect-later, stretch, low-priority, and eligibility-check cases.
+- Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 
 ## Partially Implemented

@@ -21,17 +21,25 @@ const SOURCE_LABELS = {
   himalayas: "Himalayas"
 };
 const REASON_CHIP_CLASSES = {
-  positive: "max-w-full rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium leading-5 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  caution: "max-w-full rounded-full bg-amber-50 px-3 py-1 text-xs font-medium leading-5 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  negative: "max-w-full rounded-full bg-red-50 px-3 py-1 text-xs font-medium leading-5 text-red-800 dark:bg-red-950 dark:text-red-200"
+  positive:
+    "max-w-full rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/70 dark:text-emerald-200",
+  caution:
+    "max-w-full rounded-full border border-orange-300/90 bg-orange-50 px-3 py-1.5 text-xs font-medium leading-5 text-orange-900 dark:border-amber-900/80 dark:bg-amber-950/70 dark:text-amber-200",
+  negative:
+    "max-w-full rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium leading-5 text-red-900 dark:border-red-900/90 dark:bg-red-950/80 dark:text-red-200"
 };
 const DECISION_BADGE_CLASSES = {
-  apply: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-  review: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
-  restricted: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
-  stretch: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  low: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+  apply: "border-emerald-200/80 bg-emerald-50/80 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/70 dark:text-emerald-200",
+  review: "border-stone-300/80 bg-stone-100 text-stone-800 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200",
+  restricted: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/80 dark:text-red-200",
+  stretch: "border-amber-200/90 bg-amber-50 text-amber-900 dark:border-amber-900/90 dark:bg-amber-950/80 dark:text-amber-200",
+  low: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-300"
 };
+const FIELD_CLASS =
+  "w-full rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#e45033] focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-[#e45033] dark:focus:ring-[#e45033]/20";
+const SELECT_CLASS = FIELD_CLASS;
+const SECONDARY_BUTTON_CLASS =
+  "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-sm font-semibold text-stone-800 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:hover:border-stone-600 dark:hover:bg-stone-900";
 const JOB_STATUSES = [
   { value: "new", label: "New" },
   { value: "saved", label: "Saved" },
@@ -39,6 +47,7 @@ const JOB_STATUSES = [
   { value: "skipped", label: "Skipped" }
 ];
 const STATUS_FILTERS = [{ value: "all", label: "All" }, ...JOB_STATUSES];
+const TRACKED_STATUS_SHORTCUTS = JOB_STATUSES.filter((status) => status.value !== "new");
 
 const initialForm = {
   target_roles: "",
@@ -87,9 +96,12 @@ function App() {
     () => filterJobsByStatus(lowerMatchJobs, statusFilter, jobStatuses),
     [lowerMatchJobs, statusFilter, jobStatuses]
   );
+  const trackedStatusCounts = useMemo(() => getTrackedStatusCounts(jobs, jobStatuses), [jobs, jobStatuses]);
   const sourceLabel = SOURCE_LABELS[form.source_type] || SOURCE_LABELS.realpython_fake_jobs;
   const isExploreMoreOpen = showExploreMore || filteredVisibleJobs.length === 0;
   const filteredJobCount = filteredVisibleJobs.length + filteredLowerMatchJobs.length;
+  const selectedTrackedStatus = TRACKED_STATUS_SHORTCUTS.find((shortcut) => shortcut.value === statusFilter);
+  const hasNoSelectedTrackedJobs = Boolean(selectedTrackedStatus) && filteredJobCount === 0;
   const resultSummary =
     status === "success"
       ? jobs.length === 0
@@ -190,15 +202,15 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 text-slate-950 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <section className="border-b border-slate-200 bg-white transition-colors dark:border-slate-800 dark:bg-slate-900">
+    <main className="min-h-screen bg-[#eceae7] text-[#131311] transition-colors dark:bg-[#131311] dark:text-stone-100">
+      <section className="border-b border-stone-200/80 bg-[#f7f5f1]/95 transition-colors dark:border-stone-800 dark:bg-[#181714]">
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#e45033]/25 bg-[#e45033]/10 px-3 py-1 text-sm font-medium text-[#9f2f1f] dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f]">
               <Sparkles className="h-4 w-4" />
               Job Intelligence MVP
             </div>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-slate-950 sm:text-5xl dark:text-white">
+            <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-[#131311] sm:text-5xl dark:text-stone-50">
               Rank real scraped jobs against your search profile.
             </h1>
           </div>
@@ -206,13 +218,13 @@ function App() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+              className={SECONDARY_BUTTON_CLASS}
               aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               {theme === "dark" ? "Light" : "Dark"}
             </button>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+            <div className="rounded-xl border border-stone-200/80 bg-[#fffdf8] px-4 py-3 text-sm text-stone-700 shadow-sm shadow-stone-200/50 dark:border-stone-800 dark:bg-[#181714] dark:text-stone-300 dark:shadow-none">
               Source: {sourceLabel}
             </div>
           </div>
@@ -220,14 +232,14 @@ function App() {
       </section>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[380px_1fr]">
-        <form onSubmit={searchJobs} className="h-fit rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <form onSubmit={searchJobs} className="h-fit rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/30 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950 text-white dark:bg-emerald-500 dark:text-slate-950">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#131311] text-white dark:bg-[#e45033] dark:text-white">
               <Search className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Search Profile</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Comma-separated roles, skills, and keywords.</p>
+              <h2 className="text-lg font-semibold text-stone-950 dark:text-stone-50">Search Profile</h2>
+              <p className="text-sm text-stone-500 dark:text-stone-400">Comma-separated roles, skills, and keywords.</p>
             </div>
           </div>
 
@@ -266,12 +278,12 @@ function App() {
           <Field label="Location" name="location" value={form.location} onChange={updateField} placeholder="Philippines" />
 
           <label className="mb-4 block">
-            <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Experience level</span>
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
             <select
               name="experience_level"
               value={form.experience_level}
               onChange={updateField}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+              className={SELECT_CLASS}
             >
               <option value="any">Any</option>
               <option value="beginner">Beginner</option>
@@ -282,12 +294,12 @@ function App() {
           </label>
 
           <label className="mb-4 block">
-            <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Work mode</span>
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Work mode</span>
             <select
               name="work_mode"
               value={form.work_mode}
               onChange={updateField}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+              className={SELECT_CLASS}
             >
               <option value="any">Any</option>
               <option value="remote">Remote</option>
@@ -297,12 +309,12 @@ function App() {
           </label>
 
           <label className="mb-5 block">
-            <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Source</span>
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
             <select
               name="source_type"
               value={form.source_type}
               onChange={updateField}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+              className={SELECT_CLASS}
             >
               <option value="realpython_fake_jobs">Real Python Fake Jobs</option>
               <option value="remotive">Remotive</option>
@@ -313,7 +325,7 @@ function App() {
           <button
             type="submit"
             disabled={status === "loading"}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400 dark:disabled:bg-slate-700 dark:disabled:text-slate-300"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#131311] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-stone-300/50 transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 disabled:shadow-none dark:bg-[#e45033] dark:text-white dark:shadow-none dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
           >
             {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Find Jobs
@@ -323,16 +335,16 @@ function App() {
         <section>
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-2xl font-semibold">Ranked Results</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{resultSummary}</p>
+              <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
+              <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
             </div>
             {status === "success" && jobs.length > 0 && (
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+              <label className="flex items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300 sm:justify-end">
                 Status
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
-                  className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+                  className={`${SELECT_CLASS} h-10 min-w-32 py-0`}
                 >
                   {STATUS_FILTERS.map((filter) => (
                     <option key={filter.value} value={filter.value}>
@@ -343,9 +355,16 @@ function App() {
               </label>
             )}
           </div>
+          {status === "success" && jobs.length > 0 && (
+            <TrackedJobsQuickAccess
+              counts={trackedStatusCounts}
+              selectedStatus={statusFilter}
+              onSelectStatus={setStatusFilter}
+            />
+          )}
 
           {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/80 dark:text-red-200">
               {error}
             </div>
           )}
@@ -355,14 +374,16 @@ function App() {
 
           {status === "success" && (
             <>
-              <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+              <div className="mb-4 rounded-xl border border-stone-200/80 bg-[#fbfaf7] px-4 py-3 text-sm text-stone-600 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:text-stone-300 dark:shadow-none">
                 {sourceInfo?.message || "Recommended is for first-pass decisions. Explore More keeps useful leads, stretches, and low-confidence roles available."}
               </div>
-              {filteredVisibleJobs.length > 0 ? (
+              {hasNoSelectedTrackedJobs ? (
+                <TrackedEmptyState status={selectedTrackedStatus} />
+              ) : filteredVisibleJobs.length > 0 ? (
                 <>
                   <div className="mb-3">
-                    <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Recommended - apply or inspect first</h3>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Recommended - apply or inspect first</h3>
+                    <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
                       Stronger role alignment. Check red chips before applying.
                     </p>
                   </div>
@@ -390,12 +411,12 @@ function App() {
                 />
               )}
 
-              {filteredLowerMatchJobs.length > 0 && (
+              {!hasNoSelectedTrackedJobs && filteredLowerMatchJobs.length > 0 && (
                 <section className="mt-6">
                   <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">Explore More - inspect later</h3>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Explore More - inspect later</h3>
+                      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
                         Adjacent, stretch, restricted, or weak leads. Useful for review, not the first pass.
                       </p>
                     </div>
@@ -403,7 +424,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => setShowExploreMore((current) => !current)}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+                        className={SECONDARY_BUTTON_CLASS}
                         aria-expanded={isExploreMoreOpen}
                       >
                         {isExploreMoreOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -438,26 +459,73 @@ function App() {
 function Field({ label, name, value, onChange, placeholder, helper }) {
   return (
     <label className="mb-4 block">
-      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
       <input
         name={name}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-400 dark:focus:ring-emerald-950"
+        className={FIELD_CLASS}
       />
-      {helper && <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{helper}</span>}
+      {helper && <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
     </label>
+  );
+}
+
+function TrackedJobsQuickAccess({ counts, selectedStatus, onSelectStatus }) {
+  return (
+    <div className="mb-4 rounded-xl border border-stone-200/80 bg-[#fbfaf7] px-4 py-3 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Tracked in current results</div>
+          <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
+            Quick access only uses the latest loaded or restored result set.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {TRACKED_STATUS_SHORTCUTS.map((shortcut) => (
+            <button
+              key={shortcut.value}
+              type="button"
+              onClick={() => onSelectStatus(shortcut.value)}
+              className={getTrackedShortcutClass(selectedStatus === shortcut.value)}
+              aria-pressed={selectedStatus === shortcut.value}
+            >
+              {shortcut.label}
+              <span className="ml-1.5 rounded-full bg-current/10 px-2 py-0.5 text-[11px] font-bold">
+                {counts[shortcut.value] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrackedEmptyState({ status }) {
+  const label = status?.label?.toLowerCase() || "tracked";
+
+  return (
+    <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] p-6 text-center shadow-sm shadow-stone-300/20 dark:border-stone-700 dark:bg-[#181714] dark:shadow-none">
+      <BriefcaseBusiness className="mx-auto mb-3 h-9 w-9 text-stone-400 dark:text-stone-500" />
+      <h3 className="text-base font-semibold text-stone-950 dark:text-stone-50">
+        No {label} jobs in current results.
+      </h3>
+      <p className="mx-auto mt-1 max-w-md text-sm text-stone-500 dark:text-stone-400">
+        Search results and statuses are restored locally, but this is not a full archive.
+      </p>
+    </div>
   );
 }
 
 function EmptyState({ title = "No search yet", message = "Your submitted profile drives scraping, scoring, reasons, and the final ranking." }) {
   return (
-    <div className="flex min-h-[320px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+    <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] p-8 text-center shadow-sm shadow-stone-300/20 dark:border-stone-700 dark:bg-[#181714] dark:shadow-none">
       <div>
-        <BriefcaseBusiness className="mx-auto mb-3 h-10 w-10 text-slate-400 dark:text-slate-500" />
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">{message}</p>
+        <BriefcaseBusiness className="mx-auto mb-3 h-10 w-10 text-stone-400 dark:text-stone-500" />
+        <h3 className="text-lg font-semibold text-stone-950 dark:text-stone-50">{title}</h3>
+        <p className="mt-1 max-w-md text-sm text-stone-500 dark:text-stone-400">{message}</p>
       </div>
     </div>
   );
@@ -467,10 +535,10 @@ function LoadingState() {
   return (
     <div className="grid gap-4">
       {[1, 2, 3].map((item) => (
-        <div key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4 h-5 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-          <div className="mb-3 h-4 w-1/2 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="h-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+        <div key={item} className="rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
+          <div className="mb-4 h-5 w-2/3 animate-pulse rounded bg-stone-200 dark:bg-stone-800" />
+          <div className="mb-3 h-4 w-1/2 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
+          <div className="h-16 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
         </div>
       ))}
     </div>
@@ -479,28 +547,29 @@ function LoadingState() {
 
 function JobCard({ job, variant = "recommended", status = "new", onStatusChange }) {
   const decision = getDecisionSummary(job, variant);
-  const scoreColor =
-    decision.tone === "restricted"
-      ? "text-red-700 dark:text-red-300"
-      : decision.tone === "stretch"
-        ? "text-amber-700 dark:text-amber-300"
-        : variant === "lower"
-          ? "text-slate-600 dark:text-slate-300"
-          : "text-emerald-700 dark:text-emerald-300";
+  let scoreColor = "text-emerald-700 dark:text-emerald-300";
+
+  if (decision.tone === "restricted") {
+    scoreColor = "text-red-700 dark:text-red-300";
+  } else if (decision.tone === "stretch") {
+    scoreColor = "text-amber-700 dark:text-amber-300";
+  } else if (variant === "lower") {
+    scoreColor = "text-stone-600 dark:text-stone-300";
+  }
 
   return (
-    <article className={`rounded-lg border bg-white p-5 shadow-sm dark:bg-slate-900 ${getCardBorderClass(decision.tone)}`}>
+    <article className={`rounded-2xl border bg-[#fffdf8] p-5 shadow-sm shadow-stone-300/30 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-stone-300/40 dark:bg-[#181714] dark:shadow-none dark:hover:border-stone-700 ${getCardBorderClass(decision.tone)}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${DECISION_BADGE_CLASSES[decision.tone]}`}>
               {decision.label}
             </span>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{decision.helper}</span>
+            <span className="text-xs font-medium text-stone-500 dark:text-stone-400">{decision.helper}</span>
           </div>
-          <h3 className="text-xl font-semibold leading-7 text-slate-950 dark:text-white">{job.title}</h3>
-          <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">{job.company}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+          <h3 className="text-xl font-semibold leading-7 text-stone-950 dark:text-stone-50">{job.title}</h3>
+          <p className="mt-1 text-sm font-medium text-stone-700 dark:text-stone-300">{job.company}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-stone-500 dark:text-stone-400">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-4 w-4" />
               {job.location || "Location unavailable"}
@@ -509,34 +578,34 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
             {job.salary && <span>{job.salary}</span>}
           </div>
         </div>
-        <div className={`flex min-w-24 items-center justify-center rounded-lg border px-4 py-3 ${getScorePanelClass(decision.tone)}`}>
+        <div className={`flex min-w-24 shrink-0 items-center justify-center rounded-xl border px-4 py-3 ${getScorePanelClass(decision.tone)}`}>
           <div className="text-center">
             <div className={`text-2xl font-bold ${scoreColor}`}>{job.scoring.score}</div>
-            <div className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Score</div>
-            <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <div className="text-xs font-medium uppercase text-stone-500 dark:text-stone-400">Score</div>
+            <div className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300">
               {formatFitLabel(job.scoring.execution_likelihood)}
             </div>
           </div>
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">{job.summary}</p>
+      <p className="mt-4 text-sm leading-6 text-stone-700 dark:text-stone-300">{job.summary}</p>
 
       <div className="mt-4">
-        <div className="mb-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Why shown</div>
-        <div className="flex flex-wrap gap-2">
-        {job.scoring.match_reasons.map((reason) => (
-          <span key={reason} className={getReasonChipClass(reason)}>
-            {reason}
-          </span>
-        ))}
+        <div className="mb-2 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Why shown</div>
+        <div className="flex flex-wrap gap-2.5">
+          {job.scoring.match_reasons.map((reason) => (
+            <span key={reason} className={getReasonChipClass(reason)}>
+              {reason}
+            </span>
+          ))}
         </div>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-            {getStatusLabel(status)}
+          <span className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">
+            Current: {getStatusLabel(status)}
           </span>
           {JOB_STATUSES.filter((option) => option.value !== "new").map((option) => (
             <button
@@ -544,6 +613,7 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
               type="button"
               onClick={() => onStatusChange?.(job, option.value)}
               className={getStatusButtonClass(status, option.value)}
+              aria-pressed={status === option.value}
             >
               {getStatusButtonLabel(status, option.value)}
             </button>
@@ -552,7 +622,7 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
             <button
               type="button"
               onClick={() => onStatusChange?.(job, "new")}
-              className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950"
+              className="rounded-lg border border-stone-300/80 px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900"
             >
               Reset
             </button>
@@ -564,7 +634,7 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
           href={job.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-950 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:border-emerald-400 dark:hover:bg-slate-950"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2 text-sm font-semibold text-stone-900 transition hover:border-[#e45033]/50 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:hover:border-[#e45033]/70 dark:hover:bg-stone-900"
         >
           Open job
           <ArrowUpRight className="h-4 w-4" />
@@ -681,6 +751,13 @@ function filterJobsByStatus(jobs, statusFilter, jobStatuses) {
   return jobs.filter((job) => getJobStatus(job, jobStatuses) === statusFilter);
 }
 
+function getTrackedStatusCounts(jobs, jobStatuses) {
+  return TRACKED_STATUS_SHORTCUTS.reduce((counts, shortcut) => {
+    counts[shortcut.value] = jobs.filter((job) => getJobStatus(job, jobStatuses) === shortcut.value).length;
+    return counts;
+  }, {});
+}
+
 function getJobStatus(job, jobStatuses) {
   return jobStatuses[getJobStatusKey(job)] || "new";
 }
@@ -699,13 +776,24 @@ function getStatusLabel(status) {
 
 function getStatusButtonClass(currentStatus, buttonStatus) {
   const isActive = currentStatus === buttonStatus;
-  const baseClass = "rounded-md border px-2.5 py-1 text-xs font-semibold transition";
+  const baseClass = "rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#e45033]/15";
 
   if (isActive) {
-    return `${baseClass} border-slate-950 bg-slate-950 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-slate-950`;
+    return `${baseClass} border-[#131311] bg-[#131311] text-white dark:border-[#e45033] dark:bg-[#e45033] dark:text-white`;
   }
 
-  return `${baseClass} border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950`;
+  return `${baseClass} border-stone-300/80 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900`;
+}
+
+function getTrackedShortcutClass(isActive) {
+  const baseClass =
+    "inline-flex h-9 items-center rounded-full border px-3 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#e45033]/15";
+
+  if (isActive) {
+    return `${baseClass} border-[#131311] bg-[#131311] text-white dark:border-[#e45033] dark:bg-[#e45033] dark:text-white`;
+  }
+
+  return `${baseClass} border-stone-300/80 bg-[#fffdf8] text-stone-700 hover:border-[#e45033]/40 hover:bg-stone-100 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-300 dark:hover:border-[#e45033]/60 dark:hover:bg-stone-900`;
 }
 
 function getStatusButtonLabel(currentStatus, buttonStatus) {
@@ -808,22 +896,22 @@ function hasDirectRoleEvidence(job) {
 
 function getCardBorderClass(tone) {
   return {
-    apply: "border-slate-200 dark:border-slate-800",
-    review: "border-slate-200 dark:border-slate-800",
-    restricted: "border-red-200 dark:border-red-900",
-    stretch: "border-amber-200 dark:border-amber-900",
-    low: "border-slate-200 opacity-95 dark:border-slate-800"
-  }[tone] || "border-slate-200 dark:border-slate-800";
+    apply: "border-stone-200/80 dark:border-stone-800",
+    review: "border-stone-200/80 dark:border-stone-800",
+    restricted: "border-red-200/90 dark:border-red-900/90",
+    stretch: "border-amber-200/90 dark:border-amber-900/90",
+    low: "border-stone-200/80 opacity-95 dark:border-stone-800"
+  }[tone] || "border-stone-200/80 dark:border-stone-800";
 }
 
 function getScorePanelClass(tone) {
   return {
-    apply: "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950",
-    review: "border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950",
-    restricted: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950",
-    stretch: "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950",
-    low: "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950"
-  }[tone] || "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950";
+    apply: "border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-900/80 dark:bg-emerald-950/60",
+    review: "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900",
+    restricted: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/70",
+    stretch: "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/70",
+    low: "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-950"
+  }[tone] || "border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-950";
 }
 
 function getReasonChipClass(reason) {
