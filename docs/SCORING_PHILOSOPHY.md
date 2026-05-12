@@ -90,7 +90,7 @@ Execution likelihood:
 - Lower-score but related roles can be labeled `adjacent`; weak or off-domain roles are labeled `lower_match`.
 - Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
 - Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
-- Automation-oriented reasons require explicit job-side automation evidence such as automation, scripting, Zapier, Make.com, RPA, Selenium, Playwright, API automation, or process automation. Generic software/support text does not produce an automation reason by itself.
+- Automation-oriented reasons require explicit job-side automation evidence such as automation, automated, automate, workflow automation, process automation, scripting, script, Zapier, Make.com, n8n, RPA, robotic process automation, Selenium, Playwright, Puppeteer, API automation, test automation, QA automation, or CI/CD automation. Generic workflow, support, troubleshooting, implementation, operations, product specialist, deployment, customer support, technical support, or software support wording does not produce an automation reason by itself.
 
 Avoid keyword penalties:
 - `avoid_keywords` matching title/details apply clear penalties.

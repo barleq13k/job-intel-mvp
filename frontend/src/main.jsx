@@ -17,6 +17,11 @@ const SOURCE_LABELS = {
   remotive: "Remotive",
   himalayas: "Himalayas"
 };
+const REASON_CHIP_CLASSES = {
+  positive: "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  caution: "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  negative: "rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-200"
+};
 
 const initialForm = {
   target_roles: "",
@@ -410,7 +415,7 @@ function JobCard({ job, variant = "recommended" }) {
 
       <div className="mt-4 flex flex-wrap gap-2">
         {job.scoring.match_reasons.map((reason) => (
-          <span key={reason} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+          <span key={reason} className={getReasonChipClass(reason)}>
             {reason}
           </span>
         ))}
@@ -429,6 +434,41 @@ function JobCard({ job, variant = "recommended" }) {
       )}
     </article>
   );
+}
+
+function getReasonChipClass(reason) {
+  return REASON_CHIP_CLASSES[getReasonTone(reason)];
+}
+
+function getReasonTone(reason) {
+  const normalized = reason.toLowerCase();
+
+  if (
+    normalized.includes("restricted") ||
+    normalized.includes("outside preferred location") ||
+    normalized.includes("avoid keyword") ||
+    normalized.includes("region-restricted")
+  ) {
+    return "negative";
+  }
+
+  if (normalized.includes("lower-complexity") || normalized.includes("lower complexity")) {
+    return "positive";
+  }
+
+  if (
+    normalized.includes("complexity") ||
+    normalized.includes("seniority may") ||
+    (normalized.includes("senior") && !normalized.includes("senior-level workflow matches")) ||
+    normalized.includes("additional skills") ||
+    normalized.includes("adjacent") ||
+    normalized.includes("platform") ||
+    normalized.includes("architecture")
+  ) {
+    return "caution";
+  }
+
+  return "positive";
 }
 
 function formatFitLabel(value) {

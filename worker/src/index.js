@@ -97,15 +97,21 @@ const JOB_AUTOMATION_TERMS = [
   "automated",
   "automate",
   "workflow automation",
+  "process automation",
   "scripting",
   "script",
   "zapier",
   "make com",
+  "n8n",
   "rpa",
+  "robotic process automation",
   "selenium",
   "playwright",
+  "puppeteer",
   "api automation",
-  "process automation"
+  "test automation",
+  "qa automation",
+  "ci cd automation"
 ];
 const SIMPLE_TASK_TERMS = ["script", "automation", "cleanup", "data extraction", "scraper", "bug fixing", "testing", "assistant", "junior", "entry"];
 const DESCRIPTION_COMPLEXITY_TERMS = [
@@ -121,6 +127,9 @@ const DESCRIPTION_COMPLEXITY_TERMS = [
   "ownership",
   "scalable systems"
 ];
+const SUPPORT_INTENT_TERMS = ["support", "software support", "technical support", "customer support", "help desk"];
+const SUPPORT_ROLE_EVIDENCE_TERMS = ["support", "software support", "technical support", "customer support", "help desk"];
+const SUPPORT_RELEVANCE_FLOOR_BLOCKER_TERMS = ["senior", "staff", "principal", "lead", "manager", "engineer"];
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -988,7 +997,15 @@ function scoreJob(job, profile) {
     components.execution_likelihood_score +
     components.location_workmode_score +
     components.penalties;
-  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  const baseScore = Math.max(0, Math.min(100, Math.round(rawScore)));
+  const supportRelevanceFloor = getSupportRoleRelevanceFloor({
+    score: baseScore,
+    context,
+    senioritySignal,
+    complexitySignal,
+    avoidSignal
+  });
+  const score = Math.max(baseScore, supportRelevanceFloor);
   executionSignal.label = executionLabel({
     score,
     value: executionSignal.value,
@@ -997,7 +1014,8 @@ function scoreJob(job, profile) {
     senioritySignal,
     roleDomainSignal,
     complexitySignal,
-    avoidSignal
+    avoidSignal,
+    supportRelevanceFloorApplied: supportRelevanceFloor > baseScore
   });
 
   const matchReasons = buildMatchReasons({
@@ -1063,6 +1081,45 @@ function evaluateSignals(queries, title, secondaryText, category, categoryText =
 
   signal.reasons = makeSignalReasons(signal, category);
   return signal;
+}
+
+function getSupportRoleRelevanceFloor({ score, context, senioritySignal, complexitySignal, avoidSignal }) {
+  if (score >= MIN_STRETCH_SCORE) {
+    return 0;
+  }
+
+  if (!hasSupportIntent(context.profile) || !hasSupportRoleEvidence(context)) {
+    return 0;
+  }
+
+  if (hasSupportRelevanceFloorBlocker(context, senioritySignal, complexitySignal, avoidSignal)) {
+    return 0;
+  }
+
+  return MIN_STRETCH_SCORE;
+}
+
+function hasSupportIntent(profile) {
+  const profileText = normalizeSearchText([...profile.target_roles, ...profile.keywords].join(" "));
+  return SUPPORT_INTENT_TERMS.some((term) => containsPhrase(profileText, normalizeSearchText(term)));
+}
+
+function hasSupportRoleEvidence({ title, categoryText }) {
+  const roleText = `${title} ${categoryText}`;
+  return SUPPORT_ROLE_EVIDENCE_TERMS.some((term) => containsPhrase(roleText, normalizeSearchText(term)));
+}
+
+function hasSupportRelevanceFloorBlocker({ title, categoryText }, senioritySignal, complexitySignal, avoidSignal) {
+  const roleText = `${title} ${categoryText}`;
+  const hasBlockedRoleTerm = SUPPORT_RELEVANCE_FLOOR_BLOCKER_TERMS.some((term) => containsPhrase(roleText, term));
+  const hasSeniorityGap = senioritySignal.status === "senior_too_high";
+  const hasRoleComplexityGap =
+    complexitySignal.status === "more_complex" &&
+    complexitySignal.terms.some((term) => SUPPORT_RELEVANCE_FLOOR_BLOCKER_TERMS.includes(term));
+  const avoidMatchesInRole = avoidSignal.matches.filter((keyword) => containsPhrase(roleText, normalizeSearchText(keyword)));
+  const avoidHeavy = avoidSignal.matches.length >= 2 || avoidMatchesInRole.length > 0;
+
+  return hasBlockedRoleTerm || hasSeniorityGap || hasRoleComplexityGap || avoidHeavy;
 }
 
 function evaluateQuerySignal(query, title, secondaryText, category, categoryText = "") {
@@ -1346,6 +1403,7 @@ function evaluateAvoidKeywords({ profile, title, summaryText }) {
 function evaluateTaskFitTieBreaker({ summaryText }) {
   const simpleMatches = SIMPLE_TASK_TERMS.filter((term) => containsPhrase(summaryText, term));
   const complexityMatches = DESCRIPTION_COMPLEXITY_TERMS.filter((term) => containsPhrase(summaryText, term));
+  const automationMatches = getJobAutomationMatches(summaryText);
   const points = Math.min(
     SCORING_WEIGHTS.taskFitTieBreaker.simpleBoostCap,
     simpleMatches.length * SCORING_WEIGHTS.taskFitTieBreaker.simpleTermBoost
@@ -1357,7 +1415,7 @@ function evaluateTaskFitTieBreaker({ summaryText }) {
   const reasons = [];
 
   if (points > 0) {
-    reasons.push(makeTaskFitReason(simpleMatches));
+    reasons.push(makeTaskFitReason(simpleMatches, automationMatches));
   }
 
   if (penalty < 0) {
@@ -1368,13 +1426,18 @@ function evaluateTaskFitTieBreaker({ summaryText }) {
     points,
     penalty,
     simpleMatches,
+    automationMatches,
     complexityMatches,
     reasons
   });
 }
 
-function makeTaskFitReason(simpleMatches) {
-  if (simpleMatches.some((term) => ["script", "automation", "scraper", "testing"].includes(term))) {
+function getJobAutomationMatches(text) {
+  return JOB_AUTOMATION_TERMS.filter((term) => containsPhrase(text, normalizeSearchText(term)));
+}
+
+function makeTaskFitReason(simpleMatches, automationMatches = []) {
+  if (automationMatches.length > 0) {
     return "Automation-oriented responsibilities detected";
   }
 
@@ -1434,7 +1497,17 @@ function evaluateExecutionLikelihood({ profile, title, searchableText, strongest
   });
 }
 
-function executionLabel({ score, value, roleSignal, skillSignal, senioritySignal, roleDomainSignal, complexitySignal, avoidSignal }) {
+function executionLabel({
+  score,
+  value,
+  roleSignal,
+  skillSignal,
+  senioritySignal,
+  roleDomainSignal,
+  complexitySignal,
+  avoidSignal,
+  supportRelevanceFloorApplied = false
+}) {
   const hasRealGap =
     ["senior_too_high", "too_junior"].includes(senioritySignal.status) ||
     complexitySignal.status === "more_complex" ||
@@ -1464,6 +1537,10 @@ function executionLabel({ score, value, roleSignal, skillSignal, senioritySignal
     return "adjacent";
   }
 
+  if (supportRelevanceFloorApplied && !hasRealGap) {
+    return "adjacent";
+  }
+
   return "lower_match";
 }
 
@@ -1471,7 +1548,7 @@ function evaluateScriptIntent({ profile, title, summaryText, categoryText }) {
   const profileText = normalizeSearchText([...profile.skills, ...profile.keywords].join(" "));
   const hasScriptIntent = SCRIPT_INTENT_TERMS.some((term) => containsPhrase(profileText, term));
   const jobText = `${title} ${summaryText} ${categoryText}`;
-  const hasJobAutomationEvidence = JOB_AUTOMATION_TERMS.some((term) => containsPhrase(jobText, normalizeSearchText(term)));
+  const hasJobAutomationEvidence = getJobAutomationMatches(jobText).length > 0;
 
   if (!hasScriptIntent || !hasJobAutomationEvidence) {
     return makeScoringSignal({ status: "none" });

@@ -441,11 +441,107 @@ const automationSupport = {
   description: "Support Zapier workflow automation, debug API automation issues, and help users improve automated processes.",
   category: "Customer Support"
 };
+const productSpecialistNoAutomation = {
+  title: "Software Solutions Technical Specialist",
+  company: "ProductCo",
+  location: "USA Remote, US",
+  source: "Himalayas",
+  description:
+    "Support product installs, troubleshoot customer issues, coordinate implementation steps, manage deployment questions, and guide technical support workflows.",
+  category: "Customer Support"
+};
+const workflowSupportOnly = {
+  title: "Workflow Support Specialist",
+  company: "WorkflowCo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Support customer workflows, triage operations requests, troubleshoot software issues, and document product specialist handoffs.",
+  category: "Customer Support"
+};
+const qaAutomationRole = {
+  title: "QA Automation Specialist",
+  company: "QACo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Build test automation with Playwright, Selenium, and CI/CD automation for release workflows.",
+  category: "Quality Assurance"
+};
 const supportNoAutomationScoring = __test.scoreJob(softwareSupportNoAutomation, supportProfile);
 const automationSupportScoring = __test.scoreJob(automationSupport, supportProfile);
+const productSpecialistNoAutomationScoring = __test.scoreJob(productSpecialistNoAutomation, supportProfile);
+const workflowSupportOnlyScoring = __test.scoreJob(workflowSupportOnly, supportProfile);
+const qaAutomationScoring = __test.scoreJob(qaAutomationRole, supportProfile);
 
 assert(!supportNoAutomationScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
 assert(supportNoAutomationScoring.match_reasons.includes("Technical support/operations overlap detected"));
 assert(automationSupportScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+assert(!productSpecialistNoAutomationScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+assert(productSpecialistNoAutomationScoring.match_reasons.includes("Technical support/operations overlap detected"));
+assert(!workflowSupportOnlyScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+assert(qaAutomationScoring.match_reasons.includes("Automation-oriented responsibilities detected"));
+
+const supportRelevanceFloorProfile = __test.normalizeProfile({
+  target_roles: ["Software Support"],
+  skills: ["java script", "node js", "type script", "react js"],
+  keywords: ["entry", "remote", "mid", "junior", "support"],
+  avoid_keywords: ["senior", "manager", "lead", "engineer"],
+  location: "Philippines",
+  experience_level: "junior",
+  work_mode: "remote"
+});
+const restrictedUsTechnicalSupport = {
+  title: "Technical Customer Support",
+  company: "HelpCo",
+  location: "United States",
+  source: "Himalayas",
+  description: "Remote support role helping customers troubleshoot software issues.",
+  category: "Customer Support"
+};
+const restrictedCanadaTechnicalSupport = {
+  ...restrictedUsTechnicalSupport,
+  location: "Canada"
+};
+const helpDeskSupport = {
+  title: "POS Help Desk Customer Support Representative",
+  company: "POSCo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Help desk customer support for POS software and product troubleshooting.",
+  category: "Customer Support"
+};
+const genericSupportSpecialist = {
+  title: "Support Specialist",
+  company: "GenericCo",
+  location: "Remote",
+  source: "Himalayas",
+  description: "Support customers, triage product issues, and troubleshoot software workflows.",
+  category: "Customer Support"
+};
+const seniorSupportEngineer = {
+  title: "Senior Lead Software Support Engineer",
+  company: "SeniorCo",
+  location: "United States",
+  source: "Himalayas",
+  description: "Lead complex engineering escalations, manage support architecture, and mentor engineers.",
+  category: "Customer Support"
+};
+const restrictedUsTechnicalSupportScoring = __test.scoreJob(restrictedUsTechnicalSupport, supportRelevanceFloorProfile);
+const restrictedCanadaTechnicalSupportScoring = __test.scoreJob(restrictedCanadaTechnicalSupport, supportRelevanceFloorProfile);
+const helpDeskSupportScoring = __test.scoreJob(helpDeskSupport, supportRelevanceFloorProfile);
+const genericSupportSpecialistScoring = __test.scoreJob(genericSupportSpecialist, supportRelevanceFloorProfile);
+const seniorSupportEngineerScoring = __test.scoreJob(seniorSupportEngineer, supportRelevanceFloorProfile);
+
+assert(restrictedUsTechnicalSupportScoring.score >= 25);
+assert(restrictedUsTechnicalSupportScoring.match_reasons.includes("Remote role restricted to United States applicants"));
+assert(restrictedUsTechnicalSupportScoring.match_reasons.includes("Outside preferred location: Philippines"));
+assert(restrictedCanadaTechnicalSupportScoring.score >= 25);
+assert(restrictedCanadaTechnicalSupportScoring.match_reasons.includes("Remote role restricted to Canada applicants"));
+assert(helpDeskSupportScoring.score >= 25);
+assert.notEqual(helpDeskSupportScoring.execution_likelihood, "lower_match");
+assert(genericSupportSpecialistScoring.score >= 25);
+assert.notEqual(genericSupportSpecialistScoring.execution_likelihood, "lower_match");
+assert(seniorSupportEngineerScoring.score < 25);
+assert.equal(seniorSupportEngineerScoring.execution_likelihood, "lower_match");
+assert(seniorSupportEngineerScoring.components.penalties <= -35);
 
 console.log("Scoring regression checks passed.");
