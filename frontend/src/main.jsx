@@ -19,8 +19,14 @@ const TECH_ALIASES = {
 const SOURCE_LABELS = {
   realpython_fake_jobs: "Real Python Fake Jobs",
   remotive: "Remotive",
-  himalayas: "Himalayas"
+  himalayas: "Himalayas",
+  arbeitnow: "Arbeitnow"
 };
+const VISIBLE_SOURCE_OPTIONS = [
+  { value: "realpython_fake_jobs", label: SOURCE_LABELS.realpython_fake_jobs },
+  { value: "remotive", label: SOURCE_LABELS.remotive },
+  { value: "himalayas", label: SOURCE_LABELS.himalayas }
+];
 const REASON_CHIP_CLASSES = {
   positive:
     "max-w-full rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/70 dark:text-emerald-200",
@@ -360,9 +366,11 @@ function App() {
               onChange={updateField}
               className={SELECT_CLASS}
             >
-              <option value="realpython_fake_jobs">Real Python Fake Jobs</option>
-              <option value="remotive">Remotive</option>
-              <option value="himalayas">Himalayas</option>
+              {VISIBLE_SOURCE_OPTIONS.map((source) => (
+                <option key={source.value} value={source.value}>
+                  {source.label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -837,11 +845,15 @@ function loadStoredSearchProfile() {
       experience_level: ["any", "beginner", "junior", "intermediate", "senior"].includes(parsed.experience_level)
         ? parsed.experience_level
         : initialForm.experience_level,
-      source_type: SOURCE_LABELS[parsed.source_type] ? parsed.source_type : initialForm.source_type
+      source_type: isVisibleSourceType(parsed.source_type) ? parsed.source_type : initialForm.source_type
     };
   } catch {
     return null;
   }
+}
+
+function isVisibleSourceType(sourceType) {
+  return VISIBLE_SOURCE_OPTIONS.some((source) => source.value === sourceType);
 }
 
 function saveStoredSearchProfile(form) {

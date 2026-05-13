@@ -35,9 +35,22 @@ const validHimalayasJob = {
   description: "<p>Write Python scripts, QA checks, and workflow automation.</p>",
   applicationLink: "https://himalayas.app/companies/remote-tools/jobs/junior-python-automation-engineer?utm_campaign=feed#apply"
 };
+const validArbeitnowJob = {
+  slug: "junior-python-automation-specialist-remote-tools-42",
+  company_name: "Remote Tools Co",
+  title: "Junior Python Automation Specialist",
+  description: "<p>Build Python scripts and QA automation checks for internal teams.</p>",
+  remote: true,
+  url: "https://www.arbeitnow.com/jobs/companies/remote-tools/junior-python-automation-specialist-remote-tools-42?utm_source=feed#apply",
+  tags: ["Remote", "Software Development"],
+  job_types: ["Full time", "Junior"],
+  location: "Berlin, Germany",
+  created_at: 1778593523
+};
 
 const normalized = __test.normalizeRemotiveJob(validRemotiveJob);
 const normalizedHimalayas = __test.normalizeHimalayasJob(validHimalayasJob);
+const normalizedArbeitnow = __test.normalizeArbeitnowJob(validArbeitnowJob);
 const duplicateTextHimalayas = __test.normalizeHimalayasJob({
   ...validHimalayasJob,
   excerpt: "Build workflow automation for customer teams.",
@@ -62,6 +75,19 @@ assert.equal(normalizedHimalayas.salary, "USD 70,000 - 90,000");
 assert.equal(normalizedHimalayas.category, "Engineering, Quality Assurance");
 assert.equal(normalizedHimalayas.description, "Build test automation for remote software teams. Write Python scripts, QA checks, and workflow automation.");
 assert.equal(duplicateTextHimalayas.description, "Build workflow automation for customer teams. Help users debug Zapier workflows.");
+assert.equal(normalizedArbeitnow.title, "Junior Python Automation Specialist");
+assert.equal(normalizedArbeitnow.company, "Remote Tools Co");
+assert.equal(normalizedArbeitnow.source_job_id, "junior-python-automation-specialist-remote-tools-42");
+assert.equal(normalizedArbeitnow.location, "Remote");
+assert.equal(normalizedArbeitnow.employment_type, "Full time, Junior");
+assert.equal(normalizedArbeitnow.salary, null);
+assert.equal(normalizedArbeitnow.category, "Remote, Software Development");
+assert.equal(normalizedArbeitnow.description, "Build Python scripts and QA automation checks for internal teams.");
+assert.equal(__test.normalizeArbeitnowJob(null), null);
+assert.equal(__test.normalizeArbeitnowJob({ ...validArbeitnowJob, title: undefined }), null);
+assert.equal(__test.normalizeArbeitnowJob({ ...validArbeitnowJob, company_name: null }), null);
+assert.equal(__test.normalizeArbeitnowJob({ ...validArbeitnowJob, remote: false }).location, "Berlin, Germany");
+assert.equal(__test.normalizeArbeitnowJob({ ...validArbeitnowJob, url: "mailto:jobs@example.com" }).url, null);
 assert.equal(__test.normalizeHimalayasJob(null), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, title: undefined }), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, companyName: null }), null);
@@ -91,6 +117,13 @@ assert.equal(
 );
 assert.equal(
   __test.dedupeJobs([
+    normalizedArbeitnow,
+    { ...normalizedArbeitnow, title: "Different title from duplicate Arbeitnow slug" }
+  ]).length,
+  1
+);
+assert.equal(
+  __test.dedupeJobs([
     { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42?utm_source=a#apply" },
     { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42" }
   ]).length,
@@ -99,9 +132,11 @@ assert.equal(
 
 const formatted = __test.formatJob(normalized, profile, "2026-05-12T12:00:00.000Z");
 const formattedHimalayas = __test.formatJob(normalizedHimalayas, profile, "2026-05-12T12:00:00.000Z");
+const formattedArbeitnow = __test.formatJob(normalizedArbeitnow, profile, "2026-05-12T12:00:00.000Z");
 const formattedDuplicateText = __test.formatJob(duplicateTextHimalayas, profile, "2026-05-12T12:00:00.000Z");
 assert.equal(__test.makeStableJobId(formatted), "remotive_42");
 assert.equal(__test.makeStableJobId(formattedHimalayas), "himalayas_himalayas_python_42");
+assert.equal(__test.makeStableJobId(formattedArbeitnow), "arbeitnow_junior_python_automation_specialist_remote_tools_42");
 assert(!formattedDuplicateText.summary.includes("Build workflow automation for customer teams. Build workflow automation for customer teams."));
 
 const originalFetch = globalThis.fetch;
@@ -217,6 +252,55 @@ try {
   assert.equal(emptyHimalayasResult.jobs.length, 0);
   assert.equal(emptyHimalayasResult.droppedCount, 0);
   assert.equal(emptyHimalayasResult.pagesFetched, 1);
+
+  globalThis.fetch = async (url) => {
+    const parsedUrl = new URL(url);
+    assert.equal(parsedUrl.searchParams.get("page"), "1");
+    assert(parsedUrl.searchParams.get("q"));
+
+    return new Response(JSON.stringify({
+      data: [
+        validArbeitnowJob,
+        null,
+        { ...validArbeitnowJob, slug: "arbeitnow-python-43", title: "" },
+        { ...validArbeitnowJob, slug: "arbeitnow-python-44", company_name: undefined }
+      ],
+      links: { next: "https://www.arbeitnow.com/api/job-board-api?page=2" },
+      meta: { current_page: 1, per_page: 100 }
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  const arbeitnowResult = await __test.fetchArbeitnowJobs(profile);
+  assert.equal(arbeitnowResult.jobs.length, 1);
+  assert.equal(arbeitnowResult.droppedCount, 3);
+  assert.equal(arbeitnowResult.pagesFetched, 1);
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+
+  const emptyArbeitnowResult = await __test.fetchArbeitnowJobs(profile);
+  assert.equal(emptyArbeitnowResult.jobs.length, 0);
+  assert.equal(emptyArbeitnowResult.droppedCount, 0);
+  assert.equal(emptyArbeitnowResult.pagesFetched, 1);
+
+  globalThis.fetch = async () => new Response("temporary outage", { status: 503 });
+  await assert.rejects(() => __test.fetchArbeitnowJobs(profile), /status 503/);
+
+  globalThis.fetch = async () => new Response("not json", { status: 200 });
+  await assert.rejects(() => __test.fetchArbeitnowJobs(profile), /invalid JSON/);
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ jobs: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  await assert.rejects(() => __test.fetchArbeitnowJobs(profile), /unexpected response shape/);
 
   globalThis.fetch = async (_url, options = {}) =>
     new Promise((_resolve, reject) => {

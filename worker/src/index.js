@@ -1,11 +1,14 @@
 const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
 const HIMALAYAS_URL = "https://himalayas.app/jobs/api/search";
+const ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
 const HIMALAYAS_SOURCE_NAME = "Himalayas";
+const ARBEITNOW_SOURCE_NAME = "Arbeitnow";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const HIMALAYAS_MAX_PAGES = 3;
+const ARBEITNOW_MAX_PAGES = 1;
 const MIN_STRETCH_SCORE = 25;
 const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
@@ -282,8 +285,8 @@ async function handleJobSearch(request) {
   const profile = normalizeProfile(body.profile);
   const sourceType = body.source?.type;
 
-  if (!["realpython_fake_jobs", "remotive", "himalayas"].includes(sourceType)) {
-    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, or himalayas." }, 400);
+  if (!["realpython_fake_jobs", "remotive", "himalayas", "arbeitnow"].includes(sourceType)) {
+    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, himalayas, or arbeitnow." }, 400);
   }
 
   let sourceResult;
@@ -722,6 +725,7 @@ async function fetchGroqExplanation({ profile, job, env }) {
             "Do not use motivational career-coach language, tell the user they are eligible, say they should apply, invent requirements, invent confidence, hide penalties, or suggest the score should change.",
             "Do not rerank, rescore, decide eligibility, or override deterministic restrictions or penalties.",
             "Use strengths for what helped the score and concerns for what limited the score.",
+            "Complexity, architecture, platform, seniority mismatch, restrictions, penalties, and avoid-keyword signals belong in concerns, not strengths.",
             "Return only valid JSON with this exact shape: {\"explanation\":{\"summary\":\"string\",\"strengths\":[\"string\"],\"concerns\":[\"string\"],\"verify_before_applying\":[\"string\"],\"decision_support\":\"string\"}}."
           ].join(" ")
         },
@@ -774,10 +778,14 @@ function validateAiExplanation(parsed) {
 }
 
 function ensureExplainShape(explanation) {
+  const normalizedLists = rebucketExplanationSignals(
+    normalizeExplainList(explanation.strengths),
+    normalizeExplainList(explanation.concerns)
+  );
   const normalized = {
     summary: limitText(explanation.summary, 700),
-    strengths: normalizeExplainList(explanation.strengths),
-    concerns: normalizeExplainList(explanation.concerns),
+    strengths: normalizedLists.strengths,
+    concerns: normalizedLists.concerns,
     verify_before_applying: normalizeExplainList(explanation.verify_before_applying),
     decision_support: limitText(explanation.decision_support, 500)
   };
@@ -795,6 +803,24 @@ function normalizeExplainList(value) {
   }
 
   return value.map((item) => limitText(item, 240)).filter(Boolean).slice(0, 4);
+}
+
+function rebucketExplanationSignals(strengths, concerns) {
+  const correctedStrengths = [];
+  const correctedConcerns = [...concerns];
+
+  for (const strength of strengths) {
+    if (isConcernReason(strength)) {
+      correctedConcerns.push(strength);
+    } else {
+      correctedStrengths.push(strength);
+    }
+  }
+
+  return {
+    strengths: uniqueList(correctedStrengths).slice(0, 4),
+    concerns: uniqueList(correctedConcerns).slice(0, 4)
+  };
 }
 
 function getPositiveEnvInt(value, fallback) {
@@ -822,6 +848,10 @@ async function fetchJobsForSource(sourceType, profile) {
     return fetchHimalayasJobs(profile);
   }
 
+  if (sourceType === "arbeitnow") {
+    return fetchArbeitnowJobs(profile);
+  }
+
   return makeSourceResult(await fetchRealPythonJobs());
 }
 
@@ -829,6 +859,7 @@ function getSourceName(sourceType) {
   return {
     remotive: REMOTIVE_SOURCE_NAME,
     himalayas: HIMALAYAS_SOURCE_NAME,
+    arbeitnow: ARBEITNOW_SOURCE_NAME,
     realpython_fake_jobs: SOURCE_NAME
   }[sourceType] || SOURCE_NAME;
 }
@@ -1187,6 +1218,123 @@ function formatHimalayasLocation(locationRestrictions, timezoneRestrictions) {
   return "Remote";
 }
 
+async function fetchArbeitnowJobs(profile) {
+  const search = buildArbeitnowSearch(profile);
+  let droppedCount = 0;
+  const jobs = [];
+  let pagesFetched = 0;
+
+  for (let page = 1; page <= ARBEITNOW_MAX_PAGES; page += 1) {
+    const data = await fetchArbeitnowJobsPage(search, page);
+    pagesFetched += 1;
+
+    if (data.jobs.length === 0) {
+      break;
+    }
+
+    for (const job of data.jobs) {
+      const normalizedJob = normalizeArbeitnowJob(job);
+
+      if (normalizedJob) {
+        jobs.push(normalizedJob);
+      } else {
+        droppedCount += 1;
+      }
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount, {
+    pagesFetched
+  });
+}
+
+async function fetchArbeitnowJobsPage(search, page) {
+  const url = new URL(ARBEITNOW_URL);
+
+  url.searchParams.set("page", String(page));
+
+  if (search) {
+    url.searchParams.set("q", search);
+  }
+
+  let response;
+
+  try {
+    response = await fetchWithTimeout(url.toString(), {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "job-intel-mvp/0.1"
+      }
+    }, REMOTIVE_TIMEOUT_MS);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw makeSourceError(`Arbeitnow request timed out after ${REMOTIVE_TIMEOUT_MS}ms.`, "timeout");
+    }
+
+    throw makeSourceError("Arbeitnow request failed before a response was received.", "network_error");
+  }
+
+  if (!response.ok) {
+    throw makeSourceError(`Arbeitnow fetch failed with status ${response.status}.`, "http_error");
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw makeSourceError("Arbeitnow returned invalid JSON.", "invalid_json");
+  }
+
+  if (!data || typeof data !== "object" || !Array.isArray(data.data)) {
+    throw makeSourceError("Arbeitnow returned an unexpected response shape.", "invalid_shape");
+  }
+
+  return {
+    jobs: data.data
+  };
+}
+
+function normalizeArbeitnowJob(job) {
+  if (!job || typeof job !== "object") {
+    return null;
+  }
+
+  const title = cleanOptionalText(job.title);
+  const company = cleanOptionalText(job.company_name);
+
+  if (!title || !company) {
+    return null;
+  }
+
+  return {
+    title,
+    company,
+    location: formatArbeitnowLocation(job.remote, job.location),
+    source: ARBEITNOW_SOURCE_NAME,
+    source_job_id: cleanSourceId(job.slug),
+    url: normalizeUrlFromBase(job.url, ARBEITNOW_URL),
+    employment_type: Array.isArray(job.job_types) ? job.job_types.map(cleanOptionalText).filter(Boolean).join(", ") || null : null,
+    salary: null,
+    description: cleanHtml(job.description || ""),
+    category: Array.isArray(job.tags) ? job.tags.map(cleanOptionalText).filter(Boolean).join(", ") : ""
+  };
+}
+
+function buildArbeitnowSearch(profile) {
+  return buildRemotiveSearch(profile);
+}
+
+function formatArbeitnowLocation(remote, location) {
+  const locationText = cleanOptionalText(location);
+
+  if (remote === true) {
+    return "Remote";
+  }
+
+  return locationText;
+}
+
 function normalizeHimalayasCategory(job) {
   const categories = Array.isArray(job.categories) ? job.categories : job.category;
   const categoryList = Array.isArray(categories) ? categories : [];
@@ -1404,7 +1552,7 @@ function formatJob(job, profile, ingestedAt) {
     details: makeDetails(job),
     metadata: {
       ingested_at: ingestedAt,
-      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
+      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
       source_job_id: cleanSourceId(job.source_job_id) || null
     }
   };
@@ -1432,6 +1580,10 @@ function getStableSourceKey(job) {
 
   if (job.source === HIMALAYAS_SOURCE_NAME) {
     return "himalayas";
+  }
+
+  if (job.source === ARBEITNOW_SOURCE_NAME) {
+    return "arbeitnow";
   }
 
   return "realpython_fake_jobs";
@@ -3153,10 +3305,12 @@ export const __test = Object.freeze({
   SCORING_WEIGHTS,
   buildScoringContext,
   dedupeJobs,
+  fetchArbeitnowJobs,
   fetchHimalayasJobs,
   fetchRemotiveJobs,
   fetchWithTimeout,
   formatJob,
+  normalizeArbeitnowJob,
   makeStableJobId,
   normalizeHimalayasJob,
   normalizeRemotiveJob,

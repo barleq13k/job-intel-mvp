@@ -53,6 +53,7 @@ Supported `source.type` values:
 - `realpython_fake_jobs`
 - `remotive`
 - `himalayas`
+- `arbeitnow`
 
 Unsupported source types return `400`.
 
@@ -136,12 +137,12 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 - `id` is a stable deterministic string derived from the source job ID when available, otherwise from normalized title, company, and canonical URL. It is no longer based on display rank.
 - `salary` is `null` when unavailable.
 - `details` contains 2-4 simple description bullets when possible.
-- `metadata.source_type` is currently `api` for Remotive and Himalayas, and `scraper` for Real Python.
+- `metadata.source_type` is currently `api` for Remotive, Himalayas, and Arbeitnow, and `scraper` for Real Python.
 - `metadata.source_job_id` is populated when a source provides a stable upstream ID, otherwise `null`.
 - `source.status`, `source.message`, and `source.dropped_count` are additive diagnostics. `dropped_count` counts malformed upstream rows skipped during source normalization.
-- `source.message` may include source-specific context such as Himalayas page count, later-page partial fetch warnings, or Remotive public API batch wording. The response shape is unchanged.
+- `source.message` may include source-specific context such as Himalayas or Arbeitnow page count, later-page partial fetch warnings, or Remotive public API batch wording. The response shape is unchanged.
 - Himalayas outbound job URLs are preserved from `applicationLink` when provided so users can reach the source/application page.
-- Himalayas uses a small, conservative public API page cap; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
+- Himalayas uses a small, conservative public API page cap; Arbeitnow starts with a one-page public API cap while source quality is validated; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
 - Backend returns all jobs sorted by score.
 - Frontend shows jobs with score `25` or higher as recommended matches and groups lower-score jobs under Explore More.
 - `scoring.execution_likelihood` values are `strong_fit`, `possible_fit`, `adjacent`, `stretch`, or `lower_match`.

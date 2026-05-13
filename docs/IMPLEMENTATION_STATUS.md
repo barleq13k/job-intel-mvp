@@ -8,15 +8,17 @@
   - Real Python Fake Jobs
   - Remotive
   - Himalayas
+  - Arbeitnow implemented in the backend but hidden from active frontend selection during source-quality review
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - `POST /api/jobs/search` Worker endpoint.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
 - Himalayas public API ingestion with conservative pagination.
+- Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
-- Himalayas is treated as the primary real source; Remotive remains a secondary limited public API source; Real Python Fake Jobs remains a fake/static regression and fallback source.
+- Himalayas is treated as the primary real source; Arbeitnow and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
@@ -34,6 +36,7 @@
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 - Disabled-by-default `POST /api/jobs/explain` endpoint for on-demand match explanations.
 - Explanation safety prep: env gate, strict request/response validation, best-effort in-memory per-IP rate protection, simple in-memory cache, and tradeoff-oriented deterministic fallback explanations.
+- Explanation responses deterministically keep complexity, architecture, platform, seniority, restriction, penalty, and avoid-keyword signals in concerns rather than strengths.
 - Frontend `Explain Match` button with a collapsible per-card explanation panel.
 - AI explanations are not persisted to localStorage and do not use chatbot or conversation history UI.
 - Frontend-only location display cleanup for timezone-only remote strings, without changing backend scoring or normalization.

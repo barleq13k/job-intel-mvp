@@ -49,12 +49,13 @@ Implemented sources:
 - `realpython_fake_jobs`: scrapes static HTML from Real Python Fake Jobs.
 - `remotive`: fetches jobs from Remotive's public jobs API.
 - `himalayas`: fetches jobs from Himalayas' public remote jobs search API.
+- `arbeitnow`: fetches one page of jobs from Arbeitnow's public job board API.
 
 There is no source registry, plugin system, crawler system, browser automation, or background ingestion. Source selection is a simple conditional branch in the Worker.
 
-Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
+Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. Arbeitnow is a secondary validation source with a one-page cap while source quality and stability are evaluated. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
 
-Real sources share timeout handling, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas outbound links are preserved from source/application URLs for attribution and user navigation.
+Real sources share timeout handling, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas and Arbeitnow outbound links are preserved from source/application URLs for attribution and user navigation.
 
 ## Scoring Pipeline
 

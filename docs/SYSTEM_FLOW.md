@@ -68,6 +68,7 @@ Implemented sources:
 
 - `himalayas`: primary real source using Himalayas public remote jobs API.
 - `remotive`: secondary real source using Remotive public jobs API.
+- `arbeitnow`: secondary validation source using Arbeitnow's public job board API with a one-page cap; implemented in the Worker but hidden from active frontend selection during source-quality review.
 - `realpython_fake_jobs`: deterministic fake/static source for regression and fallback testing.
 
 There is no source registry, crawler framework, browser automation, or background ingestion system.
@@ -206,6 +207,7 @@ Explanation behavior:
 - uses the existing frontend job object as input
 - is optional, on-demand, and non-authoritative
 - explains score tradeoffs: what helped, what limited the score, why the score landed in its range, and what to verify
+- keeps concern-like signals such as complexity, platform, architecture, seniority, restrictions, penalties, and avoid keywords in explanation concerns
 - does not fetch jobs
 - does not rescore jobs
 - does not modify rankings or scores
