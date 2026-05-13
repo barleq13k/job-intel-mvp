@@ -7,6 +7,14 @@ const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const HIMALAYAS_MAX_PAGES = 3;
 const MIN_STRETCH_SCORE = 25;
+const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
+const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
+const DEFAULT_AI_EXPLAIN_TIMEOUT_MS = 8000;
+const DEFAULT_AI_EXPLAIN_RATE_LIMIT_PER_MINUTE = 10;
+const DEFAULT_AI_EXPLAIN_CACHE_TTL_SECONDS = 1800;
+const MAX_EXPLAIN_CACHE_ENTRIES = 150;
+const explainCache = new Map();
+const explainRateLimits = new Map();
 const GENERIC_TOKENS = new Set([
   "data",
   "job",
@@ -235,7 +243,7 @@ const corsHeaders = {
 };
 
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
@@ -245,6 +253,14 @@ export default {
     if (url.pathname === "/api/jobs/search") {
       if (request.method === "POST") {
         return handleJobSearch(request);
+      }
+
+      return json({ error: "Method not allowed. Use POST." }, 405);
+    }
+
+    if (url.pathname === "/api/jobs/explain") {
+      if (request.method === "POST") {
+        return handleJobExplain(request, env);
       }
 
       return json({ error: "Method not allowed. Use POST." }, 405);
@@ -303,6 +319,409 @@ async function handleJobSearch(request) {
       dropped_count: sourceResult.droppedCount
     }
   });
+}
+
+async function handleJobExplain(request, env) {
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Request body must be valid JSON." }, 400);
+  }
+
+  const validation = validateExplainRequest(body);
+
+  if (!validation.ok) {
+    return json({ error: validation.error }, 400);
+  }
+
+  const { profile, job } = validation;
+  const fallbackExplanation = makeFallbackExplanation(job);
+  const aiEnabled = isAiExplainEnabled(env);
+  const hasGroqKey = Boolean(cleanOptionalText(env.GROQ_API_KEY));
+
+  if (!aiEnabled) {
+    return json(makeExplainResponse(fallbackExplanation));
+  }
+
+  if (!hasGroqKey) {
+    return json(makeExplainResponse(fallbackExplanation));
+  }
+
+  const cacheKey = makeExplainCacheKey(profile, job);
+  const cachedExplanation = getCachedExplanation(cacheKey);
+
+  if (cachedExplanation) {
+    return json(makeExplainResponse(cachedExplanation, true));
+  }
+
+  const rateLimit = checkExplainRateLimit(request, env);
+
+  if (rateLimit.limited) {
+    return json({ error: "Rate limit exceeded. Try again shortly." }, 429, {
+      "Retry-After": String(rateLimit.retryAfter)
+    });
+  }
+
+  try {
+    const aiExplanation = await fetchGroqExplanation({ profile, job, env });
+    setCachedExplanation(cacheKey, aiExplanation, env);
+    return json(makeExplainResponse(aiExplanation));
+  } catch {
+    return json(makeExplainResponse(fallbackExplanation));
+  }
+}
+
+function validateExplainRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "Request body must be a JSON object." };
+  }
+
+  if (!body.profile || typeof body.profile !== "object" || Array.isArray(body.profile)) {
+    return { ok: false, error: "Request body must include a profile object." };
+  }
+
+  if (!isValidExplainJob(body.job)) {
+    return { ok: false, error: "Request body must include one already-scored frontend job object." };
+  }
+
+  return {
+    ok: true,
+    profile: normalizeProfile(body.profile),
+    job: normalizeExplainJob(body.job)
+  };
+}
+
+function isValidExplainJob(job) {
+  return Boolean(
+    job &&
+    typeof job === "object" &&
+    !Array.isArray(job) &&
+    typeof job.title === "string" &&
+    typeof job.company === "string" &&
+    job.scoring &&
+    typeof job.scoring === "object" &&
+    !Array.isArray(job.scoring) &&
+    Number.isFinite(job.scoring.score) &&
+    Array.isArray(job.scoring.match_reasons) &&
+    typeof job.scoring.execution_likelihood === "string" &&
+    job.scoring.components &&
+    typeof job.scoring.components === "object" &&
+    !Array.isArray(job.scoring.components)
+  );
+}
+
+function normalizeExplainJob(job) {
+  return {
+    id: cleanOptionalText(job.id),
+    title: limitText(job.title, 140),
+    company: limitText(job.company, 120),
+    location: limitText(job.location || "", 160),
+    source: limitText(job.source || "", 80),
+    url: normalizeUrl(job.url),
+    salary: limitText(job.salary || "", 120),
+    summary: limitText(job.summary || "", 700),
+    details: Array.isArray(job.details)
+      ? job.details.map((detail) => limitText(detail, 220)).filter(Boolean).slice(0, 4)
+      : [],
+    scoring: {
+      score: Math.max(0, Math.min(100, Math.round(job.scoring.score))),
+      match_reasons: job.scoring.match_reasons.map((reason) => limitText(reason, 180)).filter(Boolean).slice(0, 8),
+      execution_likelihood: limitText(job.scoring.execution_likelihood, 80),
+      components: normalizeExplainComponents(job.scoring.components)
+    }
+  };
+}
+
+function normalizeExplainComponents(components) {
+  const allowedKeys = [
+    "role_match_score",
+    "skill_match_score",
+    "keyword_match_score",
+    "seniority_match_score",
+    "execution_likelihood_score",
+    "location_workmode_score",
+    "penalties"
+  ];
+  const normalized = {};
+
+  for (const key of allowedKeys) {
+    const value = Number(components[key]);
+    normalized[key] = Number.isFinite(value) ? Math.round(value) : 0;
+  }
+
+  return normalized;
+}
+
+function isAiExplainEnabled(env) {
+  return String(env.AI_EXPLAIN_ENABLED || "false").toLowerCase() === "true";
+}
+
+function makeExplainResponse(explanation, cached = false) {
+  return {
+    explanation,
+    cached
+  };
+}
+
+function makeFallbackExplanation(job) {
+  const score = job.scoring.score;
+  const reasons = job.scoring.match_reasons;
+  const strengths = reasons.filter((reason) => !isConcernReason(reason)).slice(0, 4);
+  const concerns = [
+    ...reasons.filter(isConcernReason),
+    ...(job.scoring.components.penalties < 0 ? [`Penalty total is ${job.scoring.components.penalties}.`] : [])
+  ].slice(0, 4);
+
+  return ensureExplainShape({
+    summary: `This job has a deterministic match score of ${score}. ${makeScoreSummary(score)} This fallback uses only the visible score, components, and match reasons.`,
+    strengths: strengths.length ? strengths : ["No strong positive scoring reason was available in the visible signals."],
+    concerns: concerns.length ? concerns : ["No explicit blocker or penalty was visible in the deterministic reasons."],
+    verify_before_applying: makeVerificationItems(job),
+    decision_support: "Use this as plain-language support for the existing score. It does not change the score, rank, or eligibility decision."
+  });
+}
+
+function makeScoreSummary(score) {
+  if (score >= 60) {
+    return "The deterministic signals suggest a stronger first-pass match.";
+  }
+
+  if (score >= 25) {
+    return "The deterministic signals suggest a possible or inspectable match.";
+  }
+
+  return "The deterministic signals suggest this is a lower-priority lead.";
+}
+
+function isConcernReason(reason) {
+  const normalized = normalizeSearchText(reason);
+
+  return (
+    normalized.includes("restricted") ||
+    normalized.includes("outside preferred location") ||
+    normalized.includes("avoid keyword") ||
+    normalized.includes("seniority") ||
+    normalized.includes("complexity") ||
+    normalized.includes("architecture") ||
+    normalized.includes("platform") ||
+    normalized.includes("additional skills") ||
+    normalized.includes("stretch")
+  );
+}
+
+function makeVerificationItems(job) {
+  const items = [];
+  const reasonText = normalizeSearchText(job.scoring.match_reasons.join(" "));
+
+  if (reasonText.includes("restricted") || reasonText.includes("outside preferred location")) {
+    items.push("Verify hiring location, work authorization, and remote eligibility before applying.");
+  }
+
+  if (reasonText.includes("seniority") || reasonText.includes("complexity") || reasonText.includes("architecture")) {
+    items.push("Check whether the seniority and complexity expectations match your current experience.");
+  }
+
+  if (job.salary) {
+    items.push("Confirm compensation details on the original posting.");
+  }
+
+  items.push("Open the source posting and confirm the responsibilities, required skills, and application requirements.");
+
+  return items.slice(0, 4);
+}
+
+function makeExplainCacheKey(profile, job) {
+  return stableHash(JSON.stringify({
+    profile,
+    job: {
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      url: job.url,
+      summary: job.summary,
+      details: job.details,
+      scoring: job.scoring
+    }
+  }));
+}
+
+function getCachedExplanation(cacheKey) {
+  const cached = explainCache.get(cacheKey);
+
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    explainCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.explanation;
+}
+
+function setCachedExplanation(cacheKey, explanation, env) {
+  if (explainCache.size >= MAX_EXPLAIN_CACHE_ENTRIES) {
+    const oldestKey = explainCache.keys().next().value;
+    explainCache.delete(oldestKey);
+  }
+
+  explainCache.set(cacheKey, {
+    explanation,
+    expiresAt: Date.now() + getPositiveEnvInt(env.AI_EXPLAIN_CACHE_TTL_SECONDS, DEFAULT_AI_EXPLAIN_CACHE_TTL_SECONDS) * 1000
+  });
+}
+
+function checkExplainRateLimit(request, env) {
+  const limit = getPositiveEnvInt(env.AI_EXPLAIN_RATE_LIMIT_PER_MINUTE, DEFAULT_AI_EXPLAIN_RATE_LIMIT_PER_MINUTE);
+  const now = Date.now();
+  const windowMs = 60_000;
+  const key = `${request.headers.get("CF-Connecting-IP") || "local"}:/api/jobs/explain`;
+  const current = explainRateLimits.get(key);
+
+  if (!current || current.resetAt <= now) {
+    explainRateLimits.set(key, {
+      count: 1,
+      resetAt: now + windowMs
+    });
+    pruneExplainRateLimits(now);
+    return { limited: false, retryAfter: 0 };
+  }
+
+  if (current.count >= limit) {
+    return {
+      limited: true,
+      retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+    };
+  }
+
+  current.count += 1;
+  return { limited: false, retryAfter: 0 };
+}
+
+function pruneExplainRateLimits(now) {
+  if (explainRateLimits.size < 500) {
+    return;
+  }
+
+  for (const [key, value] of explainRateLimits.entries()) {
+    if (value.resetAt <= now) {
+      explainRateLimits.delete(key);
+    }
+  }
+}
+
+async function fetchGroqExplanation({ profile, job, env }) {
+  const response = await fetchWithTimeout(GROQ_CHAT_COMPLETIONS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: cleanOptionalText(env.GROQ_MODEL) || DEFAULT_GROQ_MODEL,
+      temperature: 0.1,
+      max_tokens: 600,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You explain deterministic remote-job scoring in plain language.",
+            "The deterministic score, components, reasons, restrictions, and ranking are the source of truth.",
+            "Do not rerank, rescore, decide eligibility, invent confidence, hide penalties, or suggest the score should change.",
+            "Return only valid JSON with this exact shape: {\"explanation\":{\"summary\":\"string\",\"strengths\":[\"string\"],\"concerns\":[\"string\"],\"verify_before_applying\":[\"string\"],\"decision_support\":\"string\"}}."
+          ].join(" ")
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            profile,
+            job,
+            instruction: "Explain only the visible deterministic scoring signals for this one job."
+          })
+        }
+      ]
+    })
+  }, getPositiveEnvInt(env.AI_EXPLAIN_TIMEOUT_MS, DEFAULT_AI_EXPLAIN_TIMEOUT_MS));
+
+  if (!response.ok) {
+    throw new Error(`Groq explanation failed with status ${response.status}.`);
+  }
+
+  const data = await response.json();
+  const content = cleanOptionalText(data?.choices?.[0]?.message?.content);
+
+  if (!content) {
+    throw new Error("Groq explanation response did not include content.");
+  }
+
+  let parsed;
+
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error("Groq explanation response was not valid JSON.");
+  }
+
+  return validateAiExplanation(parsed);
+}
+
+function validateAiExplanation(parsed) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("AI explanation must be a JSON object.");
+  }
+
+  const explanation = parsed.explanation;
+
+  if (!explanation || typeof explanation !== "object" || Array.isArray(explanation)) {
+    throw new Error("AI explanation must include an explanation object.");
+  }
+
+  return ensureExplainShape(explanation);
+}
+
+function ensureExplainShape(explanation) {
+  const normalized = {
+    summary: limitText(explanation.summary, 700),
+    strengths: normalizeExplainList(explanation.strengths),
+    concerns: normalizeExplainList(explanation.concerns),
+    verify_before_applying: normalizeExplainList(explanation.verify_before_applying),
+    decision_support: limitText(explanation.decision_support, 500)
+  };
+
+  if (!normalized.summary || !normalized.decision_support) {
+    throw new Error("AI explanation is missing required text fields.");
+  }
+
+  return normalized;
+}
+
+function normalizeExplainList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => limitText(item, 240)).filter(Boolean).slice(0, 4);
+}
+
+function getPositiveEnvInt(value, fallback) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : fallback;
+}
+
+function limitText(value, maxLength) {
+  const text = cleanOptionalText(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
 }
 
 async function fetchJobsForSource(sourceType, profile) {
@@ -2656,12 +3075,13 @@ export const __test = Object.freeze({
   scoreJob
 });
 
-function json(data, status = 200) {
+function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
       ...corsHeaders,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...headers
     }
   });
 }

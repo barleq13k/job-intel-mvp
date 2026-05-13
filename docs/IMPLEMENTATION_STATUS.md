@@ -30,6 +30,10 @@
 - Job cards include compact decision labels that distinguish apply-first, inspect-later, stretch, low-priority, and eligibility-check cases.
 - Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
+- Disabled-by-default `POST /api/jobs/explain` endpoint for on-demand match explanations.
+- Explanation safety prep: env gate, strict request/response validation, best-effort in-memory per-IP rate protection, simple in-memory cache, and deterministic fallback explanations.
+- Frontend `Explain Match` button with a collapsible per-card explanation panel.
+- AI explanations are not persisted to localStorage and do not use chatbot or conversation history UI.
 
 ## Partially Implemented
 
@@ -60,7 +64,7 @@ These are implemented heuristics, not AI judgments.
 - Deployment setup.
 - Better source quality and source-specific normalization.
 - Continued scoring refinement from real search examples.
-- Optional AI explanation and summarization layer after deterministic scoring validation stabilizes.
+- Tuning of explanation copy after real usage.
 
 ## Intentionally Excluded From MVP
 
@@ -75,4 +79,5 @@ These are implemented heuristics, not AI judgments.
 - Agents.
 - Scraper registry.
 - Multi-source orchestration.
-- Groq integration.
+- Groq ranking or reranking integration.
+- AI ranking, reranking, scoring, eligibility decisions, restriction overrides, chatbot UX, and persistent AI conversation history.

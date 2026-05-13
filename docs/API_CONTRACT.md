@@ -145,3 +145,85 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 - Backend returns all jobs sorted by score.
 - Frontend shows jobs with score `25` or higher as recommended matches and groups lower-score jobs under Explore More.
 - `scoring.execution_likelihood` values are `strong_fit`, `possible_fit`, `adjacent`, `stretch`, or `lower_match`.
+
+---
+
+## `POST /api/jobs/explain`
+
+Explains one already-scored frontend job object against the current profile/search context.
+
+This endpoint is on-demand only. It does not fetch jobs, rescore jobs, change rankings, mutate job objects, or modify `/api/jobs/search` behavior.
+
+AI explanations are disabled by default unless `AI_EXPLAIN_ENABLED=true` and `GROQ_API_KEY` are configured. Disabled, missing-config, timeout, upstream-failure, invalid-model-output, and fallback responses all use the same successful response shape. Explanation output is optional, on-demand, and non-authoritative; deterministic scoring and ranking remain the source of truth.
+
+## Explain Request
+
+```json
+{
+  "profile": {
+    "target_roles": ["Python Automation"],
+    "skills": ["Python", "Playwright"],
+    "keywords": ["remote", "junior"],
+    "avoid_keywords": ["senior", "manager"],
+    "location": "Philippines",
+    "work_mode": "remote",
+    "experience_level": "junior"
+  },
+  "job": {
+    "id": "himalayas_abc123",
+    "title": "Junior QA Automation Specialist",
+    "company": "Example Co",
+    "location": "Remote",
+    "source": "Himalayas",
+    "url": "https://example.com/job",
+    "salary": null,
+    "summary": "Short readable summary.",
+    "details": ["Short bullet extracted from description"],
+    "scoring": {
+      "score": 72,
+      "match_reasons": ["Remote-friendly workflow"],
+      "execution_likelihood": "possible_fit",
+      "components": {
+        "role_match_score": 20,
+        "skill_match_score": 18,
+        "keyword_match_score": 8,
+        "seniority_match_score": 10,
+        "execution_likelihood_score": 6,
+        "location_workmode_score": 13,
+        "penalties": -3
+      }
+    }
+  }
+}
+```
+
+## Explain Response
+
+```json
+{
+  "explanation": {
+    "summary": "This job has a deterministic match score of 72...",
+    "strengths": ["Remote-friendly workflow"],
+    "concerns": ["Penalty total is -3."],
+    "verify_before_applying": ["Open the source posting and confirm the responsibilities, required skills, and application requirements."],
+    "decision_support": "Use this as plain-language support for the existing score. It does not change the score, rank, or eligibility decision."
+  },
+  "cached": false
+}
+```
+
+## Explain Error Responses
+
+- Invalid JSON or invalid request shape returns `400` with `{ "error": "..." }`.
+- Rate-limited requests return `429` with `{ "error": "..." }` and `Retry-After`.
+- AI disabled, missing AI config, AI timeout, AI upstream failure, and invalid AI JSON/shape return `200` with the standard explanation response shape.
+
+## Explain Notes
+
+- The endpoint accepts one job that was already scored by `/api/jobs/search`.
+- The endpoint does not call source APIs.
+- The endpoint does not call the deterministic scoring engine.
+- The endpoint does not return changed scores, changed reasons, or changed ranks.
+- Responses are validated before returning to avoid leaking raw model output.
+- Successful AI-generated explanations may be cached briefly in Worker memory.
+- Explanation cache and rate protection are best-effort, in-memory MVP safeguards. They are not persistent cache or global production-grade rate limiting.

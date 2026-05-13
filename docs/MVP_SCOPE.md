@@ -2,7 +2,7 @@
 
 ## Primary Objective
 
-Ship a usable AI-assisted job discovery platform as quickly as possible.
+Ship a usable deterministic job discovery platform with optional AI explanation support as quickly as possible.
 
 ---
 
@@ -44,9 +44,9 @@ System currently:
 - prioritizes jobs based on user-defined fields
 - supports configurable filtering and weighting
 
-Future AI layer:
+Optional explanation layer:
 
-AI will be optional (user can toggle on/off) and non-intrusive.
+AI is disabled by default unless the Worker is explicitly configured with `AI_EXPLAIN_ENABLED=true` and Groq credentials. It is optional, on-demand, non-intrusive, and non-authoritative.
 
 It may:
 - summarize job descriptions
@@ -63,6 +63,7 @@ It will not:
 - hide penalties
 - decide eligibility
 - replace deterministic scoring
+- add chatbot UX or persistent conversation history
 
 ---
 
@@ -71,6 +72,7 @@ Users can:
 - browse ranked jobs
 - view job summaries
 - open original job links
+- request an on-demand `Explain Match` panel for a visible job when the explain endpoint is available
 
 ---
 
@@ -94,6 +96,8 @@ The following are intentionally excluded from V1:
 - embeddings/vector search
 - recommendation agents
 - autonomous AI workflows
+- chatbot UX
+- persistent AI conversation history
 - browser automation farms
 - Kubernetes/distributed systems
 

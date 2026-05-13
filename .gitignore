@@ -8,6 +8,7 @@ frontend/.env.production
 worker/.env
 worker/.env.local
 worker/.env.production
+worker/.dev.vars
 
 # Dependencies
 node_modules/

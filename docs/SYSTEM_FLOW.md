@@ -2,7 +2,9 @@
 
 This document describes the current implemented MVP flow.
 
-There is no database, auth, queue, browser automation, embeddings, Groq, or AI ranking layer in the current system. Scoring is deterministic and rule-based.
+There is no database, auth, queue, browser automation, embeddings, Groq ranking/reranking, or AI ranking layer in the current system. Scoring is deterministic and rule-based.
+
+There is an optional, disabled-by-default explanation endpoint. It explains one already-scored job on demand and does not participate in search, scoring, ranking, source fetching, deduplication, or persistence.
 
 ## High-Level Pipeline
 
@@ -160,6 +162,8 @@ Current display behavior:
 - reason chips show positive, caution, and blocker signals
 - country/location restrictions remain visible
 - outbound job links open the source posting
+- each job card may show an `Explain Match` button
+- explanations open in a collapsible per-card panel and are support text only
 
 ## 10. Local Tracking And Restore
 
@@ -174,8 +178,28 @@ Stored locally:
 
 Saved, Applied, and Skipped quick-access shortcuts filter the current loaded or restored result set. They do not represent a full server-side archive.
 
-## Future AI Direction
+AI explanations are not saved to localStorage in the current implementation.
 
-Future AI may help explain or summarize existing results, extract structured requirements, or make fit explanations easier to read.
+## On-Demand Explanation Flow
 
-AI should remain optional and non-intrusive. It should build on deterministic scoring rather than replace it.
+```text
+User clicks Explain Match
+  -> Frontend POST /api/jobs/explain
+  -> Worker validates one already-scored job object and current profile
+  -> Worker returns disabled/config/fallback explanation, cached explanation, or validated AI explanation
+  -> Frontend displays a collapsible per-card panel
+```
+
+Explanation behavior:
+
+- disabled by default through `AI_EXPLAIN_ENABLED`
+- uses the existing frontend job object as input
+- is optional, on-demand, and non-authoritative
+- does not fetch jobs
+- does not rescore jobs
+- does not modify rankings or scores
+- does not decide eligibility or override restrictions
+- does not use chatbot UX or persistent AI conversation state
+- does not persist explanation text to localStorage
+- returns a deterministic fallback shape when AI is disabled, unavailable, times out, or returns invalid output
+- uses best-effort in-memory cache and per-IP rate protection, not persistent or global production-grade enforcement

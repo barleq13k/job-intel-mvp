@@ -108,9 +108,27 @@ Display filtering:
 - Frontend displays jobs with `score >= 25` as recommended matches.
 - Frontend groups lower-score jobs under Explore More so stretch roles remain inspectable.
 
+## Current Explanation Layer
+
+`POST /api/jobs/explain` may explain one already-scored job on demand.
+
+This endpoint:
+
+- interprets the existing deterministic score, reasons, components, and visible job text
+- is disabled by default unless `AI_EXPLAIN_ENABLED=true`
+- returns fallback explanations when AI is disabled, unavailable, or invalid
+- is optional and non-authoritative
+- does not call source APIs
+- does not rescore jobs
+- does not change rankings, scores, recommendation labels, restrictions, or penalties
+- does not decide eligibility
+- uses best-effort in-memory cache and rate protection only
+
 ## Current Limitations
 
-- No AI judgment yet.
+- No AI ranking or scoring judgment.
+- No persistent AI explanation storage.
+- No chatbot UX or persistent AI conversation.
 - No semantic understanding beyond rules and text matching.
 - Real Python jobs have very limited detail.
 - Remotive data quality varies by posting.
@@ -119,7 +137,7 @@ Display filtering:
 
 ## Future AI Explanation Layer
 
-AI may later be used as an optional, non-intrusive explanation layer.
+AI may later be expanded as an optional, non-intrusive explanation layer.
 
 It may:
 - summarize long job descriptions

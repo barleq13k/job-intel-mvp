@@ -74,6 +74,18 @@ function normalizeProfileTerm(value) {
   return TECH_ALIASES[aliasKey] || cleaned;
 }
 
+function buildSearchProfile(form) {
+  return {
+    target_roles: splitList(form.target_roles),
+    skills: splitList(form.skills),
+    keywords: splitList(form.keywords),
+    avoid_keywords: splitList(form.avoid_keywords),
+    location: form.location.trim(),
+    work_mode: form.work_mode,
+    experience_level: form.experience_level
+  };
+}
+
 function App() {
   const [restoredSearch] = useState(loadStoredSearchResults);
   const [form, setForm] = useState(() => loadStoredSearchProfile() || initialForm);
@@ -158,15 +170,7 @@ function App() {
     setShowExploreMore(false);
 
     const payload = {
-      profile: {
-        target_roles: splitList(form.target_roles),
-        skills: splitList(form.skills),
-        keywords: splitList(form.keywords),
-        avoid_keywords: splitList(form.avoid_keywords),
-        location: form.location.trim(),
-        work_mode: form.work_mode,
-        experience_level: form.experience_level
-      },
+      profile: buildSearchProfile(form),
       source: {
         type: form.source_type
       }
@@ -392,6 +396,7 @@ function App() {
                       <JobCard
                         key={job.id || getJobStatusKey(job)}
                         job={job}
+                        profile={buildSearchProfile(form)}
                         status={getJobStatus(job, jobStatuses)}
                         onStatusChange={updateJobStatus}
                       />
@@ -439,6 +444,7 @@ function App() {
                         <JobCard
                           key={job.id || getJobStatusKey(job)}
                           job={job}
+                          profile={buildSearchProfile(form)}
                           variant="lower"
                           status={getJobStatus(job, jobStatuses)}
                           onStatusChange={updateJobStatus}
@@ -545,7 +551,12 @@ function LoadingState() {
   );
 }
 
-function JobCard({ job, variant = "recommended", status = "new", onStatusChange }) {
+function JobCard({ job, profile, variant = "recommended", status = "new", onStatusChange }) {
+  const [isExplanationOpen, setIsExplanationOpen] = useState(false);
+  const [explanationStatus, setExplanationStatus] = useState("idle");
+  const [explanationError, setExplanationError] = useState("");
+  const [explanation, setExplanation] = useState(null);
+  const [isExplanationCached, setIsExplanationCached] = useState(false);
   const decision = getDecisionSummary(job, variant);
   let scoreColor = "text-emerald-700 dark:text-emerald-300";
 
@@ -555,6 +566,45 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
     scoreColor = "text-amber-700 dark:text-amber-300";
   } else if (variant === "lower") {
     scoreColor = "text-stone-600 dark:text-stone-300";
+  }
+
+  async function explainMatch() {
+    if (explanation && explanationStatus === "success") {
+      setIsExplanationOpen((current) => !current);
+      return;
+    }
+
+    setIsExplanationOpen(true);
+    setExplanationStatus("loading");
+    setExplanationError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile,
+          job
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Explanation failed with status ${response.status}.`);
+      }
+
+      if (!isExplainResponse(data)) {
+        throw new Error("Explanation response was not in the expected shape.");
+      }
+
+      setExplanation(data.explanation);
+      setIsExplanationCached(Boolean(data.cached));
+      setExplanationStatus("success");
+    } catch (error) {
+      setExplanationError(error.message);
+      setExplanationStatus("error");
+    }
   }
 
   return (
@@ -629,19 +679,112 @@ function JobCard({ job, variant = "recommended", status = "new", onStatusChange 
           )}
         </div>
 
-        {job.url && (
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2 text-sm font-semibold text-stone-900 transition hover:border-[#e45033]/50 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:hover:border-[#e45033]/70 dark:hover:bg-stone-900"
-        >
-          Open job
-          <ArrowUpRight className="h-4 w-4" />
-        </a>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={explainMatch}
+            disabled={explanationStatus === "loading"}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2 text-sm font-semibold text-stone-900 transition hover:border-[#e45033]/50 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 disabled:cursor-not-allowed disabled:text-stone-400 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:hover:border-[#e45033]/70 dark:hover:bg-stone-900 dark:disabled:text-stone-500"
+            aria-expanded={isExplanationOpen}
+          >
+            {explanationStatus === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Explain Match
+          </button>
+
+          {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2 text-sm font-semibold text-stone-900 transition hover:border-[#e45033]/50 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:hover:border-[#e45033]/70 dark:hover:bg-stone-900"
+          >
+            Open job
+            <ArrowUpRight className="h-4 w-4" />
+          </a>
+          )}
+        </div>
       </div>
+
+      {isExplanationOpen && (
+        <ExplanationPanel
+          status={explanationStatus}
+          error={explanationError}
+          explanation={explanation}
+          cached={isExplanationCached}
+        />
+      )}
     </article>
+  );
+}
+
+function ExplanationPanel({ status, error, explanation, cached }) {
+  return (
+    <div className="mt-4 rounded-xl border border-stone-200/80 bg-stone-50/70 p-4 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-950/40 dark:text-stone-300">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold text-stone-950 dark:text-stone-50">Match explanation</div>
+        {cached && <div className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Cached</div>}
+      </div>
+      <p className="mb-3 text-xs leading-5 text-stone-500 dark:text-stone-400">
+        AI explains the visible scoring signals. It does not change the score or decide eligibility.
+      </p>
+
+      {status === "loading" && (
+        <div className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Preparing explanation...
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800 dark:border-red-900 dark:bg-red-950/70 dark:text-red-200">
+          {error || "Unable to load explanation."}
+        </div>
+      )}
+
+      {status === "success" && explanation && (
+        <div className="space-y-4">
+          <p className="leading-6">{explanation.summary}</p>
+          <ExplanationList title="Strengths" items={explanation.strengths} />
+          <ExplanationList title="Concerns" items={explanation.concerns} />
+          <ExplanationList title="Verify before applying" items={explanation.verify_before_applying} />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Decision support</div>
+            <p className="leading-6">{explanation.decision_support}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExplanationList({ title, items }) {
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <div>
+      <div className="mb-1 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">{title}</div>
+      <ul className="list-disc space-y-1 pl-5 leading-6">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function isExplainResponse(data) {
+  const explanation = data?.explanation;
+
+  return Boolean(
+    explanation &&
+    typeof explanation.summary === "string" &&
+    Array.isArray(explanation.strengths) &&
+    Array.isArray(explanation.concerns) &&
+    Array.isArray(explanation.verify_before_applying) &&
+    typeof explanation.decision_support === "string" &&
+    typeof data.cached === "boolean"
   );
 }
 

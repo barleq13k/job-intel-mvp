@@ -3,7 +3,7 @@
 This MVP deploys as two small Cloudflare projects:
 
 - Frontend: Cloudflare Pages serving the Vite build from `frontend/dist`.
-- Backend: Cloudflare Worker serving `POST /api/jobs/search`.
+- Backend: Cloudflare Worker serving `POST /api/jobs/search` and optional `POST /api/jobs/explain`.
 
 Do not deploy from this document automatically. Create Cloudflare projects and run deploy commands manually when ready.
 
@@ -77,7 +77,8 @@ Current Worker settings:
 - Name: `job-intel-worker`
 - Entry point: `src/index.js`
 - Compatibility date: `2026-05-11`
-- No bindings or secrets required
+- No bindings or secrets required for `/api/jobs/search`
+- Optional AI explanation secrets/config are required only when enabling `/api/jobs/explain`
 
 Deploy manually from `worker/`:
 
@@ -92,15 +93,45 @@ Syntax/deploy packaging check without publishing:
 npm run check
 ```
 
+## Optional AI Explanation Configuration
+
+`POST /api/jobs/explain` is disabled by default. When disabled or missing configuration, it returns a deterministic fallback explanation with the standard explanation response shape.
+
+Worker environment variables:
+
+```text
+AI_EXPLAIN_ENABLED=false
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+AI_EXPLAIN_TIMEOUT_MS=8000
+AI_EXPLAIN_RATE_LIMIT_PER_MINUTE=10
+AI_EXPLAIN_CACHE_TTL_SECONDS=1800
+```
+
+For local testing with AI enabled, create `worker/.dev.vars` locally and do not commit it. `worker/.dev.vars` is ignored by `.gitignore` and should remain local because it may contain secrets.
+
+```text
+AI_EXPLAIN_ENABLED=true
+GROQ_API_KEY=<groq-api-key>
+GROQ_MODEL=llama-3.1-8b-instant
+```
+
+Then run `npm run dev` from `worker/`.
+
+For production, configure `GROQ_API_KEY` as a Worker secret and set non-secret explanation variables in Cloudflare Worker environment settings. Do not enable AI explanations unless the deterministic search/scoring behavior is already verified.
+
+Explanation rate protection and cache are best-effort in-memory MVP safeguards. They are useful for basic local/Worker-isolate protection, but they are not persistent, shared globally, or production-grade enforcement.
+
 ## API And CORS
 
 The frontend calls:
 
 ```text
 POST /api/jobs/search
+POST /api/jobs/explain
 ```
 
-In local dev, this is proxied by Vite. In production, it resolves against `VITE_API_BASE_URL` when that variable is set, otherwise against the Pages site origin.
+In local dev, these are proxied by Vite. In production, they resolve against `VITE_API_BASE_URL` when that variable is set, otherwise against the Pages site origin.
 
 The Worker returns JSON for API responses and allows cross-origin `POST` requests with `Content-Type` for the MVP. This keeps a separate Pages domain and Worker domain deployable without auth or cookies.
 

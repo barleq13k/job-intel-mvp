@@ -6,9 +6,11 @@ This audit reflects the current MVP repository state. It is recommendation-only:
 
 The implemented app is currently:
 - `frontend/`: Vite React + Tailwind app.
-- `worker/`: Cloudflare Worker with `POST /api/jobs/search`.
+- `worker/`: Cloudflare Worker with `POST /api/jobs/search` and disabled-by-default `POST /api/jobs/explain`.
 - `docs/`: current implementation documentation.
 - `data/`: sample profile data.
+
+`POST /api/jobs/explain` is an on-demand interpretation sidecar. It does not change deterministic search, scoring, ranking, restrictions, or eligibility decisions. Its in-memory cache and per-IP rate protection are best-effort MVP safeguards, not persistent or global enforcement.
 
 No Vite starter UI is currently rendered. No Worker starter handler is currently active. The largest drift risks are stale root markdown/json files and generated local dev artifacts.
 
@@ -59,7 +61,7 @@ Files:
 
 Why stale or risky:
 - They predate the implemented Vite + Worker MVP.
-- They mention broad concepts like AI-assisted ranking, PWA support, deployment, and possible database direction.
+- They mention broad concepts like older AI-assisted direction, PWA support, deployment, and possible database direction.
 - `SYSTEM_FLOW.md` references nonexistent Python files:
   - `ingest.py`
   - `validator.py`
@@ -169,7 +171,7 @@ Recommendation:
 - Stay.
 - No deletion needed.
 
-### 10. Documentation Mentions Future Groq But No Implementation Exists
+### 10. Groq Is Explanation-Only And Disabled By Default
 
 Files:
 - `docs/ROADMAP.md`
@@ -177,13 +179,14 @@ Files:
 - root planning docs
 
 Why stale or risky:
-- Groq is correctly documented as future/planned, not implemented.
-- Risk comes only if future Codex runs mistake roadmap text for current architecture.
+- Groq may be used only by `POST /api/jobs/explain` when explicitly enabled.
+- Risk comes if future Codex runs mistake Groq configuration for AI ranking, reranking, scoring, or eligibility decisions.
 
 Recommendation:
 - Stay.
-- Keep wording explicit: Groq is future only.
-- Do not add Groq until explicitly requested.
+- Keep wording explicit: Groq is explanation-only, disabled by default, and never part of `/api/jobs/search`.
+- Do not add AI ranking, reranking, scoring, eligibility decisions, chatbot UX, or persistent AI conversation history.
+- Do not persist explanation text to localStorage unless explicitly requested.
 
 ### 11. Source Integration Is Simple By Design
 
@@ -231,4 +234,5 @@ Recommendation:
 - Do not move folders.
 - Do not refactor the Worker.
 - Do not add TypeScript.
-- Do not add a database, auth, queues, agents, browser automation, vector search, or Groq.
+- Do not add a database, auth, queues, agents, browser automation, vector search, or AI ranking/reranking.
+- Do not treat the explanation cache or rate protection as production-grade global infrastructure.

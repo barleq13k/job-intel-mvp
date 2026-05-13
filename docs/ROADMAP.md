@@ -3,11 +3,14 @@
 ## Current MVP
 
 - User-driven job profile form.
-- Single Worker API endpoint: `POST /api/jobs/search`.
+- Worker search endpoint: `POST /api/jobs/search`.
+- Optional explanation endpoint: `POST /api/jobs/explain`.
 - Real Python Fake Jobs fallback/testing source.
 - Remotive real public API source.
+- Himalayas primary real public API source.
 - Rule-based ranking and execution likelihood.
 - Ranked dashboard with score, reasons, compensation when available, and job links.
+- Disabled-by-default on-demand match explanations with a per-card collapsible panel.
 - Local Vite + Wrangler development.
 
 ## Near-Term Priorities
@@ -27,9 +30,12 @@ Scoring refinement:
 - Improve description bullet extraction.
 - Improve compensation display without overbuilding salary parsing.
 
-Groq reranking:
-- Add only after the rule-based baseline is stable.
-- Use for reranking/summarization, not as a replacement for all validation and scoring.
+AI explanation:
+- Keep AI disabled by default unless explicitly configured.
+- Use AI only to explain visible deterministic scoring signals.
+- Keep score, ranking, restrictions, and eligibility decisions deterministic.
+- Do not add chatbot, persistent AI conversations, AI scoring, or AI reranking.
+- Keep cache and rate protection best-effort and in-memory unless a later production need justifies more infrastructure.
 
 ## Future Speculative Ideas
 
@@ -41,6 +47,6 @@ Groq reranking:
 - Job application tracking.
 - More real job sources.
 - Structured requirement extraction.
-- Semantic reranking.
+- Better explanation and verification prompts.
 
 These are future ideas, not implemented architecture.

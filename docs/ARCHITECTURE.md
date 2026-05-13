@@ -9,12 +9,14 @@ Frontend:
 - `lucide-react` for icons
 - No router, auth client, data fetching library, or state management library
 - Local application tracking and the latest successful search snapshot are stored only in browser localStorage
+- Match explanations are displayed in a per-card collapsible panel and are not saved to localStorage
 
 Backend:
 - Cloudflare Worker in `worker/`
 - Wrangler local/dev/deploy tooling
 - Single Worker module at `worker/src/index.js`
-- No database, queues, background jobs, AI service, or persistence layer
+- No database, queues, background jobs, or persistence layer
+- Optional Groq-backed match explanation endpoint, disabled by default and used only for non-authoritative score interpretation
 
 ## Request Flow
 
@@ -25,6 +27,7 @@ Backend:
 5. Worker fetches jobs from the selected source.
 6. Worker normalizes, validates, deduplicates, scores, sorts, and formats jobs.
 7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, and keeps lower-score jobs available under Explore More.
+8. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
 
 ## Data Flow
 
@@ -81,7 +84,9 @@ Deployment is not fully automated in this repo yet.
 
 - No authentication or saved profiles.
 - No database or persistent job cache.
-- No Groq/AI reranking yet.
+- No AI ranking or reranking.
+- AI explanations are disabled by default and use best-effort in-memory cache/rate protection only. This is not persistent caching or global production-grade rate limiting.
+- No chatbot UX or persistent AI conversation state.
 - No embeddings or vector search.
 - Remotive descriptions can be noisy HTML converted to text.
 - Himalayas descriptions can be rich HTML converted to text.

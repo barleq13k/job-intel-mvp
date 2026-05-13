@@ -14,7 +14,10 @@ This repo is a simple MVP. Future Codex runs should preserve that simplicity.
 - Do not add orchestration systems.
 - Do not add browser automation.
 - Do not add agents.
-- Do not add Groq until explicitly requested.
+- Do not add AI ranking, AI reranking, AI scoring, or AI eligibility decisions.
+- Do not add chatbot UX or persistent AI conversation history.
+- Do not persist AI explanations to localStorage unless explicitly requested.
+- Do not make AI explanations enabled by default.
 - Do not redesign stable APIs.
 - Do not split the Worker into a large framework.
 - Do not overabstract source integrations.
@@ -25,6 +28,8 @@ This repo is a simple MVP. Future Codex runs should preserve that simplicity.
 - Use narrow, scoped prompts.
 - Make minimal diffs.
 - Preserve the current `POST /api/jobs/search` contract.
+- Keep `POST /api/jobs/explain` as an on-demand explanation sidecar only.
+- Treat explanation cache and rate protection as best-effort in-memory MVP safeguards, not global or persistent infrastructure.
 - Keep `frontend/` as the Vite React app.
 - Keep `worker/` as the Cloudflare Worker API.
 - Keep `data/` for sample/reference data.
@@ -35,7 +40,7 @@ This repo is a simple MVP. Future Codex runs should preserve that simplicity.
 ## Change Style
 
 - Add only what the current task needs.
-- Keep scoring transparent and rule-based until AI integration is requested.
+- Keep scoring transparent and rule-based. AI may explain visible scoring signals only.
 - Keep source integrations simple and direct.
 - Update docs when behavior or contracts change.
 - Avoid speculative architecture in code and docs.
