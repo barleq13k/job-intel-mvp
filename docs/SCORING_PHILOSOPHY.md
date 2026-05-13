@@ -2,7 +2,7 @@
 
 ## Current Approach
 
-Scoring is rule-based and transparent. The goal is not perfect prediction; the goal is to rank jobs usefully enough for the MVP without AI, embeddings, or persistence.
+Scoring is rule-based and transparent. The goal is not perfect prediction; the goal is to rank jobs usefully enough for the MVP without AI ranking, embeddings, or backend persistence.
 
 The Worker returns `scoring.score` from `0` to `100` plus reasons and component scores.
 
@@ -117,13 +117,24 @@ Display filtering:
 - Some job descriptions contain broad marketing text that can create weak matches.
 - Scoring regression checks use Fake Jobs-style fixtures, not a full production source replay.
 
-## Future AI/Groq Direction
+## Future AI Explanation Layer
 
-Groq may later be used for:
-- reranking top candidates
-- summarizing long job descriptions
-- explaining fit more naturally
-- extracting structured requirements
-- comparing role complexity with user profile
+AI may later be used as an optional, non-intrusive explanation layer.
 
-AI should build on the current rule-based baseline, not replace the whole MVP flow at once.
+It may:
+- summarize long job descriptions
+- explain deterministic scores in plain language
+- compare a job against the user’s stated profile
+- clarify why a lower-scored job may be more actionable than a higher-scored one
+- extract structured requirements for easier review
+- suggest questions to verify before applying
+
+It will not:
+- rerank jobs
+- assign final scores
+- override rule-based restrictions
+- hide penalties
+- decide eligibility
+- replace deterministic scoring
+
+The rule-based engine remains the source of truth for ranking, scoring, restrictions, and recommendation labels.

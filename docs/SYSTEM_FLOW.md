@@ -1,107 +1,181 @@
 # System Flow
 
+This document describes the current implemented MVP flow.
+
+There is no database, auth, queue, browser automation, embeddings, Groq, or AI ranking layer in the current system. Scoring is deterministic and rule-based.
+
 ## High-Level Pipeline
 
-User Preferences
-    ↓
-Scraper Trigger
-    ↓
-Job Fetch
-    ↓
-Normalization
-    ↓
-Validation
-    ↓
-Deduplication
-    ↓
-AI Relevance Scoring
-    ↓
-Formatting
-    ↓
-Frontend Dashboard
-
----
-
-# Detailed Flow
+```text
+User search profile
+  -> Frontend POST /api/jobs/search
+  -> Worker source selection
+  -> Source fetch
+  -> Source normalization
+  -> Validation
+  -> Deduplication
+  -> Rule-based scoring
+  -> Formatting
+  -> Ranked frontend cards
+  -> Local browser tracking and restore
+```
 
 ## 1. User Input
 
-The user provides:
-- target job titles
+The user fills out the frontend search profile form.
+
+Current profile fields include:
+
+- target roles
+- skills
 - keywords
-- remote preferences
-- location preferences
-- optional exclusions
+- avoid keywords
+- preferred location
+- work mode
+- experience level
+- selected source
 
-This becomes the relevance context for scoring.
+The frontend parses comma-separated text fields, normalizes common technology aliases, and sends the profile to the Worker.
 
----
+## 2. API Request
 
-## 2. Ingestion Layer
+The frontend sends:
 
-The ingestion layer:
-- fetches jobs from configured sources
-- validates minimum required fields
-- enforces schema consistency
-- passes structured jobs into the pipeline
+```text
+POST /api/jobs/search
+```
 
-Primary components:
-- ingest.py
-- validator.py
-- sources/base.py
+with:
 
----
+```json
+{
+  "profile": {},
+  "source": {
+    "type": "himalayas"
+  }
+}
+```
 
-## 3. Normalization
+In local development, Vite proxies `/api` to the Worker at `http://127.0.0.1:8787`.
 
-Normalization:
-- standardizes text formatting
-- cleans inconsistent fields
-- prepares jobs for scoring and deduplication
+## 3. Source Selection And Fetch
 
----
+The Worker validates the selected source type and fetches jobs directly.
 
-## 4. Deduplication
+Implemented sources:
 
-Deduplication:
-- removes repeated job entries
-- reduces duplicate dashboard clutter
+- `himalayas`: primary real source using Himalayas public remote jobs API.
+- `remotive`: secondary real source using Remotive public jobs API.
+- `realpython_fake_jobs`: deterministic fake/static source for regression and fallback testing.
 
-Initial implementation may use:
-- title matching
-- company matching
-- URL matching
+There is no source registry, crawler framework, browser automation, or background ingestion system.
 
----
+## 4. Normalization
 
-## 5. AI Relevance Scoring
+Source-specific normalization converts upstream rows into a consistent internal job shape.
 
-Scoring evaluates:
-- keyword relevance
-- role alignment
-- remote compatibility
-- user preference alignment
+Normalization handles fields such as:
 
-Future AI integration may include:
-- semantic relevance scoring
-- summarization
-- explanation generation
+- title
+- company
+- location
+- employment type
+- compensation text when available
+- source name
+- outbound URL
+- description text
+- source metadata
 
----
+Malformed or unusable rows are skipped and counted in source diagnostics.
 
-## 6. Formatting
+## 5. Validation
 
-Formatting prepares:
-- frontend-ready job objects
-- consistent response structure
-- ranking metadata
+Jobs must have enough usable data to be displayed and scored.
 
----
+The Worker preserves source diagnostics so the frontend can explain source behavior, partial failures, or skipped rows.
 
-## 7. Frontend Dashboard
+## 6. Deduplication
 
-Frontend displays:
-- ranked jobs
-- match scores
-- match reasoning
-- outbound links
+The Worker deduplicates jobs before scoring.
+
+Current dedupe behavior uses stable source IDs when available and falls back to normalized title, company, and canonical URL signals.
+
+The goal is to reduce duplicate cards without introducing a persistent job database.
+
+## 7. Rule-Based Scoring
+
+The Worker scores each normalized job against the submitted profile using deterministic rules.
+
+Current scoring considers:
+
+- target role relevance
+- skills and strongest skill compatibility
+- keywords
+- seniority fit
+- execution likelihood
+- platform and architecture complexity
+- avoid keywords
+- role-domain alignment
+- location and work-mode compatibility
+- country and region restrictions when detectable
+
+The Worker returns:
+
+- numeric score
+- match reasons
+- execution likelihood label
+- score components
+
+AI does not assign scores, change rankings, or override restrictions in the current MVP.
+
+## 8. Formatting
+
+The Worker formats scored jobs into frontend-ready objects.
+
+Each job includes:
+
+- stable ID
+- title
+- company
+- location
+- source
+- URL
+- salary or compensation text when available
+- summary
+- scoring object
+- metadata
+- basic details for API compatibility
+
+Jobs are sorted by `scoring.score` descending before being returned.
+
+## 9. Frontend Results Display
+
+The frontend displays returned jobs as ranked cards.
+
+Current display behavior:
+
+- jobs with `score >= 25` appear as recommended matches
+- lower-score jobs remain available under Explore More
+- decision labels summarize actionability
+- reason chips show positive, caution, and blocker signals
+- country/location restrictions remain visible
+- outbound job links open the source posting
+
+## 10. Local Tracking And Restore
+
+The frontend uses browser `localStorage` only.
+
+Stored locally:
+
+- latest successful search profile
+- latest successful result set
+- dark mode preference
+- job statuses: New, Saved, Applied, Skipped
+
+Saved, Applied, and Skipped quick-access shortcuts filter the current loaded or restored result set. They do not represent a full server-side archive.
+
+## Future AI Direction
+
+Future AI may help explain or summarize existing results, extract structured requirements, or make fit explanations easier to read.
+
+AI should remain optional and non-intrusive. It should build on deterministic scoring rather than replace it.

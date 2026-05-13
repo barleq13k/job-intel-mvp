@@ -1,19 +1,20 @@
 # Project Vision
 
 ## Project Name
-AI-Powered Job Intelligence Platform
+
+Job Intelligence MVP
 
 ---
 
 # Purpose
 
-This project is a fast-shipping MVP focused on helping users discover relevant job opportunities more efficiently through automated scraping, filtering, normalization, and AI-assisted ranking.
+This project is a fast-shipping MVP focused on helping users discover realistic and relevant remote job opportunities more efficiently through structured ingestion, normalization, transparent scoring, and actionable ranking.
 
 The primary problem being solved is:
 
-"Users waste significant time manually searching through large volumes of irrelevant job postings."
+"Users waste significant time manually searching through large volumes of noisy, misleading, low-fit, or geographically restricted remote job postings."
 
-The platform aims to reduce noise and surface high-relevance opportunities quickly.
+The platform aims to reduce noise, surface actionable opportunities faster, and help users make clearer application decisions.
 
 ---
 
@@ -21,95 +22,139 @@ The platform aims to reduce noise and surface high-relevance opportunities quick
 
 This project prioritizes:
 
+- transparent ranking
 - fast iteration
-- usable workflows
-- practical deployment
+- practical workflows
+- trustworthy recommendations
 - simplicity
 - maintainability
 - rapid validation
+- low-friction deployment
 
-This is NOT an enterprise-scale architecture project.
+This is NOT an enterprise-scale AI recruiting platform.
 
-The goal is to ship a working product quickly while maintaining reasonable engineering discipline.
+The goal is to ship a useful and understandable product quickly while maintaining reasonable engineering discipline and user trust.
 
 ---
 
 # Core User Flow
 
 1. User enters job preferences
-2. System fetches jobs from configured sources
+2. System fetches jobs from selected sources
 3. Jobs are normalized and validated
 4. Duplicate jobs are removed
-5. AI scoring ranks jobs by relevance
-6. Ranked jobs are displayed in the UI dashboard
+5. Deterministic scoring ranks jobs using transparent rules
+6. Jobs are grouped into actionable recommendation states
+7. User reviews, saves, skips, or applies to jobs
 
 ---
 
-# AI Layer Purpose
+# Scoring Philosophy
 
-AI is used to:
-- improve job relevance scoring
-- summarize job postings
-- explain match reasoning
-- reduce irrelevant results
+The platform uses deterministic, rule-based scoring as the source of truth.
 
-AI is NOT the entire product.
+The scoring system evaluates:
+- role relevance
+- skill alignment
+- location compatibility
+- work-mode compatibility
+- seniority fit
+- execution likelihood
+- complexity signals
+- avoid-keyword penalties
+- restriction signals
 
-The core product value is intelligent filtering and ranking.
+The system intentionally prioritizes:
+- explainability
+- user trust
+- actionable filtering
+- stable ranking behavior
+
+The goal is not perfect prediction.
+The goal is useful prioritization and reduced search fatigue.
+
+---
+
+# Future AI Layer
+
+AI is optional and non-intrusive.
+
+AI may later be used to:
+- summarize job descriptions
+- explain deterministic scores in plain language
+- clarify why certain jobs are ranked higher or lower
+- compare jobs against the user’s stated profile
+- extract structured requirements
+- improve usability and interpretation
+
+AI will NOT:
+- replace deterministic scoring
+- rerank jobs
+- assign final scores
+- override restrictions or penalties
+- decide eligibility
+
+The deterministic ranking engine remains the source of truth.
 
 ---
 
 # Initial MVP Goals
 
-The MVP should support:
+The MVP currently focuses on:
 
-- single-source ingestion
+- public-source job ingestion
 - user preference input
-- AI relevance scoring
-- ranked job dashboard
+- deterministic relevance scoring
+- actionable recommendation grouping
+- restriction-aware remote-job filtering
+- local-only saved/applied tracking
 - Cloudflare deployment
 - PWA support
+- lightweight frontend UX
 
 ---
 
 # Non-Goals (V1)
 
-The following are explicitly NOT part of V1:
+The following are intentionally excluded from V1:
 
 - enterprise scalability
-- advanced orchestration
+- autonomous AI agents
+- AI-generated rankings
+- embeddings/vector search
+- browser automation farms
 - distributed systems
-- vector databases
-- browser automation scaling
+- advanced orchestration
 - payment systems
-- advanced auth systems
-- multi-tenant architecture
-- real-time streaming infrastructure
+- advanced authentication
+- multi-tenant infrastructure
+- background processing systems
+- recommendation agents
+- database-heavy architecture
 
 ---
 
 # Deployment Direction
 
-Preferred deployment stack:
+Current stack:
 
 Frontend:
 - React
-- Next.js or Vite
-- Tailwind
+- Vite
+- Tailwind CSS
 - PWA support
 
 Backend:
-- FastAPI or Cloudflare Workers
-
-AI:
-- Groq API
+- Cloudflare Workers
 
 Deployment:
 - Cloudflare Pages
 - Cloudflare Workers
 
-Database:
-- Supabase or Cloudflare D1
+Persistence:
+- browser localStorage only
+
+No database is currently required for MVP operation.
 
 ---
 
@@ -118,12 +163,35 @@ Database:
 Prefer:
 - explicit code
 - readable architecture
-- simple interfaces
+- deterministic behavior
+- transparent scoring
 - low deployment friction
 - maintainable systems
+- narrow scoped changes
+- practical UX improvements
 
 Avoid:
 - premature abstraction
-- overengineering
-- unnecessary microservices
+- AI hype architecture
 - unnecessary infrastructure complexity
+- speculative scaling
+- unnecessary microservices
+- opaque recommendation systems
+- overengineering before validation
+
+---
+
+# Current Product Direction
+
+The current product direction is:
+
+"Calm remote-job decision support."
+
+The platform is designed to help users:
+- reduce search fatigue
+- identify realistic opportunities faster
+- understand why jobs are recommended
+- avoid misleading remote-job listings
+- maintain visibility into scoring and restrictions
+
+The product intentionally favors clarity and trust over black-box automation.

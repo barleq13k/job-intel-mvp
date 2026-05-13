@@ -44,11 +44,25 @@ System currently:
 - prioritizes jobs based on user-defined fields
 - supports configurable filtering and weighting
 
-Future AI layer will:
-- generate job summaries
-- provide match reasoning
-- improve semantic relevance interpretation
-- enhance filtering quality
+Future AI layer:
+
+AI will be optional (user can toggle on/off) and non-intrusive.
+
+It may:
+- summarize job descriptions
+- explain deterministic scores in plain language
+- compare a job against the user’s stated profile
+- clarify why a lower-scored job may be more actionable than a higher-scored one
+- identify questions to verify before applying
+- improve user understanding of existing scoring signals
+
+It will not:
+- change rankings
+- assign final scores
+- override rule-based restrictions
+- hide penalties
+- decide eligibility
+- replace deterministic scoring
 
 ---
 
@@ -90,7 +104,7 @@ The following are intentionally excluded from V1:
 The MVP is considered successful if:
 
 - jobs can be ingested reliably
-- AI ranking improves relevance
+- deterministic ranking produces useful and explainable results
+- users save time identifying realistic opportunities
 - dashboard is usable
 - deployment is stable
-- users save time searching jobs
