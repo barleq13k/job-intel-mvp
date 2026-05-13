@@ -160,6 +160,7 @@ Current display behavior:
 - lower-score jobs remain available under Explore More
 - decision labels summarize actionability
 - reason chips show positive, caution, and blocker signals
+- reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
 - country/location restrictions remain visible
 - outbound job links open the source posting
 - each job card may show an `Explain Match` button
@@ -174,9 +175,18 @@ Stored locally:
 - latest successful search profile
 - latest successful result set
 - dark mode preference
-- job statuses: New, Saved, Applied, Skipped
+- job statuses: Saved, Applied, Skipped; untracked is the implicit default
+- minimal tracked job display cache for Saved, Applied, and Skipped continuity across searches
 
-Saved, Applied, and Skipped quick-access shortcuts filter the current loaded or restored result set. They do not represent a full server-side archive.
+The result view chips are All, Saved, Applied, and Skipped. All shows the current ranked search results only. Saved, Applied, and Skipped prefer full jobs from the current loaded or restored result set, then add minimal previously tracked cards when those jobs are not in the current search results. They do not represent a full server-side archive.
+
+Tracked job cache key:
+
+```text
+job-intel-job-cache
+```
+
+Cached tracked jobs store only minimal display fields: `id`, `title`, `company`, `location`, `source`, `score`, `status`, and `updated_at`.
 
 AI explanations are not saved to localStorage in the current implementation.
 
@@ -195,6 +205,7 @@ Explanation behavior:
 - disabled by default through `AI_EXPLAIN_ENABLED`
 - uses the existing frontend job object as input
 - is optional, on-demand, and non-authoritative
+- explains score tradeoffs: what helped, what limited the score, why the score landed in its range, and what to verify
 - does not fetch jobs
 - does not rescore jobs
 - does not modify rankings or scores

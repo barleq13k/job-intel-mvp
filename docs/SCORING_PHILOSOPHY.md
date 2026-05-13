@@ -115,6 +115,7 @@ Display filtering:
 This endpoint:
 
 - interprets the existing deterministic score, reasons, components, and visible job text
+- explains tradeoffs such as what helped the score, what limited it, why it landed in its range, and what to verify before applying
 - is disabled by default unless `AI_EXPLAIN_ENABLED=true`
 - returns fallback explanations when AI is disabled, unavailable, or invalid
 - is optional and non-authoritative
@@ -122,6 +123,7 @@ This endpoint:
 - does not rescore jobs
 - does not change rankings, scores, recommendation labels, restrictions, or penalties
 - does not decide eligibility
+- does not use motivational career-coach language or hide penalties
 - uses best-effort in-memory cache and rate protection only
 
 ## Current Limitations

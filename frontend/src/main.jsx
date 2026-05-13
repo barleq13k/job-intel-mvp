@@ -6,6 +6,7 @@ import "./styles.css";
 const MIN_RELEVANCE_SCORE = 25;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const TRACKER_STORAGE_KEY = "job-intel-application-statuses";
+const JOB_CACHE_STORAGE_KEY = "job-intel-job-cache";
 const LAST_SEARCH_PROFILE_KEY = "job-intel-last-search-profile";
 const LAST_SEARCH_RESULTS_KEY = "job-intel-last-search-results";
 const TECH_ALIASES = {
@@ -46,8 +47,8 @@ const JOB_STATUSES = [
   { value: "applied", label: "Applied" },
   { value: "skipped", label: "Skipped" }
 ];
-const STATUS_FILTERS = [{ value: "all", label: "All" }, ...JOB_STATUSES];
 const TRACKED_STATUS_SHORTCUTS = JOB_STATUSES.filter((status) => status.value !== "new");
+const STATUS_FILTERS = [{ value: "all", label: "All" }, ...TRACKED_STATUS_SHORTCUTS];
 
 const initialForm = {
   target_roles: "",
@@ -96,6 +97,7 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
   const [showExploreMore, setShowExploreMore] = useState(false);
   const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
+  const [jobCache, setJobCache] = useState(loadStoredJobCache);
   const [statusFilter, setStatusFilter] = useState("all");
 
   const visibleJobs = useMemo(() => jobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE), [jobs]);
@@ -108,19 +110,46 @@ function App() {
     () => filterJobsByStatus(lowerMatchJobs, statusFilter, jobStatuses),
     [lowerMatchJobs, statusFilter, jobStatuses]
   );
-  const trackedStatusCounts = useMemo(() => getTrackedStatusCounts(jobs, jobStatuses), [jobs, jobStatuses]);
+  const cachedTrackedJobs = useMemo(
+    () => getCachedTrackedJobs(jobCache, jobs, statusFilter),
+    [jobCache, jobs, statusFilter]
+  );
+  const cachedVisibleJobs = useMemo(
+    () => cachedTrackedJobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE),
+    [cachedTrackedJobs]
+  );
+  const cachedLowerMatchJobs = useMemo(
+    () => cachedTrackedJobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE),
+    [cachedTrackedJobs]
+  );
+  const visibleJobsToShow = useMemo(
+    () => [...filteredVisibleJobs, ...cachedVisibleJobs],
+    [filteredVisibleJobs, cachedVisibleJobs]
+  );
+  const lowerMatchJobsToShow = useMemo(
+    () => [...filteredLowerMatchJobs, ...cachedLowerMatchJobs],
+    [filteredLowerMatchJobs, cachedLowerMatchJobs]
+  );
+  const trackedStatusCounts = useMemo(
+    () => getTrackedStatusCounts(jobs, jobStatuses, jobCache),
+    [jobs, jobStatuses, jobCache]
+  );
+  const trackedStatusTotal = useMemo(
+    () => TRACKED_STATUS_SHORTCUTS.reduce((total, shortcut) => total + (trackedStatusCounts[shortcut.value] || 0), 0),
+    [trackedStatusCounts]
+  );
   const sourceLabel = SOURCE_LABELS[form.source_type] || SOURCE_LABELS.realpython_fake_jobs;
-  const isExploreMoreOpen = showExploreMore || filteredVisibleJobs.length === 0;
-  const filteredJobCount = filteredVisibleJobs.length + filteredLowerMatchJobs.length;
+  const isExploreMoreOpen = showExploreMore || visibleJobsToShow.length === 0;
+  const filteredJobCount = visibleJobsToShow.length + lowerMatchJobsToShow.length;
   const selectedTrackedStatus = TRACKED_STATUS_SHORTCUTS.find((shortcut) => shortcut.value === statusFilter);
   const hasNoSelectedTrackedJobs = Boolean(selectedTrackedStatus) && filteredJobCount === 0;
   const resultSummary =
     status === "success"
-      ? jobs.length === 0
-        ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
-        : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}${
-            statusFilter === "all" ? "" : `, ${filteredJobCount} shown for ${getStatusLabel(statusFilter)}`
-          }`
+      ? statusFilter !== "all"
+        ? `${filteredJobCount} shown for ${getStatusLabel(statusFilter)} from local tracking.`
+        : jobs.length === 0
+          ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
+          : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
       : "Submit a profile to fetch and score jobs.";
 
   useEffect(() => {
@@ -131,6 +160,14 @@ function App() {
   useEffect(() => {
     saveStoredJobStatuses(jobStatuses);
   }, [jobStatuses]);
+
+  useEffect(() => {
+    saveStoredJobCache(jobCache);
+  }, [jobCache]);
+
+  useEffect(() => {
+    setJobCache((current) => cacheTrackedCurrentJobs(current, jobs, jobStatuses));
+  }, [jobs, jobStatuses]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -159,6 +196,8 @@ function App() {
 
       return updated;
     });
+
+    setJobCache((current) => updateStoredJobCache(current, job, nextStatus));
   }
 
   async function searchJobs(event) {
@@ -168,6 +207,7 @@ function App() {
     setJobs([]);
     setSourceInfo(null);
     setShowExploreMore(false);
+    setStatusFilter("all");
 
     const payload = {
       profile: buildSearchProfile(form),
@@ -342,25 +382,9 @@ function App() {
               <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
               <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
             </div>
-            {status === "success" && jobs.length > 0 && (
-              <label className="flex items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300 sm:justify-end">
-                Status
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className={`${SELECT_CLASS} h-10 min-w-32 py-0`}
-                >
-                  {STATUS_FILTERS.map((filter) => (
-                    <option key={filter.value} value={filter.value}>
-                      {filter.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
           </div>
-          {status === "success" && jobs.length > 0 && (
-            <TrackedJobsQuickAccess
+          {status === "success" && (jobs.length > 0 || trackedStatusTotal > 0) && (
+            <StatusFilterChips
               counts={trackedStatusCounts}
               selectedStatus={statusFilter}
               onSelectStatus={setStatusFilter}
@@ -383,7 +407,7 @@ function App() {
               </div>
               {hasNoSelectedTrackedJobs ? (
                 <TrackedEmptyState status={selectedTrackedStatus} />
-              ) : filteredVisibleJobs.length > 0 ? (
+              ) : visibleJobsToShow.length > 0 ? (
                 <>
                   <div className="mb-3">
                     <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Recommended - apply or inspect first</h3>
@@ -392,7 +416,7 @@ function App() {
                     </p>
                   </div>
                   <div className="grid gap-4">
-                    {filteredVisibleJobs.map((job) => (
+                    {visibleJobsToShow.map((job) => (
                       <JobCard
                         key={job.id || getJobStatusKey(job)}
                         job={job}
@@ -416,7 +440,7 @@ function App() {
                 />
               )}
 
-              {!hasNoSelectedTrackedJobs && filteredLowerMatchJobs.length > 0 && (
+              {!hasNoSelectedTrackedJobs && lowerMatchJobsToShow.length > 0 && (
                 <section className="mt-6">
                   <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -425,7 +449,7 @@ function App() {
                         Adjacent, stretch, restricted, or weak leads. Useful for review, not the first pass.
                       </p>
                     </div>
-                    {filteredVisibleJobs.length > 0 && (
+                    {visibleJobsToShow.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setShowExploreMore((current) => !current)}
@@ -433,14 +457,14 @@ function App() {
                         aria-expanded={isExploreMoreOpen}
                       >
                         {isExploreMoreOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        {isExploreMoreOpen ? "Hide" : "Show"} {filteredLowerMatchJobs.length}
+                        {isExploreMoreOpen ? "Hide" : "Show"} {lowerMatchJobsToShow.length}
                       </button>
                     )}
                   </div>
 
                   {isExploreMoreOpen && (
                     <div className="grid gap-4">
-                      {filteredLowerMatchJobs.map((job) => (
+                      {lowerMatchJobsToShow.map((job) => (
                         <JobCard
                           key={job.id || getJobStatusKey(job)}
                           job={job}
@@ -478,18 +502,18 @@ function Field({ label, name, value, onChange, placeholder, helper }) {
   );
 }
 
-function TrackedJobsQuickAccess({ counts, selectedStatus, onSelectStatus }) {
+function StatusFilterChips({ counts, selectedStatus, onSelectStatus }) {
   return (
     <div className="mb-4 rounded-xl border border-stone-200/80 bg-[#fbfaf7] px-4 py-3 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Tracked in current results</div>
+          <div className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Result view</div>
           <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
-            Quick access only uses the latest loaded or restored result set.
+            All shows the current search. Tracked views include local saved jobs from previous searches.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {TRACKED_STATUS_SHORTCUTS.map((shortcut) => (
+          {STATUS_FILTERS.map((shortcut) => (
             <button
               key={shortcut.value}
               type="button"
@@ -498,9 +522,11 @@ function TrackedJobsQuickAccess({ counts, selectedStatus, onSelectStatus }) {
               aria-pressed={selectedStatus === shortcut.value}
             >
               {shortcut.label}
-              <span className="ml-1.5 rounded-full bg-current/10 px-2 py-0.5 text-[11px] font-bold">
-                {counts[shortcut.value] || 0}
-              </span>
+              {shortcut.value !== "all" && (
+                <span className="ml-1.5 rounded-full bg-current/10 px-2 py-0.5 text-[11px] font-bold">
+                  {counts[shortcut.value] || 0}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -516,10 +542,10 @@ function TrackedEmptyState({ status }) {
     <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] p-6 text-center shadow-sm shadow-stone-300/20 dark:border-stone-700 dark:bg-[#181714] dark:shadow-none">
       <BriefcaseBusiness className="mx-auto mb-3 h-9 w-9 text-stone-400 dark:text-stone-500" />
       <h3 className="text-base font-semibold text-stone-950 dark:text-stone-50">
-        No {label} jobs in current results.
+        No {label} jobs tracked locally.
       </h3>
       <p className="mx-auto mt-1 max-w-md text-sm text-stone-500 dark:text-stone-400">
-        Search results and statuses are restored locally, but this is not a full archive.
+        Track a job from any search and it will appear here until you reset it.
       </p>
     </div>
   );
@@ -612,6 +638,11 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
+            {job.cached_tracking_only && (
+              <span className="rounded-full border border-stone-300/80 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+                Previously tracked
+              </span>
+            )}
             <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${DECISION_BADGE_CLASSES[decision.tone]}`}>
               {decision.label}
             </span>
@@ -622,10 +653,11 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-stone-500 dark:text-stone-400">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-4 w-4" />
-              {job.location || "Location unavailable"}
+              {formatDisplayLocation(job.location) || "Location unavailable"}
             </span>
             <span>{job.source}</span>
             {job.salary && <span>{job.salary}</span>}
+            {job.cached_tracking_only && <span>Not in current search results.</span>}
           </div>
         </div>
         <div className={`flex min-w-24 shrink-0 items-center justify-center rounded-xl border px-4 py-3 ${getScorePanelClass(decision.tone)}`}>
@@ -644,7 +676,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
       <div className="mt-4">
         <div className="mb-2 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Why shown</div>
         <div className="flex flex-wrap gap-2.5">
-          {job.scoring.match_reasons.map((reason) => (
+          {getOrderedMatchReasons(job.scoring.match_reasons).map((reason) => (
             <span key={reason} className={getReasonChipClass(reason)}>
               {reason}
             </span>
@@ -886,6 +918,156 @@ function saveStoredJobStatuses(statuses) {
   }
 }
 
+function loadStoredJobCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(JOB_CACHE_STORAGE_KEY) || "{}");
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, job]) => isValidCachedJob(job))
+    );
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredJobCache(jobCache) {
+  try {
+    localStorage.setItem(JOB_CACHE_STORAGE_KEY, JSON.stringify(jobCache));
+  } catch {
+    // Cached tracked jobs are a convenience layer; status storage remains the source of truth.
+  }
+}
+
+function updateStoredJobCache(current, job, nextStatus) {
+  const key = getJobStatusKey(job);
+
+  if (!job?.id || key !== job.id) {
+    return current;
+  }
+
+  const updated = { ...current };
+
+  if (nextStatus === "new") {
+    delete updated[key];
+    return updated;
+  }
+
+  updated[key] = makeCachedJobRecord(job, nextStatus, new Date().toISOString());
+  return updated;
+}
+
+function cacheTrackedCurrentJobs(current, jobs, jobStatuses) {
+  let updated = current;
+
+  for (const job of jobs) {
+    const status = getJobStatus(job, jobStatuses);
+
+    if (!job?.id || status === "new") {
+      continue;
+    }
+
+    const nextRecord = makeCachedJobRecord(job, status, current[job.id]?.updated_at || new Date().toISOString());
+
+    if (!cachedJobRecordsEqual(current[job.id], nextRecord)) {
+      updated = updated === current ? { ...current } : updated;
+      updated[job.id] = {
+        ...nextRecord,
+        updated_at: current[job.id]?.updated_at || nextRecord.updated_at
+      };
+    }
+  }
+
+  return updated;
+}
+
+function makeCachedJobRecord(job, status, updatedAt) {
+  return {
+    id: job.id,
+    title: cleanDisplayText(job.title),
+    company: cleanDisplayText(job.company),
+    location: formatDisplayLocation(job.location),
+    source: cleanDisplayText(job.source),
+    score: Number.isFinite(job.scoring?.score) ? Math.round(job.scoring.score) : 0,
+    status,
+    updated_at: updatedAt
+  };
+}
+
+function cachedJobRecordsEqual(current, next) {
+  return Boolean(
+    current &&
+    current.id === next.id &&
+    current.title === next.title &&
+    current.company === next.company &&
+    current.location === next.location &&
+    current.source === next.source &&
+    current.score === next.score &&
+    current.status === next.status
+  );
+}
+
+function isValidCachedJob(job) {
+  return Boolean(
+    job &&
+    typeof job === "object" &&
+    !Array.isArray(job) &&
+    typeof job.id === "string" &&
+    typeof job.title === "string" &&
+    typeof job.company === "string" &&
+    typeof job.source === "string" &&
+    Number.isFinite(job.score) &&
+    isKnownStatus(job.status) &&
+    job.status !== "new"
+  );
+}
+
+function getCachedTrackedJobs(jobCache, jobs, statusFilter) {
+  if (!TRACKED_STATUS_SHORTCUTS.some((shortcut) => shortcut.value === statusFilter)) {
+    return [];
+  }
+
+  const currentJobIds = new Set(jobs.map((job) => job.id).filter(Boolean));
+
+  return Object.values(jobCache)
+    .filter((job) => job.status === statusFilter && !currentJobIds.has(job.id))
+    .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
+    .map(makeCachedTrackedJob);
+}
+
+function makeCachedTrackedJob(cachedJob) {
+  return {
+    id: cachedJob.id,
+    title: cachedJob.title,
+    company: cachedJob.company,
+    location: formatDisplayLocation(cachedJob.location),
+    source: cachedJob.source,
+    salary: null,
+    url: null,
+    summary: "This job was tracked locally and is not part of the current search results.",
+    details: [],
+    cached_tracking_only: true,
+    cached_status: cachedJob.status,
+    scoring: {
+      score: cachedJob.score,
+      match_reasons: ["Not in current search results"],
+      execution_likelihood: "unclear",
+      components: {
+        role_match_score: 0,
+        skill_match_score: 0,
+        keyword_match_score: 0,
+        seniority_match_score: 0,
+        execution_likelihood_score: 0,
+        location_workmode_score: 0,
+        penalties: 0
+      }
+    }
+  };
+}
+
 function filterJobsByStatus(jobs, statusFilter, jobStatuses) {
   if (statusFilter === "all") {
     return jobs;
@@ -894,19 +1076,54 @@ function filterJobsByStatus(jobs, statusFilter, jobStatuses) {
   return jobs.filter((job) => getJobStatus(job, jobStatuses) === statusFilter);
 }
 
-function getTrackedStatusCounts(jobs, jobStatuses) {
+function getTrackedStatusCounts(jobs, jobStatuses, jobCache) {
+  const currentJobIds = new Set(jobs.map((job) => job.id).filter(Boolean));
+
   return TRACKED_STATUS_SHORTCUTS.reduce((counts, shortcut) => {
-    counts[shortcut.value] = jobs.filter((job) => getJobStatus(job, jobStatuses) === shortcut.value).length;
+    const currentCount = jobs.filter((job) => getJobStatus(job, jobStatuses) === shortcut.value).length;
+    const cachedCount = Object.values(jobCache).filter(
+      (job) => job.status === shortcut.value && !currentJobIds.has(job.id)
+    ).length;
+
+    counts[shortcut.value] = currentCount + cachedCount;
     return counts;
   }, {});
 }
 
 function getJobStatus(job, jobStatuses) {
-  return jobStatuses[getJobStatusKey(job)] || "new";
+  return jobStatuses[getJobStatusKey(job)] || job?.cached_status || "new";
 }
 
 function getJobStatusKey(job) {
   return job?.id || [job?.source, job?.title, job?.company, job?.location, job?.url].filter(Boolean).join("|");
+}
+
+function formatDisplayLocation(location) {
+  const text = cleanDisplayText(location);
+  const remoteTimezoneMatch = text.match(/^remote\s*\(([^)]*)\)$/i);
+
+  if (!remoteTimezoneMatch) {
+    return text;
+  }
+
+  const timezoneParts = remoteTimezoneMatch[1]
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (timezoneParts.length && timezoneParts.every(isTimezoneOffsetDisplayPart)) {
+    return "Remote";
+  }
+
+  return text;
+}
+
+function isTimezoneOffsetDisplayPart(part) {
+  return /^[-+]?\d+(?:\.\d+)?$/.test(part) || part === "..." || part === "…";
+}
+
+function cleanDisplayText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function isKnownStatus(status) {
@@ -914,7 +1131,7 @@ function isKnownStatus(status) {
 }
 
 function getStatusLabel(status) {
-  return STATUS_FILTERS.find((option) => option.value === status)?.label || "New";
+  return STATUS_FILTERS.find((option) => option.value === status)?.label || "Untracked";
 }
 
 function getStatusButtonClass(currentStatus, buttonStatus) {
@@ -1061,6 +1278,19 @@ function getReasonChipClass(reason) {
   return REASON_CHIP_CLASSES[getReasonTone(reason)];
 }
 
+function getOrderedMatchReasons(reasons) {
+  const toneOrder = {
+    positive: 0,
+    caution: 1,
+    negative: 2
+  };
+
+  return [...reasons]
+    .map((reason, index) => ({ reason, index, tone: getReasonTone(reason) }))
+    .sort((a, b) => toneOrder[a.tone] - toneOrder[b.tone] || a.index - b.index)
+    .map(({ reason }) => reason);
+}
+
 function getReasonTone(reason) {
   const normalized = reason.toLowerCase();
 
@@ -1068,6 +1298,8 @@ function getReasonTone(reason) {
     normalized.includes("restricted") ||
     normalized.includes("outside preferred location") ||
     normalized.includes("avoid keyword") ||
+    normalized.includes("avoided keyword") ||
+    normalized.includes("penalty") ||
     normalized.includes("region-restricted")
   ) {
     return "negative";

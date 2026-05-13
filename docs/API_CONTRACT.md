@@ -154,7 +154,7 @@ Explains one already-scored frontend job object against the current profile/sear
 
 This endpoint is on-demand only. It does not fetch jobs, rescore jobs, change rankings, mutate job objects, or modify `/api/jobs/search` behavior.
 
-AI explanations are disabled by default unless `AI_EXPLAIN_ENABLED=true` and `GROQ_API_KEY` are configured. Disabled, missing-config, timeout, upstream-failure, invalid-model-output, and fallback responses all use the same successful response shape. Explanation output is optional, on-demand, and non-authoritative; deterministic scoring and ranking remain the source of truth.
+AI explanations are disabled by default unless `AI_EXPLAIN_ENABLED=true` and `GROQ_API_KEY` are configured. Disabled, missing-config, timeout, upstream-failure, invalid-model-output, and fallback responses all use the same successful response shape. Explanation output is optional, on-demand, non-authoritative, and limited to interpreting score tradeoffs; deterministic scoring and ranking remain the source of truth.
 
 ## Explain Request
 
@@ -202,11 +202,11 @@ AI explanations are disabled by default unless `AI_EXPLAIN_ENABLED=true` and `GR
 ```json
 {
   "explanation": {
-    "summary": "This job has a deterministic match score of 72...",
+    "summary": "This job has a deterministic match score of 72. Helpful role and remote-work signals lifted the score, while remaining verification items keep it from being an eligibility decision.",
     "strengths": ["Remote-friendly workflow"],
-    "concerns": ["Penalty total is -3."],
+    "concerns": ["Penalties reduced the score by 3 points."],
     "verify_before_applying": ["Open the source posting and confirm the responsibilities, required skills, and application requirements."],
-    "decision_support": "Use this as plain-language support for the existing score. It does not change the score, rank, or eligibility decision."
+    "decision_support": "Use this as context for the existing deterministic score. It does not change the rank, override restrictions, or decide eligibility."
   },
   "cached": false
 }
@@ -224,6 +224,7 @@ AI explanations are disabled by default unless `AI_EXPLAIN_ENABLED=true` and `GR
 - The endpoint does not call source APIs.
 - The endpoint does not call the deterministic scoring engine.
 - The endpoint does not return changed scores, changed reasons, or changed ranks.
+- The endpoint explains what helped and what limited the existing score; it does not replace the visible reasons or deterministic decision support.
 - Responses are validated before returning to avoid leaking raw model output.
 - Successful AI-generated explanations may be cached briefly in Worker memory.
 - Explanation cache and rate protection are best-effort, in-memory MVP safeguards. They are not persistent cache or global production-grade rate limiting.

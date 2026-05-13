@@ -468,19 +468,23 @@ function makeExplainResponse(explanation, cached = false) {
 function makeFallbackExplanation(job) {
   const score = job.scoring.score;
   const reasons = job.scoring.match_reasons;
-  const strengths = reasons.filter((reason) => !isConcernReason(reason)).slice(0, 4);
-  const concerns = [
-    ...reasons.filter(isConcernReason),
-    ...(job.scoring.components.penalties < 0 ? [`Penalty total is ${job.scoring.components.penalties}.`] : [])
-  ].slice(0, 4);
+  const strengths = makeFallbackStrengths(reasons);
+  const concerns = makeFallbackConcerns(job);
 
   return ensureExplainShape({
-    summary: `This job has a deterministic match score of ${score}. ${makeScoreSummary(score)} This fallback uses only the visible score, components, and match reasons.`,
-    strengths: strengths.length ? strengths : ["No strong positive scoring reason was available in the visible signals."],
-    concerns: concerns.length ? concerns : ["No explicit blocker or penalty was visible in the deterministic reasons."],
+    summary: makeFallbackSummary(score, strengths, concerns),
+    strengths,
+    concerns,
     verify_before_applying: makeVerificationItems(job),
-    decision_support: "Use this as plain-language support for the existing score. It does not change the score, rank, or eligibility decision."
+    decision_support: "Use this as context for the existing deterministic score. It does not change the rank, override restrictions, or decide eligibility."
   });
+}
+
+function makeFallbackSummary(score, strengths, concerns) {
+  const mainStrength = strengths[0] || "the visible job data has limited positive scoring evidence";
+  const mainConcern = concerns[0] || "there is not enough extra evidence to lift it into a stronger range";
+
+  return `This job has a deterministic match score of ${score}. ${makeScoreSummary(score)} Main helpful signal: ${makeSentenceClause(mainStrength)}. Main limiting factor: ${makeSentenceClause(mainConcern)}.`;
 }
 
 function makeScoreSummary(score) {
@@ -489,10 +493,52 @@ function makeScoreSummary(score) {
   }
 
   if (score >= 25) {
-    return "The deterministic signals suggest a possible or inspectable match.";
+    return "The deterministic signals suggest a moderate, inspectable match rather than a clear top match.";
   }
 
   return "The deterministic signals suggest this is a lower-priority lead.";
+}
+
+function makeFallbackStrengths(reasons) {
+  const strengths = uniqueList(reasons.filter((reason) => !isConcernReason(reason))).slice(0, 4);
+
+  return strengths.length ? strengths : ["The visible scoring signals do not show a strong positive match reason."];
+}
+
+function makeFallbackConcerns(job) {
+  const concerns = uniqueList([
+    ...job.scoring.match_reasons.filter(isConcernReason),
+    ...makeComponentLimitations(job)
+  ]).slice(0, 4);
+
+  return concerns.length ? concerns : ["No explicit restriction or penalty is visible, but the positive evidence is limited."];
+}
+
+function makeComponentLimitations(job) {
+  const components = job.scoring.components;
+  const limitations = [];
+
+  if (components.penalties < 0) {
+    limitations.push(`Penalties reduced the score by ${Math.abs(components.penalties)} points.`);
+  }
+
+  if (["adjacent", "stretch", "lower_match", "poor_fit", "unclear"].includes(job.scoring.execution_likelihood)) {
+    limitations.push(`Execution likelihood is ${formatExecutionLikelihood(job.scoring.execution_likelihood)}, which limits confidence in the match.`);
+  }
+
+  if (job.scoring.score < 60 && components.role_match_score <= 0) {
+    limitations.push("Role alignment evidence is limited in the visible scoring signals.");
+  }
+
+  if (job.scoring.score < 60 && components.skill_match_score <= 0) {
+    limitations.push("Skill evidence is limited in the visible scoring signals.");
+  }
+
+  if (job.scoring.score < 60 && components.keyword_match_score <= 0 && components.location_workmode_score <= 0) {
+    limitations.push("Supporting keyword or location evidence is not strong enough to raise the score further.");
+  }
+
+  return limitations;
 }
 
 function isConcernReason(reason) {
@@ -502,6 +548,8 @@ function isConcernReason(reason) {
     normalized.includes("restricted") ||
     normalized.includes("outside preferred location") ||
     normalized.includes("avoid keyword") ||
+    normalized.includes("avoided keyword") ||
+    normalized.includes("penalty") ||
     normalized.includes("seniority") ||
     normalized.includes("complexity") ||
     normalized.includes("architecture") ||
@@ -509,6 +557,43 @@ function isConcernReason(reason) {
     normalized.includes("additional skills") ||
     normalized.includes("stretch")
   );
+}
+
+function formatExecutionLikelihood(value) {
+  return {
+    strong_fit: "strong fit",
+    possible_fit: "possible fit",
+    adjacent: "adjacent",
+    stretch: "stretch",
+    lower_match: "lower match",
+    poor_fit: "lower match",
+    unclear: "unclear"
+  }[value] || "unclear";
+}
+
+function uniqueList(items) {
+  const seen = new Set();
+  const uniqueItems = [];
+
+  for (const item of items) {
+    const text = cleanOptionalText(item);
+    const key = normalizeSearchText(text);
+
+    if (!text || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniqueItems.push(text);
+  }
+
+  return uniqueItems;
+}
+
+function makeSentenceClause(text) {
+  const trimmed = cleanOptionalText(text).replace(/[.!?]+$/, "");
+
+  return trimmed || "not enough visible evidence";
 }
 
 function makeVerificationItems(job) {
@@ -632,7 +717,11 @@ async function fetchGroqExplanation({ profile, job, env }) {
           content: [
             "You explain deterministic remote-job scoring in plain language.",
             "The deterministic score, components, reasons, restrictions, and ranking are the source of truth.",
-            "Do not rerank, rescore, decide eligibility, invent confidence, hide penalties, or suggest the score should change.",
+            "Explain score tradeoffs: what helped the score, what limited it, why it landed in this range, and what to verify before applying.",
+            "Use an analytical, calm, non-persuasive, non-authoritative tone.",
+            "Do not use motivational career-coach language, tell the user they are eligible, say they should apply, invent requirements, invent confidence, hide penalties, or suggest the score should change.",
+            "Do not rerank, rescore, decide eligibility, or override deterministic restrictions or penalties.",
+            "Use strengths for what helped the score and concerns for what limited the score.",
             "Return only valid JSON with this exact shape: {\"explanation\":{\"summary\":\"string\",\"strengths\":[\"string\"],\"concerns\":[\"string\"],\"verify_before_applying\":[\"string\"],\"decision_support\":\"string\"}}."
           ].join(" ")
         },
@@ -641,7 +730,7 @@ async function fetchGroqExplanation({ profile, job, env }) {
           content: JSON.stringify({
             profile,
             job,
-            instruction: "Explain only the visible deterministic scoring signals for this one job."
+            instruction: "Explain only the visible deterministic scoring signals for this one job. Focus on tradeoffs rather than repeating the match reason chips."
           })
         }
       ]
