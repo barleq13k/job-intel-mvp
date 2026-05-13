@@ -38,11 +38,17 @@ Simple duplicate logic is acceptable initially.
 
 ---
 
-### AI Ranking
-System should:
-- rank jobs by relevance
-- generate simple match reasoning
-- prioritize user-aligned opportunities
+### Relevance Ranking
+System currently:
+- ranks jobs using deterministic scoring logic
+- prioritizes jobs based on user-defined fields
+- supports configurable filtering and weighting
+
+Future AI layer will:
+- generate job summaries
+- provide match reasoning
+- improve semantic relevance interpretation
+- enhance filtering quality
 
 ---
 
