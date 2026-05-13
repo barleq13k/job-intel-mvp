@@ -60,7 +60,7 @@ These are implemented heuristics, not AI judgments.
 - Deployment setup.
 - Better source quality and source-specific normalization.
 - Continued scoring refinement from real search examples.
-- Groq-assisted reranking and summarization after the rule-based MVP is stable.
+- Optional AI explanation and summarization layer after deterministic scoring validation stabilizes.
 
 ## Intentionally Excluded From MVP
 
