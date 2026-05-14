@@ -27,12 +27,28 @@ const SOURCE_LABELS = {
   remoteok: "RemoteOK",
   arbeitnow: "Arbeitnow"
 };
+const SOURCE_DESCRIPTIONS = {
+  himalayas: "Best for real remote job listings.",
+  remotive: "Smaller public remote-job source.",
+  remoteok: "Broader remote listings; quality may vary.",
+  realpython_fake_jobs: "Demo/testing source, not real jobs."
+};
 const VISIBLE_SOURCE_OPTIONS = [
   { value: "realpython_fake_jobs", label: SOURCE_LABELS.realpython_fake_jobs },
   { value: "remotive", label: SOURCE_LABELS.remotive },
   { value: "himalayas", label: SOURCE_LABELS.himalayas },
   { value: "remoteok", label: SOURCE_LABELS.remoteok }
 ];
+const SAMPLE_PROFILE = {
+  target_roles: "support, customer support, technical support, QA tester, virtual assistant",
+  skills: "QA testing, customer support, documentation, AI tools, spreadsheets",
+  keywords: "remote, support, QA, assistant, documentation",
+  avoid_keywords: "senior, principal, architect, onsite",
+  location: "Philippines",
+  work_mode: "remote",
+  experience_level: "junior",
+  source_type: "himalayas"
+};
 const REASON_CHIP_CLASSES = {
   positive:
     "max-w-full rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/70 dark:text-emerald-200",
@@ -340,6 +356,10 @@ function App() {
     }));
   }
 
+  function useSampleProfile() {
+    setForm((current) => ({ ...current, ...SAMPLE_PROFILE }));
+  }
+
   function hideOnboarding() {
     setIsOnboardingHidden(true);
     saveStoredOnboardingHidden(true);
@@ -492,7 +512,7 @@ function App() {
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#e45033]/25 bg-[#e45033]/10 px-3 py-1 text-sm font-medium text-[#9f2f1f] dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f]">
               <Sparkles className="h-4 w-4" />
-              Job Intelligence MVP
+              Job Intel
             </div>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-[#131311] sm:text-5xl dark:text-stone-50">
               Compare remote jobs against your search profile.
@@ -530,6 +550,7 @@ function App() {
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
             onModeChange={setWorkflowMode}
+            onUseSampleProfile={useSampleProfile}
             onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onCollapse={collapseFilterPanel}
             firstFieldRef={firstFilterFieldRef}
@@ -541,6 +562,9 @@ function App() {
             <div>
               <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
               <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                Score guide: 70+ strong match, 50-69 possible fit, below 50 review carefully.
+              </p>
             </div>
           </div>
           {status === "success" && (jobs.length > 0 || trackedStatusTotal > 0) && (
@@ -676,6 +700,7 @@ function App() {
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
             onModeChange={setWorkflowMode}
+            onUseSampleProfile={useSampleProfile}
             onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onClose={closeFilterOverlay}
             variant="overlay"
@@ -747,6 +772,7 @@ function SearchProfileForm({
   onFieldChange,
   onManualJobChange,
   onModeChange,
+  onUseSampleProfile,
   onSubmit,
   onCollapse,
   onClose,
@@ -797,6 +823,15 @@ function SearchProfileForm({
       </div>
 
       <div className={bodyClass}>
+        <button
+          type="button"
+          onClick={onUseSampleProfile}
+          className="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#e45033]/25 bg-[#e45033]/10 px-3 py-2.5 text-sm font-semibold text-[#9f2f1f] transition hover:border-[#e45033]/40 hover:bg-[#e45033]/15 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f] dark:hover:bg-[#e45033]/20"
+        >
+          <Sparkles className="h-4 w-4" />
+          Try Sample Profile
+        </button>
+
         <div className="mb-5 grid grid-cols-2 rounded-xl border border-stone-300/80 bg-stone-100 p-1 dark:border-stone-700 dark:bg-stone-900">
           {[
             { value: "search", label: "Find Jobs" },
@@ -945,21 +980,31 @@ function SearchProfileForm({
             />
           </div>
         ) : (
-          <label className="mb-5 block">
-            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
-            <select
-              name="source_type"
-              value={form.source_type}
-              onChange={onFieldChange}
-              className={SELECT_CLASS}
-            >
+          <div className="mb-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
+              <select
+                name="source_type"
+                value={form.source_type}
+                onChange={onFieldChange}
+                className={SELECT_CLASS}
+              >
+                {VISIBLE_SOURCE_OPTIONS.map((source) => (
+                  <option key={source.value} value={source.value}>
+                    {source.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-2 rounded-xl border border-stone-200/80 bg-[#fffdf8]/60 p-3 text-xs leading-5 text-stone-600 dark:border-stone-800 dark:bg-stone-950/20 dark:text-stone-300">
               {VISIBLE_SOURCE_OPTIONS.map((source) => (
-                <option key={source.value} value={source.value}>
-                  {source.label}
-                </option>
+                <div key={source.value}>
+                  <span className="font-semibold text-stone-700 dark:text-stone-200">{source.label}:</span>{" "}
+                  {SOURCE_DESCRIPTIONS[source.value]}
+                </div>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
         )}
 
         <button
