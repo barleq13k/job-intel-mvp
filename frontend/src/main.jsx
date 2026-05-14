@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
 import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
@@ -1148,6 +1148,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   const [explanation, setExplanation] = useState(null);
   const [isExplanationCached, setIsExplanationCached] = useState(false);
   const decision = getDecisionSummary(job, variant);
+  const restrictionReasons = getRestrictionReasons(job);
   const isManualJob = job.metadata?.source_type === "manual" || job.source === "Manual Paste";
   let scoreColor = "text-emerald-700 dark:text-emerald-300";
 
@@ -1241,6 +1242,8 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
         </div>
       </div>
 
+      {restrictionReasons.length > 0 && <RestrictionCallout reasons={restrictionReasons} />}
+
       <p className="mt-4 text-sm leading-6 text-stone-700 dark:text-stone-300">{job.summary}</p>
 
       <div className="mt-4">
@@ -1279,6 +1282,9 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
               Reset
             </button>
           )}
+          <p className="basis-full text-xs leading-5 text-stone-500 dark:text-stone-400">
+            Saved, Applied, and Skipped are stored in this browser only.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -1319,15 +1325,33 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   );
 }
 
+function RestrictionCallout({ reasons }) {
+  return (
+    <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-3 text-sm text-red-900 dark:border-red-900/90 dark:bg-red-950/60 dark:text-red-100">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <div className="font-semibold">Check restrictions before applying</div>
+          <ul className="mt-1 list-disc space-y-1 pl-4 leading-5">
+            {reasons.slice(0, 2).map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExplanationPanel({ status, error, explanation, cached }) {
   return (
     <div className="mt-4 rounded-xl border border-stone-200/80 bg-stone-50/70 p-4 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-950/40 dark:text-stone-300">
       <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div className="font-semibold text-stone-950 dark:text-stone-50">Match explanation</div>
+        <div className="font-semibold text-stone-950 dark:text-stone-50">Scoring-based explanation</div>
         {cached && <div className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Cached</div>}
       </div>
       <p className="mb-3 text-xs leading-5 text-stone-500 dark:text-stone-400">
-        AI explains the visible scoring signals. It does not change the score or decide eligibility.
+        This summary is generated from visible scoring signals. It does not change score, order, restrictions, or eligibility.
       </p>
 
       {status === "loading" && (
@@ -1858,6 +1882,26 @@ function hasDirectRoleEvidence(job) {
       normalized.includes("job category overlaps with your target role")
     );
   });
+}
+
+function getRestrictionReasons(job) {
+  return getOrderedMatchReasons(job.scoring.match_reasons).filter(isRestrictionLikeReason);
+}
+
+function isRestrictionLikeReason(reason) {
+  const normalized = reason.toLowerCase();
+
+  return (
+    normalized.includes("remote role restricted") ||
+    normalized.includes("outside preferred location") ||
+    normalized.includes("region-restricted") ||
+    normalized.includes("specific hiring regions") ||
+    normalized.includes("listed countries") ||
+    normalized.includes("eligible to work") ||
+    normalized.includes("work authorization") ||
+    normalized.includes("visa sponsorship") ||
+    normalized.includes("no visa sponsorship")
+  );
 }
 
 function getCardBorderClass(tone) {

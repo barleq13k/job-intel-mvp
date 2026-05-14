@@ -21,6 +21,8 @@ Users can configure:
 - experience level
 - job source
 
+The frontend may also offer a sample profile to help first-time users populate these existing fields.
+
 ---
 
 ### Job Ingestion And Manual Evaluation
@@ -80,7 +82,14 @@ Users can:
 - track Saved, Applied, and Skipped status locally in browser localStorage
 - switch between Find Jobs and Evaluate Job modes in the existing workflow
 - dismiss a compact onboarding intro stored only in localStorage
-- request an on-demand `Explain Match` panel for a visible job when the explain endpoint is available
+- view source descriptions and lightweight score interpretation guidance
+- see prominent restriction callouts when existing match reasons already include location, country, or eligibility warnings
+- see that Saved, Applied, and Skipped are stored in the current browser only
+- request an on-demand `Explain Match` panel for a visible job when the explain endpoint is available; the frontend presents it as scoring-based support text
+
+---
+
+The dashboard clarity features above are frontend-only. They do not change scoring, ranking, filtering, Worker logic, API contracts, localStorage storage behavior, or AI authority.
 
 ---
 

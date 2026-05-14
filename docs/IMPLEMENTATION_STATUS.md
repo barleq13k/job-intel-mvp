@@ -4,12 +4,14 @@
 
 - Vite React frontend with Tailwind styling.
 - Job search profile form.
+- First-use `Try Sample Profile` action that fills the existing frontend profile form with a beginner-friendly remote support/QA-style profile.
 - Source selector with:
   - Real Python Fake Jobs
   - Remotive
   - Himalayas
   - RemoteOK
   - Arbeitnow implemented in the backend but hidden from active frontend selection during source-quality review
+- Source selector descriptions for visible sources, shown as frontend expectation-setting copy only.
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - Compact dismissible onboarding intro that explains source search, pasted job evaluation, tradeoff review, and product boundaries.
@@ -36,19 +38,24 @@
 - Local application status tracking with localStorage-only `Saved`, `Applied`, and `Skipped` statuses; untracked jobs are implicit and can be restored with Reset.
 - Lightweight localStorage tracked-job cache so Saved, Applied, and Skipped views can show minimal tracked job cards across searches.
 - Result view chips for All, Saved, Applied, and Skipped; All shows the current ranked search only, while tracked views combine current results with minimal cached tracked cards from prior searches.
+- Local-only notice explaining that Saved, Applied, and Skipped are stored in the current browser only, without changing localStorage behavior.
 - Latest successful search profile and ranked results restore from localStorage after refresh.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
+- Frontend score guide near results: 70+ strong match, 50-69 possible fit, and below 50 review carefully.
 - Job cards include compact decision labels that distinguish apply-first, inspect-later, stretch, low-priority, and eligibility-check cases.
 - WHY SHOWN chips are display-ordered as positive signals, caution signals, then restrictions or penalties without changing backend reason generation.
+- Prominent frontend restriction callout on job cards when existing match reasons already contain location, country, or eligibility restriction text.
 - Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 - Manually evaluated cards use the normal job card, local tracking, and Explain Match behavior, with a subtle manual indicator.
 - Disabled-by-default `POST /api/jobs/explain` endpoint for on-demand match explanations.
 - Explanation safety prep: env gate, strict request/response validation, best-effort in-memory per-IP rate protection, simple in-memory cache, and tradeoff-oriented deterministic fallback explanations.
 - Explanation responses deterministically keep complexity, architecture, platform, seniority, restriction, penalty, and avoid-keyword signals in concerns rather than strengths.
-- Frontend `Explain Match` button with a collapsible per-card explanation panel.
+- Frontend `Explain Match` button with a collapsible per-card `Scoring-based explanation` panel.
 - AI explanations are not persisted to localStorage and do not use chatbot or conversation history UI.
 - Frontend-only location display cleanup for timezone-only remote strings, without changing backend scoring or normalization.
+
+Recent activation and trust/safety clarity updates are frontend/UI-only. They do not change API contracts, Worker scoring, result ordering, restriction detection, or localStorage storage semantics.
 
 ## Partially Implemented
 

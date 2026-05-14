@@ -12,7 +12,9 @@ Frontend:
 - A compact onboarding intro can be dismissed, with that local preference stored only in browser localStorage
 - The search profile panel can be manually collapsed; that local UI preference is stored only in browser localStorage, while the collapsed overlay is transient
 - The existing search form includes a narrow Find Jobs/Evaluate Job mode switch for source search or manual pasted job evaluation
-- Match explanations are displayed in a per-card collapsible panel and are not saved to localStorage
+- First-use activation helpers include a sample profile button, visible source descriptions, and lightweight score guidance near results
+- Trust clarity helpers include prominent frontend restriction callouts from existing match reasons and a local-only notice near Saved/Applied/Skipped controls
+- Match explanations are displayed in a per-card collapsible `Scoring-based explanation` panel and are not saved to localStorage
 
 Backend:
 - Cloudflare Worker in `worker/`
@@ -30,8 +32,9 @@ Backend:
 4. Worker validates the selected source type.
 5. Worker fetches jobs from the selected source.
 6. Worker normalizes, validates, deduplicates, scores, sorts, and formats jobs.
-7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, and keeps lower-score jobs available under Explore More.
-8. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
+7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, keeps lower-score jobs available under Explore More, and shows score guidance for interpretation.
+8. Frontend may emphasize existing restriction-like match reasons in a prominent callout. This does not create new restrictions or change scoring.
+9. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
 
 Manual evaluation follows the same scoring/display path, except the frontend sends one pasted job to `POST /api/jobs/evaluate`; the Worker does not fetch the pasted URL.
 
@@ -87,6 +90,8 @@ Current scoring is rule-based:
 The Worker returns jobs sorted by `scoring.score` descending.
 
 AI explanations do not participate in ranking, scoring, eligibility, or source selection.
+
+Frontend activation and trust/safety UI layers do not participate in ranking, scoring, eligibility, restriction detection, API contracts, or localStorage persistence semantics.
 
 ## Deployment Direction
 

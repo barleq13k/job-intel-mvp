@@ -27,6 +27,8 @@ The user fills out the frontend search profile form.
 
 The frontend also shows a compact dismissible intro that explains the tool's boundaries: supported source search, pasted job evaluation, deterministic tradeoff review, no auto-apply, and no pasted-URL scraping.
 
+A `Try Sample Profile` action can fill the existing form with a beginner-friendly remote support/QA-style profile. This only updates frontend form state; it does not submit a search, add backend-only fields, or change the API payload shape.
+
 Current profile fields include:
 
 - target roles
@@ -37,6 +39,8 @@ Current profile fields include:
 - work mode
 - experience level
 - selected source
+
+The source selector includes short frontend descriptions for visible sources. These descriptions are expectation-setting copy only.
 
 The frontend parses comma-separated text fields, normalizes common technology aliases, and sends the profile to the Worker.
 
@@ -184,15 +188,19 @@ Current display behavior:
 
 - jobs with `score >= 25` appear as recommended matches
 - lower-score jobs remain available under Explore More
+- a lightweight score guide anchors score interpretation near results
 - decision labels summarize actionability
 - reason chips show positive, caution, and blocker signals
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
 - country/location restrictions remain visible
+- restriction-like match reasons can also appear in a prominent frontend callout on the job card
 - outbound job links open the source posting
 - manually evaluated cards show `Manual Paste` as the source with a subtle manual indicator
 - search/profile filters can be manually collapsed; when collapsed, a fixed overlay panel supports mid-scroll edits without changing form state or results
 - each job card may show an `Explain Match` button
-- explanations open in a collapsible per-card panel and are support text only
+- explanations open in a collapsible per-card `Scoring-based explanation` panel and are support text only
+
+These frontend clarity layers do not change Worker scoring, ranking, grouping, filtering, API contracts, or restriction detection.
 
 ## 10. Local Tracking And Restore
 
@@ -212,6 +220,8 @@ Manual pasted job input is not separately persisted by the backend. The frontend
 
 The result view chips are All, Saved, Applied, and Skipped. All shows the current ranked search results only. Saved, Applied, and Skipped prefer full jobs from the current loaded or restored result set, then add minimal previously tracked cards when those jobs are not in the current search results. They do not represent a full server-side archive.
 
+The UI includes a small notice that Saved, Applied, and Skipped are stored in the current browser only. This notice does not change the localStorage keys, cache contents, or tracking behavior.
+
 Tracked job cache key:
 
 ```text
@@ -229,7 +239,7 @@ User clicks Explain Match
   -> Frontend POST /api/jobs/explain
   -> Worker validates one already-scored job object and current profile
   -> Worker returns disabled/config/fallback explanation, cached explanation, or validated AI explanation
-  -> Frontend displays a collapsible per-card panel
+  -> Frontend displays a collapsible per-card scoring-based explanation panel
 ```
 
 Explanation behavior:
@@ -238,6 +248,7 @@ Explanation behavior:
 - uses the existing frontend job object as input
 - is optional, on-demand, and non-authoritative
 - explains score tradeoffs: what helped, what limited the score, why the score landed in its range, and what to verify
+- is presented in the frontend as generated from visible scoring signals
 - keeps concern-like signals such as complexity, platform, architecture, seniority, restrictions, penalties, and avoid keywords in explanation concerns
 - does not fetch jobs
 - does not rescore jobs

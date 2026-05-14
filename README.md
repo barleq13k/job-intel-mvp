@@ -1,8 +1,8 @@
-# Job Intelligence MVP
+# Job Intel
 
-A small job decision-support tool that compares remote jobs against a user-defined search profile, evaluates pasted job listings, and explains why each job was shown.
+Job Intel is a small job decision-support tool that compares remote jobs against a user-defined search profile, evaluates pasted job listings, and explains why each job was shown.
 
-The MVP is designed for validation: it favors transparent, deterministic ranking over opaque AI matching. The goal is to help testers decide which jobs to apply to, inspect later, skip, or check for eligibility.
+The current MVP validation build favors transparent, deterministic ranking over opaque AI matching. The goal is to help testers decide which jobs to apply to, inspect later, skip, or check for eligibility.
 
 ## Core Philosophy
 
@@ -18,21 +18,28 @@ Job search tools often hide why a result appears. This project does the opposite
 
 - Real job ingestion from supported public sources.
 - Manual job evaluation for pasted listings through the same deterministic scoring pipeline.
+- First-use sample profile for a beginner-friendly remote support/QA-style search.
+- Source descriptions that set expectations for each visible source.
 - Rule-based scoring from profile fields such as target roles, skills, keywords, location, work mode, experience level, and avoid keywords.
 - Transparent match reasons and score components.
+- Lightweight score anchoring near results.
 - Source diagnostics and malformed-row skipping.
 - Country/location restriction handling, including multi-country restriction logic.
+- Prominent frontend restriction callouts when existing match reasons include location, country, or eligibility warning text.
 - Senior-aware execution calibration for aligned roles.
 - Recommendation labels such as Apply first, Inspect later, Stretch, Low priority, and Check eligibility.
 - Reason-chip severity styling for positive, caution, and blocker signals.
-- Optional on-demand Explain Match panel that interprets existing deterministic score signals.
+- Optional on-demand Explain Match panel labeled as scoring-based support text.
 - Dismissible onboarding that explains the tool's boundaries.
 - Collapsible filter panel with a transient overlay for mid-scroll edits.
 - Local search/result restore via `localStorage`.
 - Local job status tracking for New, Saved, Applied, and Skipped.
+- Local-only tracking notice for Saved, Applied, and Skipped controls.
 - Quick access shortcuts for Saved, Applied, and Skipped jobs, backed by a lightweight local tracked-job cache.
 - Minimal PWA metadata and app icons.
 - Warm, restrained UI polish with light and dark modes.
+
+These activation and trust improvements are frontend/UI clarity layers only. They do not change Worker scoring, result ordering, API contracts, restriction detection, or localStorage behavior.
 
 ## Current Architecture
 
@@ -76,7 +83,7 @@ AI does not:
 - hide penalties
 - replace deterministic scoring
 
-The optional Explain Match endpoint may explain existing scoring signals in clearer language or suggest questions to verify before applying. It remains disabled by default, optional, and non-authoritative.
+The optional Explain Match endpoint may explain existing scoring signals in clearer language or suggest questions to verify before applying. The frontend presents this as a scoring-based explanation. It remains disabled by default, optional, and non-authoritative.
 
 ## Screenshots
 
