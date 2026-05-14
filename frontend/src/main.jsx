@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { AlertTriangle, ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
 import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
@@ -63,6 +63,14 @@ const DECISION_BADGE_CLASSES = {
   restricted: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/80 dark:text-red-200",
   stretch: "border-amber-200/90 bg-amber-50 text-amber-900 dark:border-amber-900/90 dark:bg-amber-950/80 dark:text-amber-200",
   low: "border-stone-200 bg-stone-50 text-stone-600 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-300"
+};
+const ELIGIBILITY_SIGNAL_CLASSES = {
+  eligible:
+    "border-emerald-200/90 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/50 dark:text-emerald-200",
+  caution:
+    "border-amber-200/90 bg-amber-50/70 text-amber-900 dark:border-amber-900/80 dark:bg-amber-950/50 dark:text-amber-200",
+  blocked:
+    "border-red-200/90 bg-red-50/70 text-red-900 dark:border-red-900/80 dark:bg-red-950/55 dark:text-red-200"
 };
 const FIELD_CLASS =
   "w-full rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#e45033] focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-[#e45033] dark:focus:ring-[#e45033]/20";
@@ -1148,7 +1156,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   const [explanation, setExplanation] = useState(null);
   const [isExplanationCached, setIsExplanationCached] = useState(false);
   const decision = getDecisionSummary(job, variant);
-  const restrictionReasons = getRestrictionReasons(job);
+  const eligibilitySignal = getEligibilitySignal(job);
   const isManualJob = job.metadata?.source_type === "manual" || job.source === "Manual Paste";
   let scoreColor = "text-emerald-700 dark:text-emerald-300";
 
@@ -1230,6 +1238,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
             {job.salary && <span>{job.salary}</span>}
             {job.cached_tracking_only && <span>Not in current search results.</span>}
           </div>
+          {eligibilitySignal && <EligibilitySignal signal={eligibilitySignal} />}
         </div>
         <div className={`flex min-w-24 shrink-0 items-center justify-center rounded-xl border px-4 py-3 ${getScorePanelClass(decision.tone)}`}>
           <div className="text-center">
@@ -1241,8 +1250,6 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
           </div>
         </div>
       </div>
-
-      {restrictionReasons.length > 0 && <RestrictionCallout reasons={restrictionReasons} />}
 
       <p className="mt-4 text-sm leading-6 text-stone-700 dark:text-stone-300">{job.summary}</p>
 
@@ -1325,19 +1332,18 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   );
 }
 
-function RestrictionCallout({ reasons }) {
+function EligibilitySignal({ signal }) {
+  const Icon = signal.state === "eligible" ? CheckCircle2 : AlertTriangle;
+
   return (
-    <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-3 text-sm text-red-900 dark:border-red-900/90 dark:bg-red-950/60 dark:text-red-100">
-      <div className="flex items-start gap-2">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <div>
-          <div className="font-semibold">Check restrictions before applying</div>
-          <ul className="mt-1 list-disc space-y-1 pl-4 leading-5">
-            {reasons.slice(0, 2).map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </div>
+    <div className={`mt-3 inline-flex max-w-full items-start gap-2 rounded-lg border px-2.5 py-2 text-xs leading-5 ${ELIGIBILITY_SIGNAL_CLASSES[signal.state]}`}>
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <div className="min-w-0">
+        <div className="font-semibold">{signal.label}</div>
+        <div>{signal.helper}</div>
+        {signal.reasons.length > 0 && (
+          <div className="mt-0.5 truncate text-[11px] opacity-80">{signal.reasons[0]}</div>
+        )}
       </div>
     </div>
   );
@@ -1884,11 +1890,48 @@ function hasDirectRoleEvidence(job) {
   });
 }
 
-function getRestrictionReasons(job) {
-  return getOrderedMatchReasons(job.scoring.match_reasons).filter(isRestrictionLikeReason);
+function getEligibilitySignal(job) {
+  const reasons = getOrderedMatchReasons(job.scoring.match_reasons).filter(isEligibilityLikeReason);
+
+  if (reasons.length === 0) {
+    return null;
+  }
+
+  const blockedReasons = reasons.filter(isBlockedEligibilityReason);
+  const eligibleReasons = reasons.filter(isPositiveEligibilityReason);
+  const cautionReasons = reasons.filter((reason) => !isBlockedEligibilityReason(reason) && !isPositiveEligibilityReason(reason));
+
+  if (blockedReasons.length > 0) {
+    return {
+      state: "blocked",
+      label: "Likely location mismatch",
+      helper: "Review this requirement before applying.",
+      reasons: blockedReasons
+    };
+  }
+
+  if (eligibleReasons.length > 0) {
+    return {
+      state: "eligible",
+      label: "Eligible region signal",
+      helper: "The visible reasons suggest your location is included.",
+      reasons: eligibleReasons
+    };
+  }
+
+  if (cautionReasons.length > 0) {
+    return {
+      state: "caution",
+      label: "Verify eligibility",
+      helper: "Region or authorization details may need checking.",
+      reasons: cautionReasons
+    };
+  }
+
+  return null;
 }
 
-function isRestrictionLikeReason(reason) {
+function isEligibilityLikeReason(reason) {
   const normalized = reason.toLowerCase();
 
   return (
@@ -1900,7 +1943,61 @@ function isRestrictionLikeReason(reason) {
     normalized.includes("eligible to work") ||
     normalized.includes("work authorization") ||
     normalized.includes("visa sponsorship") ||
-    normalized.includes("no visa sponsorship")
+    normalized.includes("no visa sponsorship") ||
+    normalized.includes("worldwide") ||
+    normalized.includes("anywhere") ||
+    normalized.includes("global") ||
+    normalized.includes("apac") ||
+    normalized.includes("asia") ||
+    normalized.includes("southeast asia") ||
+    normalized.includes("remote-friendly") ||
+    normalized.includes("matches preferred location") ||
+    normalized.includes("compatible with preferred location")
+  );
+}
+
+function isPositiveEligibilityReason(reason) {
+  const normalized = reason.toLowerCase();
+
+  return (
+    normalized.includes("listed countries include") ||
+    normalized.includes("matches preferred location") ||
+    normalized.includes("compatible with preferred location") ||
+    normalized.includes("worldwide") ||
+    normalized.includes("anywhere") ||
+    normalized.includes("global") ||
+    normalized.includes("apac") ||
+    normalized.includes("asia") ||
+    normalized.includes("southeast asia") ||
+    normalized.includes("remote-friendly")
+  );
+}
+
+function isBlockedEligibilityReason(reason) {
+  const normalized = reason.toLowerCase();
+
+  if (isPositiveEligibilityReason(reason)) {
+    return false;
+  }
+
+  return (
+    normalized.includes("outside preferred location") ||
+    normalized.includes("region-restricted") ||
+    normalized.includes("no visa sponsorship") ||
+    normalized.includes("not eligible") ||
+    normalized.includes("excluded") ||
+    normalized.includes("must reside") ||
+    normalized.includes("restricted to") ||
+    normalized.includes("authorized to work in") ||
+    normalized.includes("hiring in these states") ||
+    normalized.includes("us only") ||
+    normalized.includes("u.s. only") ||
+    normalized.includes("united states only") ||
+    normalized.includes("europe only") ||
+    normalized.includes("eu only") ||
+    normalized.includes("canada only") ||
+    normalized.includes("uk only") ||
+    normalized.includes("australia only")
   );
 }
 
