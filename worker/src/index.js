@@ -8,11 +8,16 @@ const REMOTIVE_SOURCE_NAME = "Remotive";
 const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const ARBEITNOW_SOURCE_NAME = "Arbeitnow";
 const REMOTEOK_SOURCE_NAME = "RemoteOK";
+const MANUAL_SOURCE_NAME = "Manual Paste";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const HIMALAYAS_MAX_PAGES = 3;
 const ARBEITNOW_MAX_PAGES = 1;
 const REMOTEOK_TIMEOUT_MS = 8000;
 const REMOTEOK_MAX_JOBS = 100;
+const MANUAL_EVALUATE_MAX_BODY_BYTES = 128 * 1024;
+const MANUAL_DESCRIPTION_MAX_CHARS = 30000;
+const MANUAL_DESCRIPTION_MIN_CHARS = 80;
+const MANUAL_DESCRIPTION_MIN_WORDS = 12;
 const MIN_STRETCH_SCORE = 25;
 const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
@@ -328,6 +333,14 @@ export default {
       return json({ error: "Method not allowed. Use POST." }, 405);
     }
 
+    if (url.pathname === "/api/jobs/evaluate") {
+      if (request.method === "POST") {
+        return handleJobEvaluate(request);
+      }
+
+      return json({ error: "Method not allowed. Use POST." }, 405);
+    }
+
     if (url.pathname === "/api/jobs/explain") {
       if (request.method === "POST") {
         return handleJobExplain(request, env);
@@ -387,6 +400,51 @@ async function handleJobSearch(request) {
       status: "ok",
       message: makeSourceSuccessMessage(sourceName, jobs.length, sourceResult),
       dropped_count: sourceResult.droppedCount
+    }
+  });
+}
+
+async function handleJobEvaluate(request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+
+  if (Number.isFinite(contentLength) && contentLength > MANUAL_EVALUATE_MAX_BODY_BYTES) {
+    return json({ error: "Manual job payload is too large." }, 413);
+  }
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Request body must be valid JSON." }, 400);
+  }
+
+  if (JSON.stringify(body).length > MANUAL_EVALUATE_MAX_BODY_BYTES) {
+    return json({ error: "Manual job payload is too large." }, 413);
+  }
+
+  const validation = validateManualEvaluateRequest(body);
+
+  if (!validation.ok) {
+    return json({ error: validation.error }, validation.status || 400);
+  }
+
+  const ingestedAt = new Date().toISOString();
+  const formattedJob = formatJob(validation.job, validation.profile, ingestedAt);
+  const job = {
+    id: makeStableJobId(formattedJob),
+    ...formattedJob
+  };
+
+  return json({
+    jobs: [job],
+    count: 1,
+    source: {
+      type: "manual",
+      name: MANUAL_SOURCE_NAME,
+      status: "ok",
+      message: "Manual job evaluated with deterministic scoring.",
+      dropped_count: 0
     }
   });
 }
@@ -1016,6 +1074,99 @@ function normalizeProfileTerm(value) {
   const aliasKey = cleaned.toLowerCase();
 
   return TECH_ALIASES[aliasKey] || cleaned;
+}
+
+function validateManualEvaluateRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "Request body must be a JSON object." };
+  }
+
+  if (!body.profile || typeof body.profile !== "object" || Array.isArray(body.profile)) {
+    return { ok: false, error: "Request body must include a profile object." };
+  }
+
+  if (!body.job || typeof body.job !== "object" || Array.isArray(body.job)) {
+    return { ok: false, error: "Request body must include a job object." };
+  }
+
+  const normalizedJob = normalizeManualJob(body.job);
+
+  if (!normalizedJob.ok) {
+    return normalizedJob;
+  }
+
+  return {
+    ok: true,
+    profile: normalizeProfile(body.profile),
+    job: normalizedJob.job
+  };
+}
+
+function normalizeManualJob(job) {
+  const title = limitText(job.title, 140);
+
+  if (!title) {
+    return { ok: false, error: "Manual job title is required." };
+  }
+
+  const description = limitText(cleanHtml(job.description || ""), MANUAL_DESCRIPTION_MAX_CHARS);
+  const searchableDescription = normalizeSearchText(description);
+  const meaningfulWords = searchableDescription.split(" ").filter((word) => word.length >= 2);
+
+  if (!description) {
+    return { ok: false, error: "Manual job description is required." };
+  }
+
+  if (description.length < MANUAL_DESCRIPTION_MIN_CHARS || meaningfulWords.length < MANUAL_DESCRIPTION_MIN_WORDS) {
+    return { ok: false, error: "Manual job description is too short to evaluate reliably." };
+  }
+
+  const company = limitText(job.company, 120) || "Unknown company";
+  const location = limitText(job.location, 160);
+  const url = normalizeManualUrl(job.url);
+  const sourceJobId = stableHash([
+    normalizeSearchText(title),
+    normalizeSearchText(company),
+    canonicalizeUrlForCompare(url),
+    normalizeSearchText(description)
+  ].join("|"));
+
+  return {
+    ok: true,
+    job: {
+      title,
+      company,
+      location,
+      source: MANUAL_SOURCE_NAME,
+      source_job_id: sourceJobId,
+      url,
+      employment_type: null,
+      salary: null,
+      description,
+      category: ""
+    }
+  };
+}
+
+function normalizeManualUrl(value) {
+  const cleaned = cleanOptionalText(value);
+
+  if (!cleaned) {
+    return null;
+  }
+
+  try {
+    const url = new URL(cleaned);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return null;
+    }
+
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 async function fetchRealPythonJobs() {
@@ -1773,10 +1924,22 @@ function formatJob(job, profile, ingestedAt) {
     details: makeDetails(job),
     metadata: {
       ingested_at: ingestedAt,
-      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME, REMOTEOK_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
+      source_type: getMetadataSourceType(job.source),
       source_job_id: cleanSourceId(job.source_job_id) || null
     }
   };
+}
+
+function getMetadataSourceType(sourceName) {
+  if ([REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME, REMOTEOK_SOURCE_NAME].includes(sourceName)) {
+    return "api";
+  }
+
+  if (sourceName === MANUAL_SOURCE_NAME) {
+    return "manual";
+  }
+
+  return "scraper";
 }
 
 function makeStableJobId(job) {
@@ -1809,6 +1972,10 @@ function getStableSourceKey(job) {
 
   if (job.source === REMOTEOK_SOURCE_NAME) {
     return "remoteok";
+  }
+
+  if (job.source === MANUAL_SOURCE_NAME) {
+    return "manual";
   }
 
   return "realpython_fake_jobs";
@@ -3599,6 +3766,7 @@ export const __test = Object.freeze({
   normalizeArbeitnowJob,
   makeStableJobId,
   normalizeHimalayasJob,
+  normalizeManualJob,
   normalizeRemoteOkJob,
   normalizeRemotiveJob,
   normalizeProfile,

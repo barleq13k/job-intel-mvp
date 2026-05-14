@@ -6,6 +6,8 @@ Scoring is rule-based and transparent. The goal is not perfect prediction; the g
 
 The Worker returns `scoring.score` from `0` to `100` plus reasons and component scores.
 
+Source jobs and manually pasted jobs use the same deterministic scoring engine. Manual evaluation only changes how the job text enters the pipeline; it does not introduce AI parsing, AI scoring, embeddings, URL fetching, or persistence.
+
 ## Scoring Structure
 
 The Worker keeps scoring in one file for MVP simplicity, but the scoring internals are organized around:
@@ -110,6 +112,7 @@ Display filtering:
 - Backend returns all scored jobs.
 - Frontend displays jobs with `score >= 25` as recommended matches.
 - Frontend groups lower-score jobs under Explore More so stretch roles remain inspectable.
+- Manually evaluated jobs are displayed as normal scored job cards, with `Manual Paste` source labeling.
 
 ## Current Explanation Layer
 

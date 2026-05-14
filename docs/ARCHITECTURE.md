@@ -9,7 +9,8 @@ Frontend:
 - `lucide-react` for icons
 - No router, auth client, data fetching library, or state management library
 - Local application tracking and the latest successful search snapshot are stored only in browser localStorage
-- The search profile panel can be manually collapsed and reopened; that local UI preference is stored only in browser localStorage
+- The search profile panel can be manually collapsed; that local UI preference is stored only in browser localStorage, while the collapsed overlay is transient
+- The existing search form includes a narrow Find Jobs/Evaluate Job mode switch for source search or manual pasted job evaluation
 - Match explanations are displayed in a per-card collapsible panel and are not saved to localStorage
 
 Backend:
@@ -17,6 +18,7 @@ Backend:
 - Wrangler local/dev/deploy tooling
 - Single Worker module at `worker/src/index.js`
 - No database, queues, background jobs, or persistence layer
+- Manual job evaluation endpoint that validates pasted listing text and uses the same deterministic scoring path as source jobs
 - Optional Groq-backed match explanation endpoint, disabled by default and used only for non-authoritative score interpretation
 
 ## Request Flow
@@ -30,12 +32,14 @@ Backend:
 7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, and keeps lower-score jobs available under Explore More.
 8. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
 
+Manual evaluation follows the same scoring/display path, except the frontend sends one pasted job to `POST /api/jobs/evaluate`; the Worker does not fetch the pasted URL.
+
 ## Data Flow
 
 ```text
 User profile form
-  -> POST /api/jobs/search
-  -> source fetch
+  -> POST /api/jobs/search or /api/jobs/evaluate
+  -> source fetch or manual job validation
   -> normalization
   -> validation
   -> deduplication
@@ -54,6 +58,8 @@ Implemented sources:
 - `arbeitnow`: backend-supported source that fetches one page of jobs from Arbeitnow's public job board API, but remains hidden from the frontend during source-quality review.
 
 There is no source registry, plugin system, crawler system, browser automation, or background ingestion. Source selection is a simple conditional branch in the Worker.
+
+Manual pasted jobs are not a source integration. They are user-submitted text normalized into the same internal job shape and scored once on request.
 
 Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. RemoteOK is a secondary real source with a conservative 100-job cap from one public feed request while source quality, latency, scoring behavior, and UI usability are evaluated. Arbeitnow is a secondary validation source with a one-page cap while source quality and stability are evaluated. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
 

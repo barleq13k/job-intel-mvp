@@ -13,12 +13,14 @@
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - `POST /api/jobs/search` Worker endpoint.
+- `POST /api/jobs/evaluate` Worker endpoint for manually pasted job listings.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
 - Himalayas public API ingestion with conservative pagination.
 - RemoteOK public JSON feed ingestion with a conservative 100-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
+- Manual job validation and normalization into the same deterministic scoring pipeline used by source jobs, without fetching pasted URLs.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
 - Himalayas is treated as the primary real source; RemoteOK, Arbeitnow, and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.
@@ -38,6 +40,7 @@
 - WHY SHOWN chips are display-ordered as positive signals, caution signals, then restrictions or penalties without changing backend reason generation.
 - Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
+- Manually evaluated cards use the normal job card, local tracking, and Explain Match behavior, with a subtle manual indicator.
 - Disabled-by-default `POST /api/jobs/explain` endpoint for on-demand match explanations.
 - Explanation safety prep: env gate, strict request/response validation, best-effort in-memory per-IP rate protection, simple in-memory cache, and tradeoff-oriented deterministic fallback explanations.
 - Explanation responses deterministically keep complexity, architecture, platform, seniority, restriction, penalty, and avoid-keyword signals in concerns rather than strengths.

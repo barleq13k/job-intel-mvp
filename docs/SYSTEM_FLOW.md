@@ -10,9 +10,8 @@ There is an optional, disabled-by-default explanation endpoint. It explains one 
 
 ```text
 User search profile
-  -> Frontend POST /api/jobs/search
-  -> Worker source selection
-  -> Source fetch
+  -> Frontend POST /api/jobs/search or /api/jobs/evaluate
+  -> Worker source selection/fetch or manual job validation
   -> Source normalization
   -> Validation
   -> Deduplication
@@ -39,6 +38,8 @@ Current profile fields include:
 
 The frontend parses comma-separated text fields, normalizes common technology aliases, and sends the profile to the Worker.
 
+In Evaluate Job mode, the user also provides a manual job title and pasted listing text, plus optional company, location, and URL. The URL is not fetched automatically.
+
 ## 2. API Request
 
 The frontend sends:
@@ -60,6 +61,14 @@ with:
 
 In local development, Vite proxies `/api` to the Worker at `http://127.0.0.1:8787`.
 
+For a manually pasted listing, the frontend sends:
+
+```text
+POST /api/jobs/evaluate
+```
+
+with the same profile object plus one manual job object.
+
 ## 3. Source Selection And Fetch
 
 The Worker validates the selected source type and fetches jobs directly.
@@ -77,6 +86,8 @@ There is no source registry, crawler framework, browser automation, or backgroun
 ## 4. Normalization
 
 Source-specific normalization converts upstream rows into a consistent internal job shape.
+
+Manual evaluation uses the same internal job shape after validating and cleaning the pasted listing text.
 
 Normalization handles fields such as:
 
@@ -100,6 +111,8 @@ Jobs must have enough usable data to be displayed and scored.
 
 The Worker preserves source diagnostics so the frontend can explain source behavior, partial failures, or skipped rows.
 
+Manual job evaluation rejects missing titles, missing descriptions, extremely short descriptions, and oversized payloads before scoring.
+
 ## 6. Deduplication
 
 The Worker deduplicates jobs before scoring.
@@ -107,6 +120,8 @@ The Worker deduplicates jobs before scoring.
 Current dedupe behavior uses stable source IDs when available and falls back to normalized title, company, and canonical URL signals.
 
 The goal is to reduce duplicate cards without introducing a persistent job database.
+
+Manual evaluation returns one scored job and creates a deterministic manual source ID from the cleaned submitted fields for frontend tracking continuity.
 
 ## 7. Rule-Based Scoring
 
@@ -170,6 +185,7 @@ Current display behavior:
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
 - country/location restrictions remain visible
 - outbound job links open the source posting
+- manually evaluated cards show `Manual Paste` as the source with a subtle manual indicator
 - search/profile filters can be manually collapsed; when collapsed, a fixed overlay panel supports mid-scroll edits without changing form state or results
 - each job card may show an `Explain Match` button
 - explanations open in a collapsible per-card panel and are support text only
@@ -186,6 +202,8 @@ Stored locally:
 - collapsed/open search filter panel preference; transient overlay-open state is not persisted
 - job statuses: Saved, Applied, Skipped; untracked is the implicit default
 - minimal tracked job display cache for Saved, Applied, and Skipped continuity across searches
+
+Manual pasted job input is not separately persisted by the backend. The frontend may restore the latest frontend-ready scored result snapshot in the same localStorage mechanism used for source searches.
 
 The result view chips are All, Saved, Applied, and Skipped. All shows the current ranked search results only. Saved, Applied, and Skipped prefer full jobs from the current loaded or restored result set, then add minimal previously tracked cards when those jobs are not in the current search results. They do not represent a full server-side archive.
 

@@ -155,6 +155,95 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 
 ---
 
+## `POST /api/jobs/evaluate`
+
+Evaluates one manually pasted job listing against the submitted profile using the same deterministic normalization, scoring, and frontend formatting path used by source jobs.
+
+This endpoint does not fetch the pasted URL, parse with AI, rank with AI, persist data, or modify `/api/jobs/search`.
+
+## Evaluate Request
+
+```json
+{
+  "profile": {
+    "target_roles": ["Python Automation"],
+    "skills": ["Python", "Playwright"],
+    "keywords": ["remote", "junior"],
+    "avoid_keywords": ["senior", "manager"],
+    "location": "Philippines",
+    "work_mode": "remote",
+    "experience_level": "junior"
+  },
+  "job": {
+    "title": "Junior QA Automation Tester",
+    "company": "Example Co",
+    "location": "Remote",
+    "url": "https://example.com/job",
+    "description": "Full pasted listing text..."
+  }
+}
+```
+
+Required manual job fields:
+
+- `title`
+- `description`
+
+Optional manual job fields:
+
+- `company`
+- `location`
+- `url`
+
+Manual URLs are treated as links only. The Worker never fetches them.
+
+## Evaluate Response
+
+The response reuses the search-like shape with one frontend-ready job:
+
+```json
+{
+  "jobs": [
+    {
+      "id": "manual_abc123",
+      "title": "Junior QA Automation Tester",
+      "company": "Example Co",
+      "location": "Remote",
+      "source": "Manual Paste",
+      "url": "https://example.com/job",
+      "scoring": {},
+      "summary": "Short readable summary.",
+      "details": [],
+      "metadata": {
+        "ingested_at": "2026-05-14T12:00:00Z",
+        "source_type": "manual",
+        "source_job_id": "abc123"
+      }
+    }
+  ],
+  "count": 1,
+  "source": {
+    "type": "manual",
+    "name": "Manual Paste",
+    "status": "ok",
+    "message": "Manual job evaluated with deterministic scoring.",
+    "dropped_count": 0
+  }
+}
+```
+
+## Evaluate Error Responses
+
+- Invalid JSON returns `400`.
+- Missing profile object returns `400`.
+- Missing job object returns `400`.
+- Missing title returns `400`.
+- Missing description returns `400`.
+- Extremely short or low-information descriptions return `400`.
+- Oversized manual job payloads return `413`.
+
+---
+
 ## `POST /api/jobs/explain`
 
 Explains one already-scored frontend job object against the current profile/search context.

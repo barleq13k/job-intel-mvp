@@ -70,6 +70,14 @@ const initialForm = {
   source_type: "realpython_fake_jobs"
 };
 
+const initialManualJob = {
+  title: "",
+  company: "",
+  location: "",
+  url: "",
+  description: ""
+};
+
 function splitList(value) {
   return value
     .split(",")
@@ -99,6 +107,8 @@ function buildSearchProfile(form) {
 function App() {
   const [restoredSearch] = useState(loadStoredSearchResults);
   const [form, setForm] = useState(() => loadStoredSearchProfile() || initialForm);
+  const [workflowMode, setWorkflowMode] = useState(() => (restoredSearch?.sourceInfo?.type === "manual" ? "evaluate" : "search"));
+  const [manualJob, setManualJob] = useState(initialManualJob);
   const [jobs, setJobs] = useState(() => restoredSearch?.jobs || []);
   const [status, setStatus] = useState(() => (restoredSearch ? "success" : "idle"));
   const [error, setError] = useState("");
@@ -152,6 +162,7 @@ function App() {
     [trackedStatusCounts]
   );
   const sourceLabel = SOURCE_LABELS[form.source_type] || SOURCE_LABELS.realpython_fake_jobs;
+  const activeSourceLabel = workflowMode === "evaluate" ? "Manual Paste" : sourceLabel;
   const isExploreMoreOpen = showExploreMore || visibleJobsToShow.length === 0;
   const filteredJobCount = visibleJobsToShow.length + lowerMatchJobsToShow.length;
   const selectedTrackedStatus = TRACKED_STATUS_SHORTCUTS.find((shortcut) => shortcut.value === statusFilter);
@@ -219,6 +230,11 @@ function App() {
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function updateManualJobField(event) {
+    const { name, value } = event.target;
+    setManualJob((current) => ({ ...current, [name]: value }));
   }
 
   function toggleTheme() {
@@ -306,6 +322,49 @@ function App() {
     }
   }
 
+  async function evaluateManualJob(event) {
+    event.preventDefault();
+    setStatus("loading");
+    setError("");
+    setJobs([]);
+    setSourceInfo(null);
+    setShowExploreMore(false);
+    setStatusFilter("all");
+
+    const payload = {
+      profile: buildSearchProfile(form),
+      job: manualJob
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json().catch(() => ({}));
+      const nextSourceInfo = data.source || null;
+      setSourceInfo(nextSourceInfo);
+
+      if (!response.ok) {
+        throw new Error(data.source?.message || data.error || `Evaluation failed with status ${response.status}.`);
+      }
+
+      const nextJobs = Array.isArray(data.jobs) ? data.jobs : [];
+      setJobs(nextJobs);
+      setStatus("success");
+      saveStoredSearchProfile(form);
+      saveStoredSearchResults({
+        jobs: nextJobs,
+        sourceInfo: nextSourceInfo
+      });
+    } catch (evaluationError) {
+      setError(evaluationError.message);
+      setStatus("error");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#eceae7] text-[#131311] transition-colors dark:bg-[#131311] dark:text-stone-100">
       <section className="border-b border-stone-200/80 bg-[#f7f5f1]/95 transition-colors dark:border-stone-800 dark:bg-[#181714]">
@@ -330,7 +389,7 @@ function App() {
               {theme === "dark" ? "Light" : "Dark"}
             </button>
             <div className="rounded-xl border border-stone-200/80 bg-[#fffdf8] px-4 py-3 text-sm text-stone-700 shadow-sm shadow-stone-200/50 dark:border-stone-800 dark:bg-[#181714] dark:text-stone-300 dark:shadow-none">
-              Source: {sourceLabel}
+              Source: {activeSourceLabel}
             </div>
           </div>
         </div>
@@ -342,9 +401,13 @@ function App() {
             id="search-profile-panel"
             titleId="search-profile-panel-title"
             form={form}
+            mode={workflowMode}
+            manualJob={manualJob}
             status={status}
             onFieldChange={updateField}
-            onSubmit={searchJobs}
+            onManualJobChange={updateManualJobField}
+            onModeChange={setWorkflowMode}
+            onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onCollapse={collapseFilterPanel}
             firstFieldRef={firstFilterFieldRef}
           />
@@ -483,9 +546,13 @@ function App() {
             id="search-profile-overlay-form"
             titleId="search-profile-overlay-title"
             form={form}
+            mode={workflowMode}
+            manualJob={manualJob}
             status={status}
             onFieldChange={updateField}
-            onSubmit={searchJobs}
+            onManualJobChange={updateManualJobField}
+            onModeChange={setWorkflowMode}
+            onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onClose={closeFilterOverlay}
             variant="overlay"
             firstFieldRef={firstFilterFieldRef}
@@ -500,8 +567,12 @@ function SearchProfileForm({
   id,
   titleId,
   form,
+  mode,
+  manualJob,
   status,
   onFieldChange,
+  onManualJobChange,
+  onModeChange,
   onSubmit,
   onCollapse,
   onClose,
@@ -509,6 +580,7 @@ function SearchProfileForm({
   firstFieldRef
 }) {
   const isOverlay = variant === "overlay";
+  const isEvaluateMode = mode === "evaluate";
   const formClass = isOverlay
     ? "flex max-h-[85vh] w-full flex-col rounded-2xl rounded-b-none border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-2xl shadow-stone-500/25 dark:border-stone-800 dark:bg-[#181714] dark:shadow-black/40 lg:h-full lg:max-h-none lg:rounded-b-2xl"
     : "h-fit rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/30 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none";
@@ -549,87 +621,162 @@ function SearchProfileForm({
       </div>
 
       <div className={bodyClass}>
-        <Field
-          label="Target roles"
-          name="target_roles"
-          value={form.target_roles}
-          onChange={onFieldChange}
-          placeholder="QA Tester, Python Automation"
-          helper="Examples: Python Automation, QA Tester, Frontend Developer"
-          inputRef={firstFieldRef}
-        />
-        <Field
-          label="Skills"
-          name="skills"
-          value={form.skills}
-          onChange={onFieldChange}
-          placeholder="java script, css, node js"
-          helper="Examples: javascript, node.js, react, css"
-        />
-        <Field
-          label="Keywords"
-          name="keywords"
-          value={form.keywords}
-          onChange={onFieldChange}
-          placeholder="remote, entry level"
-          helper="Examples: entry, junior, support, automation"
-        />
-        <Field
-          label="Avoid keywords"
-          name="avoid_keywords"
-          value={form.avoid_keywords}
-          onChange={onFieldChange}
-          placeholder="senior, manager"
-          helper="Examples: senior, lead, architect"
-        />
-        <Field label="Location" name="location" value={form.location} onChange={onFieldChange} placeholder="Philippines" />
+        <div className="mb-5 grid grid-cols-2 rounded-xl border border-stone-300/80 bg-stone-100 p-1 dark:border-stone-700 dark:bg-stone-900">
+          {[
+            { value: "search", label: "Find Jobs" },
+            { value: "evaluate", label: "Evaluate Job" }
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onModeChange(option.value)}
+              className={`h-9 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 ${
+                mode === option.value
+                  ? "bg-[#fffdf8] text-stone-950 shadow-sm dark:bg-[#181714] dark:text-stone-50"
+                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100"
+              }`}
+              aria-pressed={mode === option.value}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-        <label className="mb-4 block">
-          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
-          <select
-            name="experience_level"
-            value={form.experience_level}
-            onChange={onFieldChange}
-            className={SELECT_CLASS}
-          >
-            <option value="any">Any</option>
-            <option value="beginner">Beginner</option>
-            <option value="junior">Junior</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="senior">Senior</option>
-          </select>
-        </label>
+        <div className={isEvaluateMode ? "rounded-xl border border-stone-200/80 bg-[#fffdf8]/60 p-4 dark:border-stone-800 dark:bg-stone-950/20" : ""}>
+          {isEvaluateMode && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-50">Profile inputs</h3>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Used as the deterministic scoring context.</p>
+            </div>
+          )}
 
-        <label className="mb-4 block">
-          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Work mode</span>
-          <select
-            name="work_mode"
-            value={form.work_mode}
+          <Field
+            label="Target roles"
+            name="target_roles"
+            value={form.target_roles}
             onChange={onFieldChange}
-            className={SELECT_CLASS}
-          >
-            <option value="any">Any</option>
-            <option value="remote">Remote</option>
-            <option value="hybrid">Hybrid</option>
-            <option value="onsite">Onsite</option>
-          </select>
-        </label>
+            placeholder="QA Tester, Python Automation"
+            helper="Examples: Python Automation, QA Tester, Frontend Developer"
+            inputRef={firstFieldRef}
+          />
+          <Field
+            label="Skills"
+            name="skills"
+            value={form.skills}
+            onChange={onFieldChange}
+            placeholder="java script, css, node js"
+            helper="Examples: javascript, node.js, react, css"
+          />
+          <Field
+            label="Keywords"
+            name="keywords"
+            value={form.keywords}
+            onChange={onFieldChange}
+            placeholder="remote, entry level"
+            helper="Examples: entry, junior, support, automation"
+          />
+          <Field
+            label="Avoid keywords"
+            name="avoid_keywords"
+            value={form.avoid_keywords}
+            onChange={onFieldChange}
+            placeholder="senior, manager"
+            helper="Examples: senior, lead, architect"
+          />
+          <Field label="Location" name="location" value={form.location} onChange={onFieldChange} placeholder="Philippines" />
 
-        <label className="mb-5 block">
-          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
-          <select
-            name="source_type"
-            value={form.source_type}
-            onChange={onFieldChange}
-            className={SELECT_CLASS}
-          >
-            {VISIBLE_SOURCE_OPTIONS.map((source) => (
-              <option key={source.value} value={source.value}>
-                {source.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="mb-4 block">
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
+            <select
+              name="experience_level"
+              value={form.experience_level}
+              onChange={onFieldChange}
+              className={SELECT_CLASS}
+            >
+              <option value="any">Any</option>
+              <option value="beginner">Beginner</option>
+              <option value="junior">Junior</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="senior">Senior</option>
+            </select>
+          </label>
+
+          <label className={isEvaluateMode ? "block" : "mb-4 block"}>
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Work mode</span>
+            <select
+              name="work_mode"
+              value={form.work_mode}
+              onChange={onFieldChange}
+              className={SELECT_CLASS}
+            >
+              <option value="any">Any</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">Onsite</option>
+            </select>
+          </label>
+        </div>
+
+        {isEvaluateMode ? (
+          <div className="my-5 rounded-xl border border-stone-200/80 bg-[#fffdf8]/60 p-4 dark:border-stone-800 dark:bg-stone-950/20">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-50">Job to evaluate</h3>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Paste the listing text. URLs are stored as links only and are never fetched.</p>
+            </div>
+            <Field
+              label="Job title"
+              name="title"
+              value={manualJob.title}
+              onChange={onManualJobChange}
+              placeholder="Junior QA Automation Tester"
+            />
+            <Field
+              label="Company"
+              name="company"
+              value={manualJob.company}
+              onChange={onManualJobChange}
+              placeholder="Optional"
+            />
+            <Field
+              label="Job location"
+              name="location"
+              value={manualJob.location}
+              onChange={onManualJobChange}
+              placeholder="Remote, Philippines, Worldwide"
+            />
+            <Field
+              label="Job URL"
+              name="url"
+              value={manualJob.url}
+              onChange={onManualJobChange}
+              placeholder="https://example.com/job"
+            />
+            <TextAreaField
+              label="Full listing"
+              name="description"
+              value={manualJob.description}
+              onChange={onManualJobChange}
+              placeholder="Paste the responsibilities, requirements, location restrictions, and application notes."
+              helper="Minimum useful detail is required for deterministic scoring."
+            />
+          </div>
+        ) : (
+          <label className="mb-5 block">
+            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
+            <select
+              name="source_type"
+              value={form.source_type}
+              onChange={onFieldChange}
+              className={SELECT_CLASS}
+            >
+              {VISIBLE_SOURCE_OPTIONS.map((source) => (
+                <option key={source.value} value={source.value}>
+                  {source.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <button
           type="submit"
@@ -637,7 +784,7 @@ function SearchProfileForm({
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#131311] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-stone-300/50 transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 disabled:shadow-none dark:bg-[#e45033] dark:text-white dark:shadow-none dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
         >
           {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          Find Jobs
+          {isEvaluateMode ? "Evaluate Job" : "Find Jobs"}
         </button>
       </div>
     </form>
@@ -655,6 +802,23 @@ function Field({ label, name, value, onChange, placeholder, helper, inputRef }) 
         onChange={onChange}
         placeholder={placeholder}
         className={FIELD_CLASS}
+      />
+      {helper && <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
+    </label>
+  );
+}
+
+function TextAreaField({ label, name, value, onChange, placeholder, helper }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
+      <textarea
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        rows={8}
+        className={`${FIELD_CLASS} min-h-40 resize-y`}
       />
       {helper && <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
     </label>
@@ -743,6 +907,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   const [explanation, setExplanation] = useState(null);
   const [isExplanationCached, setIsExplanationCached] = useState(false);
   const decision = getDecisionSummary(job, variant);
+  const isManualJob = job.metadata?.source_type === "manual" || job.source === "Manual Paste";
   let scoreColor = "text-emerald-700 dark:text-emerald-300";
 
   if (decision.tone === "restricted") {
@@ -800,6 +965,11 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
             {job.cached_tracking_only && (
               <span className="rounded-full border border-stone-300/80 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
                 Previously tracked
+              </span>
+            )}
+            {isManualJob && (
+              <span className="rounded-full border border-stone-300/80 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">
+                Evaluated manually
               </span>
             )}
             <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${DECISION_BADGE_CLASSES[decision.tone]}`}>
