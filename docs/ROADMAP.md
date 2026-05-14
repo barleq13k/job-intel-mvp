@@ -8,8 +8,11 @@
 - Real Python Fake Jobs fallback/testing source.
 - Remotive real public API source.
 - Himalayas primary real public API source.
+- RemoteOK real public API source with conservative feed cap and category/tag relevance calibration.
+- Arbeitnow backend-supported source hidden from the frontend during source-quality review.
 - Rule-based ranking and execution likelihood.
 - Ranked dashboard with score, reasons, compensation when available, and job links.
+- LocalStorage-only search restore, theme preference, and Saved/Applied/Skipped tracking.
 - Disabled-by-default on-demand match explanations with a per-card collapsible panel.
 - Local Vite + Wrangler development.
 
@@ -22,6 +25,7 @@ Deployment:
 
 Source quality:
 - Improve Remotive normalization where needed.
+- Continue RemoteOK relevance validation from real searches.
 - Add source-specific cleanup only when directly useful.
 - Keep Real Python as a predictable fallback/testing source.
 

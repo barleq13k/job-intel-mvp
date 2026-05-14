@@ -710,4 +710,197 @@ assert(seniorSupportEngineerScoring.score < 25);
 assert.equal(seniorSupportEngineerScoring.execution_likelihood, "lower_match");
 assert(seniorSupportEngineerScoring.components.penalties <= -35);
 
+const broadSupportCategoryOnlyProfile = __test.normalizeProfile({
+  target_roles: ["support"],
+  keywords: ["remote"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "any"
+});
+const remoteOkVpProduct = {
+  title: "VP of Product and Partnerships",
+  company: "RemoteOK Product Co",
+  location: "Remote",
+  source: "RemoteOK",
+  description: "Lead product partnerships, executive roadmap, customer-facing strategy, and commercial operations.",
+  category: "support, product, partnerships, operations, executive"
+};
+const remoteOkClinicalProvider = {
+  title: "Clinical Provider",
+  company: "RemoteOK Health Co",
+  location: "Remote",
+  source: "RemoteOK",
+  description: "Provide clinical care, patient counseling, and population health support.",
+  category: "support, health, clinical"
+};
+const remoteOkPopulationHealth = {
+  title: "Population Health Director",
+  company: "RemoteOK Care Co",
+  location: "Remote",
+  source: "RemoteOK",
+  description: "Own population health programs and clinical partnerships.",
+  category: "support, health, management"
+};
+const remoteOkSupportSpecialist = {
+  title: "Support Specialist",
+  company: "RemoteOK Support Co",
+  location: "Remote",
+  source: "RemoteOK",
+  description: "Support customers, triage issues, and troubleshoot product workflows.",
+  category: "customer support"
+};
+const remoteOkCustomerSupportRepresentative = {
+  ...remoteOkSupportSpecialist,
+  title: "Customer Support Representative"
+};
+const remoteOkOperationsSupportAssociate = {
+  ...remoteOkSupportSpecialist,
+  title: "Operations and Support Associate",
+  description: "Support operations, triage customer issues, and coordinate product support workflows."
+};
+const remoteOkTechnicalSupportSpecialist = {
+  ...remoteOkSupportSpecialist,
+  title: "Technical Support Specialist",
+  description: "Troubleshoot software issues and support customers through technical product questions."
+};
+const remoteOkVpProductScoring = __test.scoreJob(remoteOkVpProduct, broadSupportCategoryOnlyProfile);
+const remoteOkClinicalProviderScoring = __test.scoreJob(remoteOkClinicalProvider, broadSupportCategoryOnlyProfile);
+const remoteOkPopulationHealthScoring = __test.scoreJob(remoteOkPopulationHealth, broadSupportCategoryOnlyProfile);
+const remoteOkSupportSpecialistScoring = __test.scoreJob(remoteOkSupportSpecialist, broadSupportCategoryOnlyProfile);
+const remoteOkCustomerSupportRepresentativeScoring = __test.scoreJob(remoteOkCustomerSupportRepresentative, broadSupportCategoryOnlyProfile);
+const remoteOkOperationsSupportAssociateScoring = __test.scoreJob(remoteOkOperationsSupportAssociate, broadSupportCategoryOnlyProfile);
+const remoteOkTechnicalSupportSpecialistScoring = __test.scoreJob(remoteOkTechnicalSupportSpecialist, broadSupportCategoryOnlyProfile);
+
+for (const categoryOnlyMismatchScoring of [
+  remoteOkVpProductScoring,
+  remoteOkClinicalProviderScoring,
+  remoteOkPopulationHealthScoring
+]) {
+  assert(categoryOnlyMismatchScoring.score <= 19);
+  assert.equal(categoryOnlyMismatchScoring.execution_likelihood, "lower_match");
+  assert(categoryOnlyMismatchScoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+}
+
+assert(remoteOkSupportSpecialistScoring.score >= 25);
+assert.notEqual(remoteOkSupportSpecialistScoring.execution_likelihood, "lower_match");
+assert(!remoteOkSupportSpecialistScoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+assert(remoteOkCustomerSupportRepresentativeScoring.score >= 25);
+assert.notEqual(remoteOkCustomerSupportRepresentativeScoring.execution_likelihood, "lower_match");
+assert(remoteOkOperationsSupportAssociateScoring.score >= 25);
+assert.notEqual(remoteOkOperationsSupportAssociateScoring.execution_likelihood, "lower_match");
+assert(remoteOkTechnicalSupportSpecialistScoring.score >= 25);
+assert.notEqual(remoteOkTechnicalSupportSpecialistScoring.execution_likelihood, "lower_match");
+
+const remoteOkSupportLeakCases = [
+  ["Contract Mandarin Document Review Attorney", 19],
+  ["Data Entry Coordinator", 19],
+  ["Policy Intern", 19],
+  ["Travel Appointment Coordinator", 19],
+  ["Destination Coordinator", 19],
+  ["Online Hospitality Services Coordinator", 19]
+].map(([title, maxScore]) => ({
+  title,
+  maxScore,
+  scoring: __test.scoreJob(
+    {
+      title,
+      company: "RemoteOK Broad Feed Co",
+      location: "Remote",
+      source: "RemoteOK",
+      description: "Remote role from a broad source feed.",
+      category: "support, operations"
+    },
+    broadSupportCategoryOnlyProfile
+  )
+}));
+
+for (const { title, maxScore, scoring } of remoteOkSupportLeakCases) {
+  assert(scoring.score <= maxScore, `${title} scored ${scoring.score}`);
+  assert.equal(scoring.execution_likelihood, "lower_match");
+  assert(scoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+}
+
+const genericCategoryOnlyCoordinatorScoring = __test.scoreJob(
+  {
+    title: "Project Coordinator",
+    company: "RemoteOK Coordinator Co",
+    location: "Remote",
+    source: "RemoteOK",
+    description: "Coordinate tasks for a remote operations team.",
+    category: "support, operations"
+  },
+  broadSupportCategoryOnlyProfile
+);
+
+assert(genericCategoryOnlyCoordinatorScoring.score <= 24);
+assert.equal(genericCategoryOnlyCoordinatorScoring.execution_likelihood, "lower_match");
+assert(genericCategoryOnlyCoordinatorScoring.match_reasons.includes("Category/tag overlap only"));
+
+const adminCategoryOnlyProfile = __test.normalizeProfile({
+  target_roles: ["admin"],
+  keywords: ["remote"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "any"
+});
+const assistantCategoryOnlyProfile = __test.normalizeProfile({
+  target_roles: ["assistant"],
+  keywords: ["remote"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "any"
+});
+const adminTaggedDirectorScoring = __test.scoreJob(
+  {
+    title: "Director of Population Health",
+    company: "HealthOps",
+    location: "Remote",
+    source: "RemoteOK",
+    description: "Lead population health operations and clinical partnerships.",
+    category: "admin, operations, health"
+  },
+  adminCategoryOnlyProfile
+);
+const assistantTaggedProviderScoring = __test.scoreJob(
+  {
+    title: "Clinical Provider",
+    company: "CareOps",
+    location: "Remote",
+    source: "RemoteOK",
+    description: "Provide patient care and clinical counseling.",
+    category: "assistant, health, clinical"
+  },
+  assistantCategoryOnlyProfile
+);
+
+assert(adminTaggedDirectorScoring.score < 25);
+assert.equal(adminTaggedDirectorScoring.execution_likelihood, "lower_match");
+assert(adminTaggedDirectorScoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+assert(assistantTaggedProviderScoring.score < 25);
+assert.equal(assistantTaggedProviderScoring.execution_likelihood, "lower_match");
+assert(assistantTaggedProviderScoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+
+const virtualAssistantCategoryOnlyProfile = __test.normalizeProfile({
+  target_roles: ["virtual assistant"],
+  keywords: ["remote"],
+  location: "Remote",
+  work_mode: "remote",
+  experience_level: "any"
+});
+const virtualAssistantDataEntryScoring = __test.scoreJob(
+  {
+    title: "Data Entry Coordinator",
+    company: "VA Test Co",
+    location: "Remote",
+    source: "RemoteOK",
+    description: "Coordinate records and perform data cleanup for a remote team.",
+    category: "virtual assistant, operations"
+  },
+  virtualAssistantCategoryOnlyProfile
+);
+
+assert(virtualAssistantDataEntryScoring.score <= 19);
+assert.equal(virtualAssistantDataEntryScoring.execution_likelihood, "lower_match");
+assert(virtualAssistantDataEntryScoring.match_reasons.includes("Unrelated occupation for category/tag-only match"));
+
 console.log("Scoring regression checks passed.");

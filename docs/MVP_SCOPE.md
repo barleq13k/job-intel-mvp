@@ -13,10 +13,13 @@ Ship a usable deterministic job discovery platform with optional AI explanation 
 ### User Preferences
 Users can configure:
 - preferred roles
+- skills
 - keywords
 - remote/hybrid preference
 - location preference
-- optional salary preference
+- avoid keywords
+- experience level
+- job source
 
 ---
 
@@ -42,7 +45,8 @@ Simple duplicate logic is acceptable initially.
 System currently:
 - ranks jobs using deterministic scoring logic
 - prioritizes jobs based on user-defined fields
-- supports configurable filtering and weighting
+- keeps deterministic scoring/ranking as the source of truth
+- keeps category/tag-only evidence from making calibrated broad-role matches Recommended by itself
 
 Optional explanation layer:
 
@@ -72,6 +76,7 @@ Users can:
 - browse ranked jobs
 - view job summaries
 - open original job links
+- track Saved, Applied, and Skipped status locally in browser localStorage
 - request an on-demand `Explain Match` panel for a visible job when the explain endpoint is available
 
 ---
@@ -79,7 +84,6 @@ Users can:
 ### Deployment
 Application should:
 - deploy successfully on Cloudflare
-- function as a PWA
 - support environment variables securely
 
 ---

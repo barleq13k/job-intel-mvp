@@ -66,10 +66,11 @@ The Worker validates the selected source type and fetches jobs directly.
 
 Implemented sources:
 
-- `himalayas`: primary real source using Himalayas public remote jobs API.
-- `remotive`: secondary real source using Remotive public jobs API.
-- `arbeitnow`: secondary validation source using Arbeitnow's public job board API with a one-page cap; implemented in the Worker but hidden from active frontend selection during source-quality review.
-- `realpython_fake_jobs`: deterministic fake/static source for regression and fallback testing.
+- `himalayas`: visible primary real source using Himalayas public remote jobs API.
+- `remotive`: visible secondary real source using Remotive public jobs API.
+- `remoteok`: visible secondary real source using RemoteOK's public JSON feed with a conservative 60-job cap and local deterministic filtering/ranking.
+- `realpython_fake_jobs`: visible deterministic fake/static source for regression and fallback testing.
+- `arbeitnow`: backend-supported secondary validation source using Arbeitnow's public job board API with a one-page cap; hidden from active frontend selection during source-quality review.
 
 There is no source registry, crawler framework, browser automation, or background ingestion system.
 
@@ -90,6 +91,8 @@ Normalization handles fields such as:
 - source metadata
 
 Malformed or unusable rows are skipped and counted in source diagnostics.
+
+RemoteOK normalization preserves RemoteOK outbound URLs for attribution, skips the feed metadata/legal row, keeps meaningful location restriction text such as `Remote - US`, `Europe`, or `Spain`, and does not infer salary currency.
 
 ## 5. Validation
 
@@ -114,6 +117,7 @@ Current scoring considers:
 - target role relevance
 - skills and strongest skill compatibility
 - keywords
+- broad-role category/tag-only protection for calibrated role families such as support, admin, assistant, customer service, and virtual assistant
 - seniority fit
 - execution likelihood
 - platform and architecture complexity
@@ -130,6 +134,8 @@ The Worker returns:
 - score components
 
 AI does not assign scores, change rankings, or override restrictions in the current MVP.
+
+When a broad role query receives only category/tag overlap, the Worker caps recommendation confidence below the frontend Recommended threshold instead of hiding the job. Clearly unrelated occupational title families receive a stronger cap. Those lower-confidence results can still be inspected under Explore More.
 
 ## 8. Formatting
 

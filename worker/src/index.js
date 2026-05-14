@@ -2,13 +2,17 @@ const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
 const HIMALAYAS_URL = "https://himalayas.app/jobs/api/search";
 const ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api";
+const REMOTEOK_URL = "https://remoteok.com/api";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
 const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const ARBEITNOW_SOURCE_NAME = "Arbeitnow";
+const REMOTEOK_SOURCE_NAME = "RemoteOK";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const HIMALAYAS_MAX_PAGES = 3;
 const ARBEITNOW_MAX_PAGES = 1;
+const REMOTEOK_TIMEOUT_MS = 8000;
+const REMOTEOK_MAX_JOBS = 60;
 const MIN_STRETCH_SCORE = 25;
 const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
@@ -142,6 +146,69 @@ const DESCRIPTION_COMPLEXITY_TERMS = [
 const SUPPORT_INTENT_TERMS = ["support", "software support", "technical support", "customer support", "help desk"];
 const SUPPORT_ROLE_EVIDENCE_TERMS = ["support", "software support", "technical support", "customer support", "help desk"];
 const SUPPORT_RELEVANCE_FLOOR_BLOCKER_TERMS = ["senior", "staff", "principal", "lead", "manager", "engineer"];
+const BROAD_ROLE_RECOMMENDATION_CAP = MIN_STRETCH_SCORE - 1;
+const BROAD_ROLE_UNRELATED_CAP = 19;
+const BROAD_ROLE_PROTECTED_FAMILIES = [
+  {
+    family: "support",
+    queryTerms: ["support", "customer support", "technical support", "software support", "help desk", "service desk", "customer service"],
+    titleEvidenceTerms: ["support", "customer support", "technical support", "software support", "help desk", "service desk", "customer service"],
+    descriptionEvidenceTerms: ["customer support", "technical support", "software support", "help desk", "service desk", "customer service"]
+  },
+  {
+    family: "admin",
+    queryTerms: ["admin", "administrative", "office assistant", "administrative assistant"],
+    titleEvidenceTerms: ["admin", "administrative", "office assistant", "administrative assistant"],
+    descriptionEvidenceTerms: ["administrative support", "administrative assistant", "office assistant"]
+  },
+  {
+    family: "assistant",
+    queryTerms: ["assistant", "office assistant", "administrative assistant", "virtual assistant", "va"],
+    titleEvidenceTerms: ["assistant", "office assistant", "administrative assistant", "virtual assistant", "va"],
+    descriptionEvidenceTerms: ["assistant", "virtual assistant", "administrative assistant", "office assistant"]
+  },
+  {
+    family: "customer_service",
+    queryTerms: ["customer service", "customer care"],
+    titleEvidenceTerms: ["customer service", "customer care", "customer support"],
+    descriptionEvidenceTerms: ["customer service", "customer care", "customer support"]
+  }
+];
+const BROAD_ROLE_OCCUPATIONAL_MISMATCH_TERMS = [
+  "attorney",
+  "legal",
+  "document review",
+  "contract review",
+  "data entry",
+  "policy",
+  "policy intern",
+  "vp",
+  "vice president",
+  "chief",
+  "director",
+  "head",
+  "executive",
+  "product manager",
+  "product director",
+  "product lead",
+  "product owner",
+  "partnerships",
+  "clinical",
+  "provider",
+  "population health",
+  "counselor",
+  "therapist",
+  "nurse",
+  "physician",
+  "doctor",
+  "itinerary",
+  "travel",
+  "destination",
+  "hospitality",
+  "scheduler",
+  "booking",
+  "appointment coordinator"
+];
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -285,8 +352,8 @@ async function handleJobSearch(request) {
   const profile = normalizeProfile(body.profile);
   const sourceType = body.source?.type;
 
-  if (!["realpython_fake_jobs", "remotive", "himalayas", "arbeitnow"].includes(sourceType)) {
-    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, himalayas, or arbeitnow." }, 400);
+  if (!["realpython_fake_jobs", "remotive", "himalayas", "arbeitnow", "remoteok"].includes(sourceType)) {
+    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, himalayas, arbeitnow, or remoteok." }, 400);
   }
 
   let sourceResult;
@@ -852,6 +919,10 @@ async function fetchJobsForSource(sourceType, profile) {
     return fetchArbeitnowJobs(profile);
   }
 
+  if (sourceType === "remoteok") {
+    return fetchRemoteOkJobs();
+  }
+
   return makeSourceResult(await fetchRealPythonJobs());
 }
 
@@ -860,6 +931,7 @@ function getSourceName(sourceType) {
     remotive: REMOTIVE_SOURCE_NAME,
     himalayas: HIMALAYAS_SOURCE_NAME,
     arbeitnow: ARBEITNOW_SOURCE_NAME,
+    remoteok: REMOTEOK_SOURCE_NAME,
     realpython_fake_jobs: SOURCE_NAME
   }[sourceType] || SOURCE_NAME;
 }
@@ -876,18 +948,19 @@ function makeSourceSuccessMessage(sourceName, jobCount, sourceResult = {}) {
   const droppedCount = sourceResult.droppedCount || 0;
   const pageText = sourceResult.pagesFetched > 1 ? ` from ${sourceResult.pagesFetched} pages` : "";
   const remotiveBatchText = sourceName === REMOTIVE_SOURCE_NAME ? " from its public API batch" : "";
+  const remoteOkFeedText = sourceName === REMOTEOK_SOURCE_NAME ? " from its capped public API feed" : "";
   const suffix = sourceResult.warning ? ` ${sourceResult.warning}` : "";
 
   if (jobCount === 0) {
     const emptyMessage = droppedCount > 0
-      ? `${sourceName} returned jobs${pageText || remotiveBatchText}, but none were usable after normalization.`
-      : `${sourceName} returned no jobs${pageText || remotiveBatchText} for this search.`;
+      ? `${sourceName} returned jobs${pageText || remotiveBatchText || remoteOkFeedText}, but none were usable after normalization.`
+      : `${sourceName} returned no jobs${pageText || remotiveBatchText || remoteOkFeedText} for this search.`;
     return `${emptyMessage}${suffix}`;
   }
 
   const successMessage = droppedCount > 0
-    ? `${sourceName} returned ${jobCount} usable jobs${pageText || remotiveBatchText}; ${droppedCount} malformed rows were skipped.`
-    : `${sourceName} returned ${jobCount} jobs${pageText || remotiveBatchText}.`;
+    ? `${sourceName} returned ${jobCount} usable jobs${pageText || remotiveBatchText || remoteOkFeedText}; ${droppedCount} malformed rows were skipped.`
+    : `${sourceName} returned ${jobCount} jobs${pageText || remotiveBatchText || remoteOkFeedText}.`;
 
   return `${successMessage}${suffix}`;
 }
@@ -1335,6 +1408,154 @@ function formatArbeitnowLocation(remote, location) {
   return locationText;
 }
 
+async function fetchRemoteOkJobs() {
+  let response;
+
+  try {
+    response = await fetchWithTimeout(REMOTEOK_URL, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "job-intel-mvp/0.1"
+      }
+    }, REMOTEOK_TIMEOUT_MS);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw makeSourceError(`RemoteOK request timed out after ${REMOTEOK_TIMEOUT_MS}ms.`, "timeout");
+    }
+
+    throw makeSourceError("RemoteOK request failed before a response was received.", "network_error");
+  }
+
+  if (!response.ok) {
+    throw makeSourceError(`RemoteOK fetch failed with status ${response.status}.`, "http_error");
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw makeSourceError("RemoteOK returned invalid JSON.", "invalid_json");
+  }
+
+  if (!Array.isArray(data)) {
+    throw makeSourceError("RemoteOK returned an unexpected response shape.", "invalid_shape");
+  }
+
+  let droppedCount = 0;
+  let consideredCount = 0;
+  const jobs = [];
+
+  for (const item of data) {
+    if (isRemoteOkMetadataRow(item)) {
+      continue;
+    }
+
+    if (consideredCount >= REMOTEOK_MAX_JOBS) {
+      break;
+    }
+
+    consideredCount += 1;
+    const normalizedJob = normalizeRemoteOkJob(item);
+
+    if (normalizedJob) {
+      jobs.push(normalizedJob);
+    } else {
+      droppedCount += 1;
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount, {
+    maxJobs: REMOTEOK_MAX_JOBS
+  });
+}
+
+function isRemoteOkMetadataRow(item) {
+  return Boolean(
+    item &&
+    typeof item === "object" &&
+    !Array.isArray(item) &&
+    (Object.prototype.hasOwnProperty.call(item, "legal") || Object.prototype.hasOwnProperty.call(item, "last_updated")) &&
+    !Object.prototype.hasOwnProperty.call(item, "position")
+  );
+}
+
+function normalizeRemoteOkJob(job) {
+  if (!job || typeof job !== "object") {
+    return null;
+  }
+
+  const title = cleanOptionalText(job.position);
+  const company = cleanOptionalText(job.company);
+  const url = normalizeRemoteOkJobUrl(job.url, job.apply_url);
+
+  if (!title || !company || !url) {
+    return null;
+  }
+
+  return {
+    title,
+    company,
+    location: cleanOptionalText(job.location) || "Remote",
+    source: REMOTEOK_SOURCE_NAME,
+    source_job_id: cleanSourceId(job.id),
+    url,
+    employment_type: null,
+    salary: normalizeRemoteOkSalary(job.salary_min, job.salary_max),
+    description: cleanRemoteOkDescription(job.description || ""),
+    category: Array.isArray(job.tags) ? job.tags.map(cleanOptionalText).filter(Boolean).join(", ") : ""
+  };
+}
+
+function normalizeRemoteOkJobUrl(...values) {
+  for (const value of values) {
+    const normalized = normalizeUrlFromBase(value, REMOTEOK_URL);
+
+    if (!normalized) {
+      continue;
+    }
+
+    const url = new URL(normalized);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (hostname === "remoteok.com") {
+      return url.toString();
+    }
+  }
+
+  return null;
+}
+
+function normalizeRemoteOkSalary(minSalary, maxSalary) {
+  const min = normalizePositiveNumber(minSalary);
+  const max = normalizePositiveNumber(maxSalary);
+
+  if (min && max) {
+    return `${formatSalaryAmount(min)} - ${formatSalaryAmount(max)}`;
+  }
+
+  if (min) {
+    return `${formatSalaryAmount(min)}+`;
+  }
+
+  return null;
+}
+
+function normalizePositiveNumber(value) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function cleanRemoteOkDescription(value) {
+  const cleaned = cleanHtml(value)
+    .replace(/\bPlease mention the word\b[\s\S]*?\bwhen applying to show you read the job post completely\.?/gi, " ")
+    .replace(/\(#[A-Za-z0-9:_-]{20,}\)/g, " ")
+    .replace(/\bThis is a beta feature to avoid spam applicants\.[\s\S]*?\bsee they're human\.?/gi, " ");
+
+  return limitText(cleaned, 1800);
+}
+
 function normalizeHimalayasCategory(job) {
   const categories = Array.isArray(job.categories) ? job.categories : job.category;
   const categoryList = Array.isArray(categories) ? categories : [];
@@ -1552,7 +1773,7 @@ function formatJob(job, profile, ingestedAt) {
     details: makeDetails(job),
     metadata: {
       ingested_at: ingestedAt,
-      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
+      source_type: [REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME, REMOTEOK_SOURCE_NAME].includes(job.source) ? "api" : "scraper",
       source_job_id: cleanSourceId(job.source_job_id) || null
     }
   };
@@ -1584,6 +1805,10 @@ function getStableSourceKey(job) {
 
   if (job.source === ARBEITNOW_SOURCE_NAME) {
     return "arbeitnow";
+  }
+
+  if (job.source === REMOTEOK_SOURCE_NAME) {
+    return "remoteok";
   }
 
   return "realpython_fake_jobs";
@@ -1676,6 +1901,7 @@ function scoreJob(job, profile) {
     avoidSignal
   });
   const locationWorkModeSignal = evaluateLocationWorkMode(context);
+  const broadRoleProtectionSignal = evaluateBroadRoleIdentityProtection(context, roleSignal);
 
   const components = {
     role_match_score: roleSignal.points,
@@ -1711,8 +1937,7 @@ function scoreJob(job, profile) {
     complexitySignal,
     avoidSignal
   });
-  const roleFamilyMismatchCap = getRoleFamilyMismatchScoreCap(context);
-  const score = Math.min(Math.max(baseScore, supportRelevanceFloor), roleFamilyMismatchCap);
+  const score = Math.min(Math.max(baseScore, supportRelevanceFloor), broadRoleProtectionSignal.scoreCap);
   executionSignal.label = executionLabel({
     score,
     value: executionSignal.value,
@@ -1723,7 +1948,8 @@ function scoreJob(job, profile) {
     complexitySignal,
     avoidSignal,
     seniorComplexityAligned,
-    supportRelevanceFloorApplied: supportRelevanceFloor > baseScore
+    supportRelevanceFloorApplied: supportRelevanceFloor > baseScore,
+    broadRoleProtectionApplied: broadRoleProtectionSignal.scoreCap < 100
   });
 
   const matchReasons = buildMatchReasons({
@@ -1734,6 +1960,7 @@ function scoreJob(job, profile) {
     senioritySignal,
     roleContextSignal,
     roleDomainSignal,
+    broadRoleProtectionSignal,
     complexitySignal,
     scriptIntentSignal,
     avoidSignal,
@@ -1750,31 +1977,82 @@ function scoreJob(job, profile) {
   };
 }
 
-function getRoleFamilyMismatchScoreCap(context) {
-  if (!hasSupportTargetRole(context.profile)) {
-    return 100;
-  }
-
-  if (hasSupportRoleEvidence(context)) {
-    return 100;
-  }
-
-  if (hasImplementationRoleTitle(context.title)) {
-    return MIN_STRETCH_SCORE - 1;
-  }
-
-  return 100;
-}
-
-function hasSupportTargetRole(profile) {
-  const targetRoleText = normalizeSearchText(profile.target_roles.join(" "));
-  return SUPPORT_INTENT_TERMS.some((term) => containsPhrase(targetRoleText, normalizeSearchText(term)));
-}
-
 function hasImplementationRoleTitle(title) {
   return ["programmer", "developer", "engineer", "software engineer", "software developer"].some((term) =>
     containsPhrase(title, normalizeSearchText(term))
   );
+}
+
+function evaluateBroadRoleIdentityProtection(context, roleSignal) {
+  const protectedFamily = getProtectedBroadRoleFamily(context.profile);
+
+  if (!protectedFamily) {
+    return makeScoringSignal({ status: "none", scoreCap: 100, family: null, mismatches: [] });
+  }
+
+  if (hasBroadRoleTitleEvidence(context.title, protectedFamily)) {
+    return makeScoringSignal({ status: "title_aligned", scoreCap: 100, family: protectedFamily.family, mismatches: [] });
+  }
+
+  const mismatchTerms = getOccupationalMismatchTerms(context.title);
+  const hasCategoryOnlyRoleEvidence = roleSignal.bestStrength === "category_phrase";
+  const hasStrongDescriptionEvidence = hasBroadRoleDescriptionEvidence(context.descriptionText, protectedFamily);
+
+  if (hasCategoryOnlyRoleEvidence && mismatchTerms.length && !hasStrongDescriptionEvidence) {
+    return makeScoringSignal({
+      status: "category_only_occupational_mismatch",
+      scoreCap: BROAD_ROLE_UNRELATED_CAP,
+      family: protectedFamily.family,
+      mismatches: mismatchTerms,
+      reasons: ["Unrelated occupation for category/tag-only match"]
+    });
+  }
+
+  if (hasCategoryOnlyRoleEvidence && !hasStrongDescriptionEvidence) {
+    return makeScoringSignal({
+      status: "category_only_broad_role_match",
+      scoreCap: BROAD_ROLE_RECOMMENDATION_CAP,
+      family: protectedFamily.family,
+      mismatches: [],
+      reasons: ["Category/tag overlap only"]
+    });
+  }
+
+  if (hasImplementationRoleTitle(context.title)) {
+    return makeScoringSignal({
+      status: "implementation_role_mismatch",
+      scoreCap: BROAD_ROLE_RECOMMENDATION_CAP,
+      family: protectedFamily.family,
+      mismatches: ["implementation"],
+      reasons: ["Role-title mismatch penalty for broad role search"]
+    });
+  }
+
+  return makeScoringSignal({ status: "none", scoreCap: 100, family: protectedFamily.family, mismatches: [] });
+}
+
+function getProtectedBroadRoleFamily(profile) {
+  const targetRoleText = normalizeSearchText(profile.target_roles.join(" "));
+
+  if (!targetRoleText) {
+    return null;
+  }
+
+  return BROAD_ROLE_PROTECTED_FAMILIES.find((family) =>
+    family.queryTerms.some((term) => containsPhrase(targetRoleText, normalizeSearchText(term)))
+  ) || null;
+}
+
+function hasBroadRoleTitleEvidence(title, protectedFamily) {
+  return protectedFamily.titleEvidenceTerms.some((term) => containsPhrase(title, normalizeSearchText(term)));
+}
+
+function hasBroadRoleDescriptionEvidence(descriptionText, protectedFamily) {
+  return protectedFamily.descriptionEvidenceTerms.some((term) => containsPhrase(descriptionText, normalizeSearchText(term)));
+}
+
+function getOccupationalMismatchTerms(title) {
+  return BROAD_ROLE_OCCUPATIONAL_MISMATCH_TERMS.filter((term) => containsPhrase(title, normalizeSearchText(term)));
 }
 
 function evaluateSignals(queries, title, secondaryText, category, categoryText = "") {
@@ -2261,7 +2539,8 @@ function executionLabel({
   complexitySignal,
   avoidSignal,
   seniorComplexityAligned = false,
-  supportRelevanceFloorApplied = false
+  supportRelevanceFloorApplied = false,
+  broadRoleProtectionApplied = false
 }) {
   const hasRealGap =
     ["senior_too_high", "too_junior"].includes(senioritySignal.status) ||
@@ -2275,6 +2554,10 @@ function executionLabel({
   const hasWeakAlignment =
     roleDomainSignal.offDomain ||
     (!hasRelatedDomain && ["secondary_phrase", "secondary_token", "weak", "none"].includes(roleSignal.bestStrength));
+
+  if (broadRoleProtectionApplied) {
+    return "lower_match";
+  }
 
   if (hasRealGap && score >= MIN_STRETCH_SCORE) {
     return "stretch";
@@ -2984,6 +3267,7 @@ function buildMatchReasons({
   senioritySignal,
   roleContextSignal,
   roleDomainSignal,
+  broadRoleProtectionSignal,
   complexitySignal,
   scriptIntentSignal,
   avoidSignal,
@@ -3001,6 +3285,7 @@ function buildMatchReasons({
     ...taskFitTieBreakerSignal.reasons,
     ...scriptIntentSignal.reasons,
     ...roleDomainSignal.reasons,
+    ...broadRoleProtectionSignal.reasons,
     ...senioritySignal.reasons,
     ...complexitySignal.reasons,
     ...avoidSignal.reasons,
@@ -3047,7 +3332,7 @@ function makeSignalReasons(signal, category) {
     }
 
     if (signal.bestStrength === "category_phrase") {
-      return ["Job category overlaps with your target role"];
+      return ["Category/tag overlap only"];
     }
 
     if (signal.bestStrength === "secondary_phrase") {
@@ -3307,12 +3592,14 @@ export const __test = Object.freeze({
   dedupeJobs,
   fetchArbeitnowJobs,
   fetchHimalayasJobs,
+  fetchRemoteOkJobs,
   fetchRemotiveJobs,
   fetchWithTimeout,
   formatJob,
   normalizeArbeitnowJob,
   makeStableJobId,
   normalizeHimalayasJob,
+  normalizeRemoteOkJob,
   normalizeRemotiveJob,
   normalizeProfile,
   scoreJob

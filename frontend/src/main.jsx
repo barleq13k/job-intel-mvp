@@ -20,12 +20,14 @@ const SOURCE_LABELS = {
   realpython_fake_jobs: "Real Python Fake Jobs",
   remotive: "Remotive",
   himalayas: "Himalayas",
+  remoteok: "RemoteOK",
   arbeitnow: "Arbeitnow"
 };
 const VISIBLE_SOURCE_OPTIONS = [
   { value: "realpython_fake_jobs", label: SOURCE_LABELS.realpython_fake_jobs },
   { value: "remotive", label: SOURCE_LABELS.remotive },
-  { value: "himalayas", label: SOURCE_LABELS.himalayas }
+  { value: "himalayas", label: SOURCE_LABELS.himalayas },
+  { value: "remoteok", label: SOURCE_LABELS.remoteok }
 ];
 const REASON_CHIP_CLASSES = {
   positive:
@@ -1322,6 +1324,10 @@ function getReasonTone(reason) {
   }
 
   if (
+    normalized.includes("category/tag overlap") ||
+    normalized.includes("category overlap") ||
+    normalized.includes("unrelated occupation") ||
+    normalized.includes("workflow similarity") ||
     normalized.includes("complexity") ||
     normalized.includes("seniority may") ||
     (normalized.includes("senior") && !normalized.includes("senior-level workflow matches")) ||

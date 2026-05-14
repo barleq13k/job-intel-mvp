@@ -33,7 +33,9 @@ Role relevance:
 - Exact phrase matches are strongest.
 - Broad single-word roles, such as `Python` or `AI`, are weighted by title context.
 - Primary title focus ranks higher than secondary technology mentions.
-- Job category is stronger role evidence than description text, but weaker than title.
+- Job category/tag overlap is weaker than title evidence and cannot make calibrated broad-role searches Recommended by itself.
+- For calibrated broad role families such as support, admin, assistant, customer service, and virtual assistant, category/tag-only matches are capped below the Recommended threshold when the title lacks occupational evidence.
+- Clearly unrelated occupational title families such as legal, policy, clinical/provider, executive/product, or travel/hospitality coordinator roles receive a stronger cap for those broad-role searches.
 - Broad target-role matches found only in description text are intentionally light support signals.
 - Software/technical profiles get a narrow title/category alignment boost for technical roles.
 - Admin, sales, and office roles get a narrow off-domain drag for software/technical profiles unless the user explicitly asks for those domains.
@@ -89,6 +91,7 @@ Execution likelihood:
 - This label influences ranking but is still heuristic.
 - `stretch` is reserved for concrete gap signals such as seniority mismatch, platform mismatch, architecture/leadership, or other complexity. Aligned Senior profiles tolerate more architecture/platform complexity before the role is treated as a stretch.
 - Lower-score but related roles can be labeled `adjacent`; weak or off-domain roles are labeled `lower_match`.
+- Broad-role category/tag-only matches are labeled `lower_match` when capped so they remain inspectable under Explore More without crowding Recommended.
 - Description-level task-fit signals provide a small tie-break boost through `execution_likelihood_score`.
 - Description-level platform/architecture complexity signals provide a small tie-break drag through `penalties`.
 - Automation-oriented reasons require explicit job-side automation evidence such as automation, automated, automate, workflow automation, process automation, scripting, script, Zapier, Make.com, n8n, RPA, robotic process automation, Selenium, Playwright, Puppeteer, API automation, test automation, QA automation, or CI/CD automation. Generic workflow, support, troubleshooting, implementation, operations, product specialist, deployment, customer support, technical support, or software support wording does not produce an automation reason by itself.

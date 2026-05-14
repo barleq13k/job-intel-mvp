@@ -8,6 +8,7 @@
   - Real Python Fake Jobs
   - Remotive
   - Himalayas
+  - RemoteOK
   - Arbeitnow implemented in the backend but hidden from active frontend selection during source-quality review
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
@@ -15,11 +16,13 @@
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
 - Himalayas public API ingestion with conservative pagination.
+- RemoteOK public JSON feed ingestion with a conservative 60-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
-- Himalayas is treated as the primary real source; Arbeitnow and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
+- Himalayas is treated as the primary real source; RemoteOK, Arbeitnow, and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.
+- Broad-role category/tag-only protection that caps weak category-only evidence below Recommended for calibrated support/admin/assistant/customer-service/virtual-assistant searches, with stronger caps for clearly unrelated occupational title families.
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.
 - Avoid keyword penalties.
 - Legacy `strongest_skills` compatibility in the API.
@@ -60,6 +63,7 @@
 - Execution likelihood scoring.
 - Complexity and seniority penalties, including Senior-profile tolerance for aligned platform/architecture roles.
 - Broad-role title context ranking.
+- Category/tag-only relevance calibration for noisy source metadata, including RemoteOK tags.
 - Software/technical role-domain alignment and off-domain drag.
 - Script-oriented profile boosts.
 
