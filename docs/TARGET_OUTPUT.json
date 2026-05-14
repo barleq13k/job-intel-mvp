@@ -1,31 +1,54 @@
 {
-  "id": "job_001",
-  "title": "Junior QA Analyst",
-  "company": "Example Corp",
-  "location": "Remote",
-  "employment_type": "Full-time",
-  "salary": null,
-  "source": "LinkedIn",
-  "url": "https://example.com/job/123",
-
-  "normalized": {
-    "title": "junior qa analyst",
-    "company": "example corp"
-  },
-
-  "scoring": {
-    "score": 91,
-    "match_reasons": [
-      "Matches QA-related keywords",
-      "Remote-friendly role",
-      "Entry-level compatible"
-    ]
-  },
-
-  "summary": "Entry-level QA role focused on manual testing and bug reporting.",
-
-  "metadata": {
-    "ingested_at": "2026-05-11T12:00:00Z",
-    "source_type": "scraper"
+  "jobs": [
+    {
+      "id": "remotive_12345",
+      "title": "Junior QA Analyst",
+      "company": "Example Corp",
+      "location": "Remote",
+      "employment_type": null,
+      "salary": "$40k - $60k",
+      "source": "Remotive",
+      "url": "https://example.com/job/123",
+      "normalized": {
+        "title": "junior qa analyst",
+        "company": "example corp"
+      },
+      "scoring": {
+        "score": 82,
+        "match_reasons": [
+          "QA appears in the job title",
+          "Entry-level role matches your preference",
+          "Remote-friendly role"
+        ],
+        "execution_likelihood": "possible_fit",
+        "components": {
+          "role_match_score": 49,
+          "skill_match_score": 8,
+          "keyword_match_score": 16,
+          "seniority_match_score": 18,
+          "execution_likelihood_score": 4,
+          "location_workmode_score": 0,
+          "penalties": -13
+        }
+      },
+      "summary": "Entry-level QA role focused on manual testing and bug reporting.",
+      "details": [
+        "Manual testing and bug reporting",
+        "Remote-friendly team workflow"
+      ],
+      "metadata": {
+        "ingested_at": "2026-05-12T12:00:00Z",
+        "source_type": "api",
+        "source_job_id": "12345"
+      }
+    }
+  ],
+  "count": 1,
+  "source": {
+    "type": "remotive",
+    "name": "Remotive",
+    "status": "ok",
+    "message": "Remotive returned 1 jobs.",
+    "dropped_count": 0
   }
 }

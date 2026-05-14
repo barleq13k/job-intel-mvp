@@ -58,7 +58,7 @@ AI is disabled by default unless the Worker is explicitly configured with `AI_EX
 It may:
 - summarize job descriptions
 - explain deterministic scores in plain language
-- compare a job against the user’s stated profile
+- compare a job against the user's stated profile
 - clarify why a lower-scored job may be more actionable than a higher-scored one
 - identify questions to verify before applying
 - improve user understanding of existing scoring signals

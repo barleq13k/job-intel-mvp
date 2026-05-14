@@ -2,13 +2,13 @@
 
 ## Project Name
 
-Job Intelligence MVP
+Job Intel
 
 ---
 
 # Purpose
 
-This project is a fast-shipping MVP focused on helping users discover realistic and relevant remote job opportunities more efficiently through structured ingestion, normalization, transparent scoring, and actionable ranking.
+This project is a fast-shipping validation-stage build focused on helping users discover realistic and relevant remote job opportunities more efficiently through structured ingestion, normalization, transparent scoring, and actionable ranking.
 
 The primary problem being solved is:
 
@@ -83,7 +83,7 @@ AI may later be used to:
 - summarize job descriptions
 - explain deterministic scores in plain language
 - clarify why certain jobs are ranked higher or lower
-- compare jobs against the user’s stated profile
+- compare jobs against the user's stated profile
 - extract structured requirements
 - improve usability and interpretation
 

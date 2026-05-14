@@ -152,7 +152,7 @@ AI may later be expanded as an optional, non-intrusive explanation layer.
 It may:
 - summarize long job descriptions
 - explain deterministic scores in plain language
-- compare a job against the user’s stated profile
+- compare a job against the user's stated profile
 - clarify why a lower-scored job may be more actionable than a higher-scored one
 - extract structured requirements for easier review
 - suggest questions to verify before applying

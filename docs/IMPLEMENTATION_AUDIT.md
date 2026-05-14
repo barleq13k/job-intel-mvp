@@ -1,6 +1,6 @@
 # Implementation Audit
 
-This audit reflects the current MVP repository state. It is recommendation-only: do not delete, move, or refactor files automatically from this report.
+This audit reflects the current Job Intel validation-stage repository state. It is recommendation-only: do not delete, move, or refactor files automatically from this report.
 
 ## Summary
 
@@ -8,7 +8,7 @@ The implemented app is currently:
 - `frontend/`: Vite React + Tailwind app.
 - `worker/`: Cloudflare Worker with `POST /api/jobs/search`, `POST /api/jobs/evaluate`, and disabled-by-default `POST /api/jobs/explain`.
 - `docs/`: current implementation documentation.
-- `data/`: sample profile data.
+- `data/`: synthetic demo and regression data.
 
 `POST /api/jobs/explain` is an on-demand interpretation sidecar. It does not change deterministic search, scoring, ranking, restrictions, or eligibility decisions. Its in-memory cache and per-IP rate protection are best-effort MVP safeguards, not persistent or global enforcement.
 
@@ -29,10 +29,12 @@ Files:
 Why stale or risky:
 - These are generated runtime artifacts, not source files.
 - They can preserve old server output and mislead future debugging.
-- `.gitignore` already ignores `*.log`, but the files exist in the workspace.
+- `.gitignore` ignores `*.log`, `*.out.log`, and `*.err.log`.
+- The previously tracked Worker Wrangler logs are removed from the working tree and should stay deleted.
+- Frontend Vite logs may still exist locally as ignored development artifacts.
 
 Recommendation:
-- Delete later.
+- Commit tracked Worker log deletions.
 - Keep ignored.
 - Do not document behavior from these logs.
 
@@ -73,40 +75,31 @@ Recommendation:
 - Stay.
 - Keep `/docs` and `README.md` aligned whenever API fields, scoring components, or sources change.
 
-### 4. `docs/TARGET_OUTPUT.json` Is Behind Current Response Shape
+### 4. `docs/TARGET_OUTPUT.json` Is A Refreshed Example Artifact
 
 File:
 - `docs/TARGET_OUTPUT.json`
 
-Why stale or risky:
-- It lacks current fields:
-  - `details`
-  - `scoring.execution_likelihood`
-  - `scoring.components`
-- It uses `LinkedIn` as the source, but LinkedIn is not implemented.
-- It can mislead future Codex runs into thinking there is a LinkedIn source or older response contract.
+Current status:
+- It has been refreshed as a valid current response-shaped example.
+- It includes `jobs`, `count`, additive `source` diagnostics, `details`, `scoring.execution_likelihood`, and `scoring.components`.
+- It uses an implemented public source label instead of implying unsupported LinkedIn ingestion.
 
 Recommendation:
-- Consolidate later with `docs/API_CONTRACT.md`.
-- Either update it to match current schema or archive it as an original target example.
-- Do not use it as the active API contract.
+- Keep it as a lightweight example artifact.
+- Continue treating `docs/API_CONTRACT.md` and `worker/src/index.js` as the active contract/source of truth.
 
-### 5. `data/sample-profile.json` Is Valid But Incomplete
+### 5. `data/sample-profile.json` Is A Current Lightweight Sample
 
 File:
 - `data/sample-profile.json`
 
-Why stale or risky:
-- It still works because the Worker handles missing fields.
-- It omits newer profile fields:
-  - `experience_level`
-  - `avoid_keywords`
-  - `strongest_skills`
-- Future tests using only this file may miss current scoring behavior.
+Current status:
+- It includes current frontend profile fields used for a simple QA/Python automation validation search.
+- `strongest_skills` remains omitted because it is a legacy optional compatibility field, not sent by the current frontend form.
 
 Recommendation:
 - Stay.
-- Update later with the current full profile shape, or add a second sample for Remotive.
 - Do not remove because it remains useful for fallback Real Python testing.
 
 ### 6. Historical Sample Files Need Clear Precedence
@@ -114,14 +107,15 @@ Recommendation:
 Files:
 - `docs/TARGET_OUTPUT.json`
 - `data/sample-profile.json`
+- `data/sample_jobs.json`
 
-Why stale or risky:
-- Sample files can be useful for quick orientation, but they are not the active API contract.
-- Future Codex runs may overfit to examples instead of `docs/API_CONTRACT.md` and the current Worker implementation.
+Current status:
+- Sample files are useful for quick orientation and regression-style checks, but they are not the active API contract.
+- `data/sample_jobs.json` is synthetic demo/test data and should not be read as live job listings, private exports, or supported source behavior.
 
 Recommendation:
 - Treat `docs/API_CONTRACT.md` and `worker/src/index.js` as source of truth.
-- Refresh or archive stale samples later if they start causing confusion.
+- Keep synthetic labels clearly non-authoritative when they could be confused for real platform exports.
 
 ### 7. TypeScript/JavaScript Naming Inconsistency Risk
 
@@ -149,7 +143,7 @@ Checked for:
 
 Current status:
 - No active Vite starter UI files were found outside generated `dist/`/dependencies.
-- Frontend renders the Job Intel MVP from `frontend/src/main.jsx`.
+- Frontend renders Job Intel from `frontend/src/main.jsx`.
 
 Recommendation:
 - Stay.
@@ -220,9 +214,9 @@ Recommendation:
 
 ## Recommended Cleanup Order
 
-1. Delete generated `.log` files later.
-2. Update or archive `docs/TARGET_OUTPUT.json`.
-3. Refresh `data/sample-profile.json` with current optional fields.
+1. Commit tracked Worker Wrangler log deletions.
+2. Keep generated local logs, build output, dependency folders, local env files, and `.wrangler/` ignored.
+3. Keep `docs/TARGET_OUTPUT.json`, `data/sample-profile.json`, and `data/sample_jobs.json` clearly positioned as examples or synthetic test data.
 4. Keep `/docs` and `README.md` as the implementation source of truth.
 
 ## Do Not Do From This Audit

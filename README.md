@@ -100,7 +100,7 @@ Suggested captures:
 Install dependencies separately for the Worker and frontend.
 
 ```powershell
-cd C:\dev\job-intel-mvp\worker
+cd worker
 npm install
 npm run dev
 ```
@@ -108,7 +108,7 @@ npm run dev
 In another terminal:
 
 ```powershell
-cd C:\dev\job-intel-mvp\frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -118,14 +118,14 @@ Local frontend dev runs on Vite and proxies `/api` to the Worker at `http://127.
 Useful checks:
 
 ```powershell
-cd C:\dev\job-intel-mvp\worker
+cd worker
 npm run test:source
 npm run test:scoring
 npm run check
 ```
 
 ```powershell
-cd C:\dev\job-intel-mvp\frontend
+cd frontend
 npm run build
 ```
 
@@ -222,6 +222,12 @@ High-level ideas only:
 - Do not add auth, databases, queues, browser automation, embeddings, or AI services without a clear product reason.
 - Update docs when behavior, source support, deployment, or scoring interpretation changes.
 
+## Demo / Test Data
+
+The repository includes synthetic demo and regression-testing datasets used for scoring validation, UI testing, and ingestion stability checks.
+
+Files such as `data/sample_jobs.json` do not represent real job listings or live platform exports.
+
 ## License
 
-License not selected yet.
+No license selected. All rights reserved.

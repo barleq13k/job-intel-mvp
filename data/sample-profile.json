@@ -4,7 +4,9 @@
     "skills": ["Python", "Selenium", "QA"],
     "keywords": ["remote", "entry level"],
     "location": "Philippines",
-    "work_mode": "remote"
+    "work_mode": "remote",
+    "experience_level": "junior",
+    "avoid_keywords": ["senior", "manager"]
   },
   "source": {
     "type": "realpython_fake_jobs"
