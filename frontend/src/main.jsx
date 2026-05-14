@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, Sparkles, Sun } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
 import "./styles.css";
 
 const MIN_RELEVANCE_SCORE = 25;
@@ -9,6 +9,7 @@ const TRACKER_STORAGE_KEY = "job-intel-application-statuses";
 const JOB_CACHE_STORAGE_KEY = "job-intel-job-cache";
 const LAST_SEARCH_PROFILE_KEY = "job-intel-last-search-profile";
 const LAST_SEARCH_RESULTS_KEY = "job-intel-last-search-results";
+const FILTER_PANEL_COLLAPSED_KEY = "job-intel-filter-panel-collapsed";
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -107,6 +108,10 @@ function App() {
   const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
   const [jobCache, setJobCache] = useState(loadStoredJobCache);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isFilterPanelCollapsed, setIsFilterPanelCollapsed] = useState(loadStoredFilterPanelCollapsed);
+  const [isFilterOverlayOpen, setIsFilterOverlayOpen] = useState(false);
+  const floatingFilterButtonRef = useRef(null);
+  const firstFilterFieldRef = useRef(null);
 
   const visibleJobs = useMemo(() => jobs.filter((job) => job.scoring.score >= MIN_RELEVANCE_SCORE), [jobs]);
   const lowerMatchJobs = useMemo(() => jobs.filter((job) => job.scoring.score < MIN_RELEVANCE_SCORE), [jobs]);
@@ -177,6 +182,40 @@ function App() {
     setJobCache((current) => cacheTrackedCurrentJobs(current, jobs, jobStatuses));
   }, [jobs, jobStatuses]);
 
+  useEffect(() => {
+    saveStoredFilterPanelCollapsed(isFilterPanelCollapsed);
+  }, [isFilterPanelCollapsed]);
+
+  useEffect(() => {
+    if (!isFilterPanelCollapsed) {
+      setIsFilterOverlayOpen(false);
+    }
+  }, [isFilterPanelCollapsed]);
+
+  useEffect(() => {
+    if (!isFilterOverlayOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        closeFilterOverlay();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFilterOverlayOpen]);
+
+  useEffect(() => {
+    if (isFilterOverlayOpen) {
+      window.requestAnimationFrame(() => firstFilterFieldRef.current?.focus());
+    }
+  }, [isFilterOverlayOpen]);
+
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -184,6 +223,20 @@ function App() {
 
   function toggleTheme() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
+
+  function collapseFilterPanel() {
+    setIsFilterPanelCollapsed(true);
+    setIsFilterOverlayOpen(false);
+  }
+
+  function openFilterOverlay() {
+    setIsFilterOverlayOpen(true);
+  }
+
+  function closeFilterOverlay() {
+    setIsFilterOverlayOpen(false);
+    window.requestAnimationFrame(() => floatingFilterButtonRef.current?.focus());
   }
 
   function updateJobStatus(job, nextStatus) {
@@ -283,108 +336,19 @@ function App() {
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[380px_1fr]">
-        <form onSubmit={searchJobs} className="h-fit rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/30 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#131311] text-white dark:bg-[#e45033] dark:text-white">
-              <Search className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-stone-950 dark:text-stone-50">Search Profile</h2>
-              <p className="text-sm text-stone-500 dark:text-stone-400">Comma-separated roles, skills, and keywords.</p>
-            </div>
-          </div>
-
-          <Field
-            label="Target roles"
-            name="target_roles"
-            value={form.target_roles}
-            onChange={updateField}
-            placeholder="QA Tester, Python Automation"
-            helper="Examples: Python Automation, QA Tester, Frontend Developer"
+      <div className={`mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 ${isFilterPanelCollapsed ? "lg:grid-cols-1" : "lg:grid-cols-[380px_1fr]"}`}>
+        {!isFilterPanelCollapsed && (
+          <SearchProfileForm
+            id="search-profile-panel"
+            titleId="search-profile-panel-title"
+            form={form}
+            status={status}
+            onFieldChange={updateField}
+            onSubmit={searchJobs}
+            onCollapse={collapseFilterPanel}
+            firstFieldRef={firstFilterFieldRef}
           />
-          <Field
-            label="Skills"
-            name="skills"
-            value={form.skills}
-            onChange={updateField}
-            placeholder="java script, css, node js"
-            helper="Examples: javascript, node.js, react, css"
-          />
-          <Field
-            label="Keywords"
-            name="keywords"
-            value={form.keywords}
-            onChange={updateField}
-            placeholder="remote, entry level"
-            helper="Examples: entry, junior, support, automation"
-          />
-          <Field
-            label="Avoid keywords"
-            name="avoid_keywords"
-            value={form.avoid_keywords}
-            onChange={updateField}
-            placeholder="senior, manager"
-            helper="Examples: senior, lead, architect"
-          />
-          <Field label="Location" name="location" value={form.location} onChange={updateField} placeholder="Philippines" />
-
-          <label className="mb-4 block">
-            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
-            <select
-              name="experience_level"
-              value={form.experience_level}
-              onChange={updateField}
-              className={SELECT_CLASS}
-            >
-              <option value="any">Any</option>
-              <option value="beginner">Beginner</option>
-              <option value="junior">Junior</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="senior">Senior</option>
-            </select>
-          </label>
-
-          <label className="mb-4 block">
-            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Work mode</span>
-            <select
-              name="work_mode"
-              value={form.work_mode}
-              onChange={updateField}
-              className={SELECT_CLASS}
-            >
-              <option value="any">Any</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">Onsite</option>
-            </select>
-          </label>
-
-          <label className="mb-5 block">
-            <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
-            <select
-              name="source_type"
-              value={form.source_type}
-              onChange={updateField}
-              className={SELECT_CLASS}
-            >
-              {VISIBLE_SOURCE_OPTIONS.map((source) => (
-                <option key={source.value} value={source.value}>
-                  {source.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            type="submit"
-            disabled={status === "loading"}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#131311] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-stone-300/50 transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 disabled:shadow-none dark:bg-[#e45033] dark:text-white dark:shadow-none dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
-          >
-            {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Find Jobs
-          </button>
-        </form>
+        )}
 
         <section>
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -492,15 +456,200 @@ function App() {
           )}
         </section>
       </div>
+
+      {isFilterPanelCollapsed && (
+        <button
+          ref={floatingFilterButtonRef}
+          type="button"
+          onClick={openFilterOverlay}
+          className="fixed bottom-5 right-5 z-20 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-stone-300/80 bg-[#fffdf8] px-4 text-sm font-semibold text-stone-900 shadow-lg shadow-stone-500/20 transition hover:border-[#e45033]/50 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:shadow-black/30 dark:hover:border-[#e45033]/70 dark:hover:bg-stone-900"
+          aria-expanded={isFilterOverlayOpen}
+          aria-controls="search-profile-overlay"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+        </button>
+      )}
+
+      {isFilterPanelCollapsed && isFilterOverlayOpen && (
+        <div
+          id="search-profile-overlay"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="search-profile-overlay-title"
+          className="fixed inset-x-0 bottom-0 z-30 p-3 lg:inset-y-0 lg:left-0 lg:right-auto lg:flex lg:w-[420px] lg:items-stretch lg:p-4"
+        >
+          <SearchProfileForm
+            id="search-profile-overlay-form"
+            titleId="search-profile-overlay-title"
+            form={form}
+            status={status}
+            onFieldChange={updateField}
+            onSubmit={searchJobs}
+            onClose={closeFilterOverlay}
+            variant="overlay"
+            firstFieldRef={firstFilterFieldRef}
+          />
+        </div>
+      )}
     </main>
   );
 }
 
-function Field({ label, name, value, onChange, placeholder, helper }) {
+function SearchProfileForm({
+  id,
+  titleId,
+  form,
+  status,
+  onFieldChange,
+  onSubmit,
+  onCollapse,
+  onClose,
+  variant = "inline",
+  firstFieldRef
+}) {
+  const isOverlay = variant === "overlay";
+  const formClass = isOverlay
+    ? "flex max-h-[85vh] w-full flex-col rounded-2xl rounded-b-none border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-2xl shadow-stone-500/25 dark:border-stone-800 dark:bg-[#181714] dark:shadow-black/40 lg:h-full lg:max-h-none lg:rounded-b-2xl"
+    : "h-fit rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/30 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none";
+  const bodyClass = isOverlay ? "min-h-0 overflow-y-auto pr-1" : "";
+
+  return (
+    <form id={id} onSubmit={onSubmit} className={formClass}>
+      <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#131311] text-white dark:bg-[#e45033] dark:text-white">
+            <Search className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-lg font-semibold text-stone-950 dark:text-stone-50">Search Profile</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Comma-separated roles, skills, and keywords.</p>
+          </div>
+        </div>
+        {isOverlay ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+            aria-label="Close filters"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+            aria-expanded="true"
+            aria-controls={id}
+          >
+            Collapse
+          </button>
+        )}
+      </div>
+
+      <div className={bodyClass}>
+        <Field
+          label="Target roles"
+          name="target_roles"
+          value={form.target_roles}
+          onChange={onFieldChange}
+          placeholder="QA Tester, Python Automation"
+          helper="Examples: Python Automation, QA Tester, Frontend Developer"
+          inputRef={firstFieldRef}
+        />
+        <Field
+          label="Skills"
+          name="skills"
+          value={form.skills}
+          onChange={onFieldChange}
+          placeholder="java script, css, node js"
+          helper="Examples: javascript, node.js, react, css"
+        />
+        <Field
+          label="Keywords"
+          name="keywords"
+          value={form.keywords}
+          onChange={onFieldChange}
+          placeholder="remote, entry level"
+          helper="Examples: entry, junior, support, automation"
+        />
+        <Field
+          label="Avoid keywords"
+          name="avoid_keywords"
+          value={form.avoid_keywords}
+          onChange={onFieldChange}
+          placeholder="senior, manager"
+          helper="Examples: senior, lead, architect"
+        />
+        <Field label="Location" name="location" value={form.location} onChange={onFieldChange} placeholder="Philippines" />
+
+        <label className="mb-4 block">
+          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
+          <select
+            name="experience_level"
+            value={form.experience_level}
+            onChange={onFieldChange}
+            className={SELECT_CLASS}
+          >
+            <option value="any">Any</option>
+            <option value="beginner">Beginner</option>
+            <option value="junior">Junior</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="senior">Senior</option>
+          </select>
+        </label>
+
+        <label className="mb-4 block">
+          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Work mode</span>
+          <select
+            name="work_mode"
+            value={form.work_mode}
+            onChange={onFieldChange}
+            className={SELECT_CLASS}
+          >
+            <option value="any">Any</option>
+            <option value="remote">Remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">Onsite</option>
+          </select>
+        </label>
+
+        <label className="mb-5 block">
+          <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Source</span>
+          <select
+            name="source_type"
+            value={form.source_type}
+            onChange={onFieldChange}
+            className={SELECT_CLASS}
+          >
+            {VISIBLE_SOURCE_OPTIONS.map((source) => (
+              <option key={source.value} value={source.value}>
+                {source.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#131311] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-stone-300/50 transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 disabled:shadow-none dark:bg-[#e45033] dark:text-white dark:shadow-none dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
+        >
+          {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          Find Jobs
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Field({ label, name, value, onChange, placeholder, helper, inputRef }) {
   return (
     <label className="mb-4 block">
       <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
       <input
+        ref={inputRef}
         name={name}
         value={value}
         onChange={onChange}
@@ -892,6 +1041,22 @@ function saveStoredSearchResults(results) {
     localStorage.setItem(LAST_SEARCH_RESULTS_KEY, JSON.stringify(results));
   } catch {
     // Cached results are helpful, but search should still work if localStorage is unavailable.
+  }
+}
+
+function loadStoredFilterPanelCollapsed() {
+  try {
+    return localStorage.getItem(FILTER_PANEL_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveStoredFilterPanelCollapsed(isCollapsed) {
+  try {
+    localStorage.setItem(FILTER_PANEL_COLLAPSED_KEY, isCollapsed ? "true" : "false");
+  } catch {
+    // Filter visibility is a convenience preference; search should still work if localStorage is unavailable.
   }
 }
 

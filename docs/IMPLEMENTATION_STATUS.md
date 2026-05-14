@@ -16,7 +16,7 @@
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
 - Himalayas public API ingestion with conservative pagination.
-- RemoteOK public JSON feed ingestion with a conservative 60-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
+- RemoteOK public JSON feed ingestion with a conservative 100-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
@@ -28,6 +28,7 @@
 - Legacy `strongest_skills` compatibility in the API.
 - Experience level input that calibrates seniority fit, execution confidence, and complexity tolerance without overriding relevance, avoid keywords, or location restrictions.
 - Dark mode toggle with localStorage persistence.
+- Collapsible search/filter panel with localStorage persistence and a floating Filters control that opens a transient overlay for mid-scroll edits.
 - Local application status tracking with localStorage-only `Saved`, `Applied`, and `Skipped` statuses; untracked jobs are implicit and can be restored with Reset.
 - Lightweight localStorage tracked-job cache so Saved, Applied, and Skipped views can show minimal tracked job cards across searches.
 - Result view chips for All, Saved, Applied, and Skipped; All shows the current ranked search only, while tracked views combine current results with minimal cached tracked cards from prior searches.

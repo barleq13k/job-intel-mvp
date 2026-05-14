@@ -68,7 +68,7 @@ Implemented sources:
 
 - `himalayas`: visible primary real source using Himalayas public remote jobs API.
 - `remotive`: visible secondary real source using Remotive public jobs API.
-- `remoteok`: visible secondary real source using RemoteOK's public JSON feed with a conservative 60-job cap and local deterministic filtering/ranking.
+- `remoteok`: visible secondary real source using RemoteOK's public JSON feed with a conservative 100-job cap and local deterministic filtering/ranking.
 - `realpython_fake_jobs`: visible deterministic fake/static source for regression and fallback testing.
 - `arbeitnow`: backend-supported secondary validation source using Arbeitnow's public job board API with a one-page cap; hidden from active frontend selection during source-quality review.
 
@@ -170,6 +170,7 @@ Current display behavior:
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
 - country/location restrictions remain visible
 - outbound job links open the source posting
+- search/profile filters can be manually collapsed; when collapsed, a fixed overlay panel supports mid-scroll edits without changing form state or results
 - each job card may show an `Explain Match` button
 - explanations open in a collapsible per-card panel and are support text only
 
@@ -182,6 +183,7 @@ Stored locally:
 - latest successful search profile
 - latest successful result set
 - dark mode preference
+- collapsed/open search filter panel preference; transient overlay-open state is not persisted
 - job statuses: Saved, Applied, Skipped; untracked is the implicit default
 - minimal tracked job display cache for Saved, Applied, and Skipped continuity across searches
 

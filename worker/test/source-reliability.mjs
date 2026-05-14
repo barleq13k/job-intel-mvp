@@ -361,9 +361,9 @@ try {
     });
 
   const remoteOkResult = await __test.fetchRemoteOkJobs();
-  assert.equal(remoteOkResult.jobs.length, 58);
+  assert.equal(remoteOkResult.jobs.length, 66);
   assert.equal(remoteOkResult.droppedCount, 2);
-  assert.equal(remoteOkResult.maxJobs, 60);
+  assert.equal(remoteOkResult.maxJobs, 100);
   assert.equal(remoteOkResult.jobs[0].location, "Remote - US");
   assert.equal(remoteOkResult.jobs[0].url.startsWith("https://remoteok.com/remote-jobs/"), true);
 
@@ -376,7 +376,7 @@ try {
     });
 
   const emptyRemoteOkResult = await __test.fetchRemoteOkJobs();
-  assert.deepEqual(emptyRemoteOkResult, { jobs: [], droppedCount: 0, maxJobs: 60 });
+  assert.deepEqual(emptyRemoteOkResult, { jobs: [], droppedCount: 0, maxJobs: 100 });
 
   globalThis.fetch = async () => new Response("temporary outage", { status: 503 });
   await assert.rejects(() => __test.fetchRemoteOkJobs(), /status 503/);
