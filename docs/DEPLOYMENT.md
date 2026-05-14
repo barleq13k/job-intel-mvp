@@ -3,7 +3,7 @@
 This MVP deploys as two small Cloudflare projects:
 
 - Frontend: Cloudflare Pages serving the Vite build from `frontend/dist`.
-- Backend: Cloudflare Worker serving `POST /api/jobs/search` and optional `POST /api/jobs/explain`.
+- Backend: Cloudflare Worker serving `POST /api/jobs/search`, `POST /api/jobs/evaluate`, and optional `POST /api/jobs/explain`.
 
 Do not deploy from this document automatically. Create Cloudflare projects and run deploy commands manually when ready.
 
@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Local frontend requests use `/api/jobs/search`. Vite proxies `/api` to `http://127.0.0.1:8787` by default.
+Local frontend requests use `/api/jobs/search`, `/api/jobs/evaluate`, and `/api/jobs/explain`. Vite proxies `/api` to `http://127.0.0.1:8787` by default.
 
 Optional local override:
 
@@ -40,7 +40,7 @@ The frontend uses one optional build-time environment variable:
 VITE_API_BASE_URL=
 ```
 
-Leave `VITE_API_BASE_URL` empty when the deployed Pages site can reach the Worker through the same origin or a Cloudflare route that preserves `/api/jobs/search`.
+Leave `VITE_API_BASE_URL` empty when the deployed Pages site can reach the Worker through the same origin or a Cloudflare route that preserves `/api` routes.
 
 Set `VITE_API_BASE_URL` to the deployed Worker origin when the Pages site calls a separate Worker domain:
 
@@ -77,7 +77,7 @@ Current Worker settings:
 - Name: `job-intel-worker`
 - Entry point: `src/index.js`
 - Compatibility date: `2026-05-11`
-- No bindings or secrets required for `/api/jobs/search`
+- No bindings or secrets required for `/api/jobs/search` or `/api/jobs/evaluate`
 - Optional AI explanation secrets/config are required only when enabling `/api/jobs/explain`
 
 Deploy manually from `worker/`:
@@ -128,6 +128,7 @@ The frontend calls:
 
 ```text
 POST /api/jobs/search
+POST /api/jobs/evaluate
 POST /api/jobs/explain
 ```
 
@@ -137,8 +138,8 @@ The Worker returns JSON for API responses and allows cross-origin `POST` request
 
 ## Common Pitfalls
 
-- If production searches call the Pages domain and return `404`, set `VITE_API_BASE_URL` to the Worker origin in Cloudflare Pages and rebuild.
-- If local searches fail, make sure `npm run dev` is running in `worker/` before starting the frontend search.
+- If production API calls hit the Pages domain and return `404`, set `VITE_API_BASE_URL` to the Worker origin in Cloudflare Pages and rebuild.
+- If local API calls fail, make sure `npm run dev` is running in `worker/` before starting the frontend.
 - If the Worker deploys under the wrong name, confirm commands are running from `worker/` and using `wrangler.jsonc`.
 - If Pages shows an old API URL, trigger a new Pages build after changing `VITE_API_BASE_URL`.
 - If Remotive or Real Python requests fail, check the Worker logs; those are upstream source fetches, not frontend build issues.

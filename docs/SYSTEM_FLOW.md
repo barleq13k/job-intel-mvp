@@ -12,7 +12,7 @@ There is an optional, disabled-by-default explanation endpoint. It explains one 
 User search profile
   -> Frontend POST /api/jobs/search or /api/jobs/evaluate
   -> Worker source selection/fetch or manual job validation
-  -> Source normalization
+  -> Source/manual normalization
   -> Validation
   -> Deduplication
   -> Rule-based scoring
@@ -24,6 +24,8 @@ User search profile
 ## 1. User Input
 
 The user fills out the frontend search profile form.
+
+The frontend also shows a compact dismissible intro that explains the tool's boundaries: supported source search, pasted job evaluation, deterministic tradeoff review, no auto-apply, and no pasted-URL scraping.
 
 Current profile fields include:
 
@@ -39,6 +41,8 @@ Current profile fields include:
 The frontend parses comma-separated text fields, normalizes common technology aliases, and sends the profile to the Worker.
 
 In Evaluate Job mode, the user also provides a manual job title and pasted listing text, plus optional company, location, and URL. The URL is not fetched automatically.
+
+The frontend validates required manual fields before request dispatch so missing titles, missing listings, and clearly too-short listings can be corrected without an unnecessary Worker request.
 
 ## 2. API Request
 
@@ -77,7 +81,7 @@ Implemented sources:
 
 - `himalayas`: visible primary real source using Himalayas public remote jobs API.
 - `remotive`: visible secondary real source using Remotive public jobs API.
-- `remoteok`: visible secondary real source using RemoteOK's public JSON feed with a conservative 100-job cap and local deterministic filtering/ranking.
+- `remoteok`: visible secondary real source using one RemoteOK public JSON feed request with a conservative 100-job cap and local deterministic scoring/ranking. The selected profile is not sent as RemoteOK query/tag filtering.
 - `realpython_fake_jobs`: visible deterministic fake/static source for regression and fallback testing.
 - `arbeitnow`: backend-supported secondary validation source using Arbeitnow's public job board API with a one-page cap; hidden from active frontend selection during source-quality review.
 
@@ -199,6 +203,7 @@ Stored locally:
 - latest successful search profile
 - latest successful result set
 - dark mode preference
+- hidden/shown onboarding preference
 - collapsed/open search filter panel preference; transient overlay-open state is not persisted
 - job statuses: Saved, Applied, Skipped; untracked is the implicit default
 - minimal tracked job display cache for Saved, Applied, and Skipped continuity across searches

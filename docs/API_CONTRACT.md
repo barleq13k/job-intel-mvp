@@ -140,12 +140,12 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 - `id` is a stable deterministic string derived from the source job ID when available, otherwise from normalized title, company, and canonical URL. It is no longer based on display rank.
 - `salary` is `null` when unavailable.
 - `details` contains 2-4 simple description bullets when possible.
-- `metadata.source_type` is currently `api` for Remotive, Himalayas, Arbeitnow, and RemoteOK, and `scraper` for Real Python.
+- `metadata.source_type` is currently `api` for Remotive, Himalayas, Arbeitnow, and RemoteOK, `scraper` for Real Python, and `manual` for jobs evaluated through `/api/jobs/evaluate`.
 - `metadata.source_job_id` is populated when a source provides a stable upstream ID, otherwise `null`.
 - `source.status`, `source.message`, and `source.dropped_count` are additive diagnostics. `dropped_count` counts malformed upstream rows skipped during source normalization.
 - `source.message` may include source-specific context such as Himalayas or Arbeitnow page count, later-page partial fetch warnings, RemoteOK capped-feed wording, or Remotive public API batch wording. The response shape is unchanged.
 - Himalayas outbound job URLs are preserved from `applicationLink` when provided so users can reach the source/application page. RemoteOK outbound job URLs are preserved as RemoteOK source links for attribution and candidate navigation.
-- Himalayas uses a small, conservative public API page cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
+- Himalayas uses a small, conservative public API page cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request and is not query/tag-filtered before local deterministic scoring/ranking; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
 - RemoteOK location text is preserved when it carries restriction meaning, such as `Remote - US`, `Europe`, or `Spain`; restricted remote listings are not flattened to generic `Remote`.
 - RemoteOK salary ranges are displayed only when positive numeric bounds are provided and no currency is inferred from the feed.
 - Backend returns all jobs sorted by score.
@@ -241,6 +241,23 @@ The response reuses the search-like shape with one frontend-ready job:
 - Missing description returns `400`.
 - Extremely short or low-information descriptions return `400`.
 - Oversized manual job payloads return `413`.
+
+Evaluation validation errors keep the existing `error` text and may include additive `code` and `field` values so the frontend can show calmer field-specific guidance:
+
+```json
+{
+  "error": "Manual job description is too short to evaluate reliably.",
+  "code": "manual_description_too_short",
+  "field": "description"
+}
+```
+
+Known evaluation validation codes include:
+
+- `manual_payload_too_large`
+- `manual_title_required`
+- `manual_description_required`
+- `manual_description_too_short`
 
 ---
 

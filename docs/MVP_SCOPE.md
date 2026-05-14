@@ -23,9 +23,10 @@ Users can configure:
 
 ---
 
-### Job Ingestion
+### Job Ingestion And Manual Evaluation
 System can:
 - fetch jobs from at least one source
+- evaluate a manually pasted listing through the same deterministic scoring pipeline
 - ingest structured job data
 - normalize jobs
 - validate schema consistency
@@ -77,6 +78,8 @@ Users can:
 - view job summaries
 - open original job links
 - track Saved, Applied, and Skipped status locally in browser localStorage
+- switch between Find Jobs and Evaluate Job modes in the existing workflow
+- dismiss a compact onboarding intro stored only in localStorage
 - request an on-demand `Explain Match` panel for a visible job when the explain endpoint is available
 
 ---

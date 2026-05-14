@@ -4,6 +4,7 @@
 
 - User-driven job profile form.
 - Worker search endpoint: `POST /api/jobs/search`.
+- Manual job evaluation endpoint: `POST /api/jobs/evaluate`.
 - Optional explanation endpoint: `POST /api/jobs/explain`.
 - Real Python Fake Jobs fallback/testing source.
 - Remotive real public API source.
@@ -12,7 +13,9 @@
 - Arbeitnow backend-supported source hidden from the frontend during source-quality review.
 - Rule-based ranking and execution likelihood.
 - Ranked dashboard with score, reasons, compensation when available, and job links.
+- Evaluate Job mode for manually pasted listings from unsupported sources; title and listing text are required, while company, location, and URL are optional.
 - LocalStorage-only search restore, theme preference, and Saved/Applied/Skipped tracking.
+- Compact dismissible onboarding stored only in localStorage.
 - Disabled-by-default on-demand match explanations with a per-card collapsible panel.
 - Local Vite + Wrangler development.
 

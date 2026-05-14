@@ -6,13 +6,15 @@ This audit reflects the current MVP repository state. It is recommendation-only:
 
 The implemented app is currently:
 - `frontend/`: Vite React + Tailwind app.
-- `worker/`: Cloudflare Worker with `POST /api/jobs/search` and disabled-by-default `POST /api/jobs/explain`.
+- `worker/`: Cloudflare Worker with `POST /api/jobs/search`, `POST /api/jobs/evaluate`, and disabled-by-default `POST /api/jobs/explain`.
 - `docs/`: current implementation documentation.
 - `data/`: sample profile data.
 
 `POST /api/jobs/explain` is an on-demand interpretation sidecar. It does not change deterministic search, scoring, ranking, restrictions, or eligibility decisions. Its in-memory cache and per-IP rate protection are best-effort MVP safeguards, not persistent or global enforcement.
 
-No Vite starter UI is currently rendered. No Worker starter handler is currently active. The largest drift risks are stale root markdown/json files and generated local dev artifacts.
+`POST /api/jobs/evaluate` evaluates one manually pasted listing through the same deterministic scoring path as source jobs. It does not fetch pasted URLs, parse with AI, persist data, or introduce a second scoring system.
+
+No Vite starter UI is currently rendered. No Worker starter handler is currently active. The largest drift risks are generated local dev artifacts and historical sample/contract files that are not the active implementation contract.
 
 ## Issues
 
@@ -52,32 +54,29 @@ Recommendation:
 - Do not commit.
 - Delete/recreate later if troubleshooting dependency or build issues.
 
-### 3. Root Product Docs Are Older Than Current Implementation
+### 3. Implementation Docs Are The Current Source Of Truth
 
 Files:
-- `PROJECT_VISION.md`
-- `MVP_SCOPE.md`
-- `SYSTEM_FLOW.md`
+- `README.md`
+- `docs/API_CONTRACT.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SYSTEM_FLOW.md`
+- `docs/IMPLEMENTATION_STATUS.md`
+- `docs/SCORING_PHILOSOPHY.md`
 
-Why stale or risky:
-- They predate the implemented Vite + Worker MVP.
-- They mention broad concepts like older AI-assisted direction, PWA support, deployment, and possible database direction.
-- `SYSTEM_FLOW.md` references nonexistent Python files:
-  - `ingest.py`
-  - `validator.py`
-  - `sources/base.py`
-- These files are useful as product intent but risky as implementation guidance.
+Current status:
+- Root-level legacy planning markdown files are not present in the current workspace.
+- The active implementation docs live under `/docs`, with `README.md` as the project overview.
+- Future work should not infer Python ingestion modules, databases, browser automation, or AI ranking from older planning concepts.
 
 Recommendation:
-- Stay as historical/product context.
-- Add a short header later marking them as legacy planning docs.
-- Use `/docs` as implementation source of truth.
-- Do not implement Python ingestion modules just because `SYSTEM_FLOW.md` mentions them.
+- Stay.
+- Keep `/docs` and `README.md` aligned whenever API fields, scoring components, or sources change.
 
-### 4. `TARGET_OUTPUT.json` Is Behind Current Response Shape
+### 4. `docs/TARGET_OUTPUT.json` Is Behind Current Response Shape
 
 File:
-- `TARGET_OUTPUT.json`
+- `docs/TARGET_OUTPUT.json`
 
 Why stale or risky:
 - It lacks current fields:
@@ -110,21 +109,19 @@ Recommendation:
 - Update later with the current full profile shape, or add a second sample for Remotive.
 - Do not remove because it remains useful for fallback Real Python testing.
 
-### 6. Duplicate Architecture References
+### 6. Historical Sample Files Need Clear Precedence
 
 Files:
-- Root docs: `PROJECT_VISION.md`, `MVP_SCOPE.md`, `SYSTEM_FLOW.md`
-- Current docs: `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/API_CONTRACT.md`, `docs/SCORING_PHILOSOPHY.md`
+- `docs/TARGET_OUTPUT.json`
+- `data/sample-profile.json`
 
 Why stale or risky:
-- Root docs describe product direction and earlier intended flow.
-- `/docs` describes current implementation.
-- Without clear precedence, future Codex runs may follow stale root docs and add non-existent systems.
+- Sample files can be useful for quick orientation, but they are not the active API contract.
+- Future Codex runs may overfit to examples instead of `docs/API_CONTRACT.md` and the current Worker implementation.
 
 Recommendation:
-- Consolidate later by adding cross-links and precedence notes.
-- Treat `/docs` as current implementation truth.
-- Treat root docs as historical product intent.
+- Treat `docs/API_CONTRACT.md` and `worker/src/index.js` as source of truth.
+- Refresh or archive stale samples later if they start causing confusion.
 
 ### 7. TypeScript/JavaScript Naming Inconsistency Risk
 
@@ -176,7 +173,6 @@ Recommendation:
 Files:
 - `docs/ROADMAP.md`
 - `docs/SCORING_PHILOSOPHY.md`
-- root planning docs
 
 Why stale or risky:
 - Groq may be used only by `POST /api/jobs/explain` when explicitly enabled.
@@ -205,16 +201,18 @@ Recommendation:
 ### 12. Current Docs Are Mostly Aligned
 
 Files:
+- `README.md`
 - `docs/ARCHITECTURE.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 - `docs/CODEX_GUARDRAILS.md`
 - `docs/SCORING_PHILOSOPHY.md`
 - `docs/API_CONTRACT.md`
 - `docs/ROADMAP.md`
+- `docs/SYSTEM_FLOW.md`
 
 Current status:
 - These docs reflect current Vite/Worker architecture, current sources, current scoring, and current exclusions.
-- They should be considered more current than root planning docs.
+- They should be treated as the active implementation reference set.
 
 Recommendation:
 - Stay.
@@ -223,10 +221,9 @@ Recommendation:
 ## Recommended Cleanup Order
 
 1. Delete generated `.log` files later.
-2. Add legacy/context headers to root markdown files.
-3. Update or archive `TARGET_OUTPUT.json`.
-4. Refresh `data/sample-profile.json` with current optional fields.
-5. Keep `/docs` as the implementation source of truth.
+2. Update or archive `docs/TARGET_OUTPUT.json`.
+3. Refresh `data/sample-profile.json` with current optional fields.
+4. Keep `/docs` and `README.md` as the implementation source of truth.
 
 ## Do Not Do From This Audit
 

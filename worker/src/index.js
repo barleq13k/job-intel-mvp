@@ -408,7 +408,7 @@ async function handleJobEvaluate(request) {
   const contentLength = Number(request.headers.get("content-length") || 0);
 
   if (Number.isFinite(contentLength) && contentLength > MANUAL_EVALUATE_MAX_BODY_BYTES) {
-    return json({ error: "Manual job payload is too large." }, 413);
+    return json(makeValidationError("Manual job payload is too large.", "manual_payload_too_large"), 413);
   }
 
   let body;
@@ -420,13 +420,13 @@ async function handleJobEvaluate(request) {
   }
 
   if (JSON.stringify(body).length > MANUAL_EVALUATE_MAX_BODY_BYTES) {
-    return json({ error: "Manual job payload is too large." }, 413);
+    return json(makeValidationError("Manual job payload is too large.", "manual_payload_too_large"), 413);
   }
 
   const validation = validateManualEvaluateRequest(body);
 
   if (!validation.ok) {
-    return json({ error: validation.error }, validation.status || 400);
+    return json(makeValidationError(validation.error, validation.code, validation.field), validation.status || 400);
   }
 
   const ingestedAt = new Date().toISOString();
@@ -1078,15 +1078,15 @@ function normalizeProfileTerm(value) {
 
 function validateManualEvaluateRequest(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return { ok: false, error: "Request body must be a JSON object." };
+    return { ok: false, error: "Request body must be a JSON object.", code: "invalid_request" };
   }
 
   if (!body.profile || typeof body.profile !== "object" || Array.isArray(body.profile)) {
-    return { ok: false, error: "Request body must include a profile object." };
+    return { ok: false, error: "Request body must include a profile object.", code: "profile_required", field: "profile" };
   }
 
   if (!body.job || typeof body.job !== "object" || Array.isArray(body.job)) {
-    return { ok: false, error: "Request body must include a job object." };
+    return { ok: false, error: "Request body must include a job object.", code: "manual_job_required", field: "job" };
   }
 
   const normalizedJob = normalizeManualJob(body.job);
@@ -1106,7 +1106,7 @@ function normalizeManualJob(job) {
   const title = limitText(job.title, 140);
 
   if (!title) {
-    return { ok: false, error: "Manual job title is required." };
+    return { ok: false, error: "Manual job title is required.", code: "manual_title_required", field: "title" };
   }
 
   const description = limitText(cleanHtml(job.description || ""), MANUAL_DESCRIPTION_MAX_CHARS);
@@ -1114,11 +1114,11 @@ function normalizeManualJob(job) {
   const meaningfulWords = searchableDescription.split(" ").filter((word) => word.length >= 2);
 
   if (!description) {
-    return { ok: false, error: "Manual job description is required." };
+    return { ok: false, error: "Manual job description is required.", code: "manual_description_required", field: "description" };
   }
 
   if (description.length < MANUAL_DESCRIPTION_MIN_CHARS || meaningfulWords.length < MANUAL_DESCRIPTION_MIN_WORDS) {
-    return { ok: false, error: "Manual job description is too short to evaluate reliably." };
+    return { ok: false, error: "Manual job description is too short to evaluate reliably.", code: "manual_description_too_short", field: "description" };
   }
 
   const company = limitText(job.company, 120) || "Unknown company";
@@ -1167,6 +1167,14 @@ function normalizeManualUrl(value) {
   } catch {
     return null;
   }
+}
+
+function makeValidationError(error, code, field) {
+  return {
+    error,
+    ...(code ? { code } : {}),
+    ...(field ? { field } : {})
+  };
 }
 
 async function fetchRealPythonJobs() {

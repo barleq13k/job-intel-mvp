@@ -8,6 +8,8 @@ The Worker returns `scoring.score` from `0` to `100` plus reasons and component 
 
 Source jobs and manually pasted jobs use the same deterministic scoring engine. Manual evaluation only changes how the job text enters the pipeline; it does not introduce AI parsing, AI scoring, embeddings, URL fetching, or persistence.
 
+Frontend validation for manually pasted jobs only checks whether enough text is present to evaluate; it does not change scores, reasons, ranking, or eligibility interpretation.
+
 ## Scoring Structure
 
 The Worker keeps scoring in one file for MVP simplicity, but the scoring internals are organized around:

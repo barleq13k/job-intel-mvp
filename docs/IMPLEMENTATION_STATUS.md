@@ -12,6 +12,7 @@
   - Arbeitnow implemented in the backend but hidden from active frontend selection during source-quality review
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
+- Compact dismissible onboarding intro that explains source search, pasted job evaluation, tradeoff review, and product boundaries.
 - `POST /api/jobs/search` Worker endpoint.
 - `POST /api/jobs/evaluate` Worker endpoint for manually pasted job listings.
 - Real Python static HTML ingestion.
@@ -21,6 +22,7 @@
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Manual job validation and normalization into the same deterministic scoring pipeline used by source jobs, without fetching pasted URLs.
+- Frontend manual job validation for required title/listing fields and clearly too-short listings before request dispatch.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
 - Himalayas is treated as the primary real source; RemoteOK, Arbeitnow, and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.

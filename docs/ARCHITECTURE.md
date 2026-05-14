@@ -9,6 +9,7 @@ Frontend:
 - `lucide-react` for icons
 - No router, auth client, data fetching library, or state management library
 - Local application tracking and the latest successful search snapshot are stored only in browser localStorage
+- A compact onboarding intro can be dismissed, with that local preference stored only in browser localStorage
 - The search profile panel can be manually collapsed; that local UI preference is stored only in browser localStorage, while the collapsed overlay is transient
 - The existing search form includes a narrow Find Jobs/Evaluate Job mode switch for source search or manual pasted job evaluation
 - Match explanations are displayed in a per-card collapsible panel and are not saved to localStorage
@@ -33,6 +34,8 @@ Backend:
 8. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
 
 Manual evaluation follows the same scoring/display path, except the frontend sends one pasted job to `POST /api/jobs/evaluate`; the Worker does not fetch the pasted URL.
+
+The frontend performs simple manual evaluation validation before dispatching requests for required title/listing fields and clearly too-short listing text. Backend validation remains the final guardrail.
 
 ## Data Flow
 
@@ -61,7 +64,7 @@ There is no source registry, plugin system, crawler system, browser automation, 
 
 Manual pasted jobs are not a source integration. They are user-submitted text normalized into the same internal job shape and scored once on request.
 
-Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. RemoteOK is a secondary real source with a conservative 100-job cap from one public feed request while source quality, latency, scoring behavior, and UI usability are evaluated. Arbeitnow is a secondary validation source with a one-page cap while source quality and stability are evaluated. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
+Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. RemoteOK is a secondary real source with a conservative 100-job cap from one public feed request while source quality, latency, scoring behavior, and UI usability are evaluated; it is not query/tag-filtered before local deterministic scoring/ranking. Arbeitnow is a secondary validation source with a one-page cap while source quality and stability are evaluated. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
 
 Real sources share timeout handling, malformed-row skipping, source diagnostics, deduplication, and stable job ID behavior. Himalayas and Arbeitnow outbound links are preserved from source/application URLs for attribution and user navigation. RemoteOK outbound links remain RemoteOK URLs, location restriction text is preserved, and salary currency is not inferred from numeric bounds.
 

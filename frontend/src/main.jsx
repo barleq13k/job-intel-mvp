@@ -10,6 +10,9 @@ const JOB_CACHE_STORAGE_KEY = "job-intel-job-cache";
 const LAST_SEARCH_PROFILE_KEY = "job-intel-last-search-profile";
 const LAST_SEARCH_RESULTS_KEY = "job-intel-last-search-results";
 const FILTER_PANEL_COLLAPSED_KEY = "job-intel-filter-panel-collapsed";
+const ONBOARDING_HIDDEN_KEY = "job-intel-onboarding-hidden";
+const MANUAL_LISTING_MIN_CHARS = 80;
+const MANUAL_LISTING_MIN_WORDS = 12;
 const TECH_ALIASES = {
   "java script": "javascript",
   "node js": "node.js",
@@ -104,16 +107,112 @@ function buildSearchProfile(form) {
   };
 }
 
+function validateManualJobInput(job) {
+  const title = cleanDisplayText(job.title);
+  const description = cleanDisplayText(job.description);
+  const errors = {};
+
+  if (!title) {
+    errors.title = "Add a job title before evaluating.";
+  }
+
+  if (!description) {
+    errors.description = "Paste the job listing before evaluating.";
+  } else if (description.length < MANUAL_LISTING_MIN_CHARS || getUsefulWordCount(description) < MANUAL_LISTING_MIN_WORDS) {
+    errors.description = "Paste more of the job description so the score has enough signal.";
+  }
+
+  const normalizedUrl = normalizeOptionalManualUrl(job.url);
+  const hasInvalidUrl = cleanDisplayText(job.url) && !normalizedUrl;
+  const note = hasInvalidUrl ? "That URL was not used. You can still evaluate the listing." : "";
+
+  return {
+    ok: Object.keys(errors).length === 0,
+    errors,
+    note,
+    url: normalizedUrl || "",
+    message: errors.title || errors.description || ""
+  };
+}
+
+function getUsefulWordCount(value) {
+  return cleanDisplayText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word.length >= 2).length;
+}
+
+function normalizeOptionalManualUrl(value) {
+  const text = cleanDisplayText(value);
+
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const url = new URL(text);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return "";
+    }
+
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function getEvaluationErrorMessage(data, statusCode) {
+  const codeMessages = {
+    manual_title_required: "Add a job title before evaluating.",
+    manual_description_required: "Paste the job listing before evaluating.",
+    manual_description_too_short: "Paste more of the job description so the score has enough signal.",
+    manual_payload_too_large: "This listing is too large to evaluate. Try pasting the main responsibilities and requirements."
+  };
+
+  if (data?.code && codeMessages[data.code]) {
+    return codeMessages[data.code];
+  }
+
+  if (statusCode === 413) {
+    return codeMessages.manual_payload_too_large;
+  }
+
+  const backendMessage = cleanDisplayText(data?.error || data?.source?.message);
+
+  if (backendMessage) {
+    return backendMessage;
+  }
+
+  return `Evaluation failed with status ${statusCode}.`;
+}
+
+function getNetworkAwareErrorMessage(error, action) {
+  const message = cleanDisplayText(error?.message);
+
+  if (message === "Failed to fetch" || message === "NetworkError when attempting to fetch resource.") {
+    return action === "evaluation"
+      ? "Could not reach the evaluation service. Check that the Worker is running, then try again."
+      : "Could not reach the job search service. Check that the Worker is running, then try again.";
+  }
+
+  return message || "Something went wrong. Please try again.";
+}
+
 function App() {
   const [restoredSearch] = useState(loadStoredSearchResults);
   const [form, setForm] = useState(() => loadStoredSearchProfile() || initialForm);
   const [workflowMode, setWorkflowMode] = useState(() => (restoredSearch?.sourceInfo?.type === "manual" ? "evaluate" : "search"));
   const [manualJob, setManualJob] = useState(initialManualJob);
+  const [manualValidation, setManualValidation] = useState({ errors: {}, note: "" });
   const [jobs, setJobs] = useState(() => restoredSearch?.jobs || []);
   const [status, setStatus] = useState(() => (restoredSearch ? "success" : "idle"));
   const [error, setError] = useState("");
   const [sourceInfo, setSourceInfo] = useState(() => restoredSearch?.sourceInfo || null);
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
+  const [isOnboardingHidden, setIsOnboardingHidden] = useState(loadStoredOnboardingHidden);
   const [showExploreMore, setShowExploreMore] = useState(false);
   const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
   const [jobCache, setJobCache] = useState(loadStoredJobCache);
@@ -235,6 +334,15 @@ function App() {
   function updateManualJobField(event) {
     const { name, value } = event.target;
     setManualJob((current) => ({ ...current, [name]: value }));
+    setManualValidation((current) => ({
+      errors: Object.fromEntries(Object.entries(current.errors || {}).filter(([field]) => field !== name)),
+      note: name === "url" ? "" : current.note
+    }));
+  }
+
+  function hideOnboarding() {
+    setIsOnboardingHidden(true);
+    saveStoredOnboardingHidden(true);
   }
 
   function toggleTheme() {
@@ -324,6 +432,15 @@ function App() {
 
   async function evaluateManualJob(event) {
     event.preventDefault();
+    const validation = validateManualJobInput(manualJob);
+    setManualValidation(validation);
+
+    if (!validation.ok) {
+      setError(validation.message);
+      setStatus("error");
+      return;
+    }
+
     setStatus("loading");
     setError("");
     setJobs([]);
@@ -333,7 +450,10 @@ function App() {
 
     const payload = {
       profile: buildSearchProfile(form),
-      job: manualJob
+      job: {
+        ...manualJob,
+        url: validation.url
+      }
     };
 
     try {
@@ -348,7 +468,7 @@ function App() {
       setSourceInfo(nextSourceInfo);
 
       if (!response.ok) {
-        throw new Error(data.source?.message || data.error || `Evaluation failed with status ${response.status}.`);
+        throw new Error(getEvaluationErrorMessage(data, response.status));
       }
 
       const nextJobs = Array.isArray(data.jobs) ? data.jobs : [];
@@ -360,7 +480,7 @@ function App() {
         sourceInfo: nextSourceInfo
       });
     } catch (evaluationError) {
-      setError(evaluationError.message);
+      setError(getNetworkAwareErrorMessage(evaluationError, "evaluation"));
       setStatus("error");
     }
   }
@@ -375,7 +495,7 @@ function App() {
               Job Intelligence MVP
             </div>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-[#131311] sm:text-5xl dark:text-stone-50">
-              Rank real scraped jobs against your search profile.
+              Compare remote jobs against your search profile.
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -395,6 +515,8 @@ function App() {
         </div>
       </section>
 
+      {!isOnboardingHidden && <OnboardingPanel onDismiss={hideOnboarding} />}
+
       <div className={`mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 ${isFilterPanelCollapsed ? "lg:grid-cols-1" : "lg:grid-cols-[380px_1fr]"}`}>
         {!isFilterPanelCollapsed && (
           <SearchProfileForm
@@ -403,6 +525,7 @@ function App() {
             form={form}
             mode={workflowMode}
             manualJob={manualJob}
+            manualValidation={manualValidation}
             status={status}
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
@@ -548,6 +671,7 @@ function App() {
             form={form}
             mode={workflowMode}
             manualJob={manualJob}
+            manualValidation={manualValidation}
             status={status}
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
@@ -563,12 +687,62 @@ function App() {
   );
 }
 
+function OnboardingPanel({ onDismiss }) {
+  return (
+    <section className="border-b border-stone-200/80 bg-[#f7f5f1]/80 transition-colors dark:border-stone-800 dark:bg-[#181714]/80">
+      <div className="mx-auto max-w-7xl px-5 py-4 sm:px-8">
+        <div className="rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-4 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <h2 className="text-lg font-semibold text-stone-950 dark:text-stone-50">Calm remote-job decision support.</h2>
+              <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Use your search profile to find supported remote-job listings, evaluate pasted jobs from anywhere, and understand the tradeoffs before you apply.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+            >
+              Hide intro
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <OnboardingItem
+              title="Find jobs"
+              text="Search Himalayas, Remotive, RemoteOK, or the demo source and get deterministic match scores."
+            />
+            <OnboardingItem
+              title="Evaluate a job"
+              text="Paste a listing from Upwork, LinkedIn, OnlineJobs.ph, a recruiter message, or a company page."
+            />
+            <OnboardingItem
+              title="Review tradeoffs"
+              text="See score reasons, restrictions, and optional explanations. No auto-apply, pasted-URL scraping, or eligibility decisions."
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OnboardingItem({ title, text }) {
+  return (
+    <div className="rounded-xl border border-stone-200/70 bg-[#fffdf8]/70 p-3 dark:border-stone-800 dark:bg-stone-950/20">
+      <div className="text-sm font-semibold text-stone-950 dark:text-stone-50">{title}</div>
+      <p className="mt-1 text-sm leading-5 text-stone-600 dark:text-stone-300">{text}</p>
+    </div>
+  );
+}
+
 function SearchProfileForm({
   id,
   titleId,
   form,
   mode,
   manualJob,
+  manualValidation,
   status,
   onFieldChange,
   onManualJobChange,
@@ -581,6 +755,8 @@ function SearchProfileForm({
 }) {
   const isOverlay = variant === "overlay";
   const isEvaluateMode = mode === "evaluate";
+  const manualErrors = manualValidation?.errors || {};
+  const manualNote = manualValidation?.note || "";
   const formClass = isOverlay
     ? "flex max-h-[85vh] w-full flex-col rounded-2xl rounded-b-none border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-2xl shadow-stone-500/25 dark:border-stone-800 dark:bg-[#181714] dark:shadow-black/40 lg:h-full lg:max-h-none lg:rounded-b-2xl"
     : "h-fit rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-5 shadow-sm shadow-stone-300/30 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none";
@@ -721,7 +897,12 @@ function SearchProfileForm({
           <div className="my-5 rounded-xl border border-stone-200/80 bg-[#fffdf8]/60 p-4 dark:border-stone-800 dark:bg-stone-950/20">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-50">Job to evaluate</h3>
-              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Paste the listing text. URLs are stored as links only and are never fetched.</p>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                Job title and full listing are required. Company, location, and URL are optional.
+              </p>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                The URL is only saved as a link. The app does not fetch or scrape it.
+              </p>
             </div>
             <Field
               label="Job title"
@@ -729,27 +910,29 @@ function SearchProfileForm({
               value={manualJob.title}
               onChange={onManualJobChange}
               placeholder="Junior QA Automation Tester"
+              error={manualErrors.title}
             />
             <Field
-              label="Company"
+              label="Company (optional)"
               name="company"
               value={manualJob.company}
               onChange={onManualJobChange}
               placeholder="Optional"
             />
             <Field
-              label="Job location"
+              label="Job location (optional)"
               name="location"
               value={manualJob.location}
               onChange={onManualJobChange}
               placeholder="Remote, Philippines, Worldwide"
             />
             <Field
-              label="Job URL"
+              label="Job URL (optional)"
               name="url"
               value={manualJob.url}
               onChange={onManualJobChange}
               placeholder="https://example.com/job"
+              helper={manualNote || undefined}
             />
             <TextAreaField
               label="Full listing"
@@ -758,6 +941,7 @@ function SearchProfileForm({
               onChange={onManualJobChange}
               placeholder="Paste the responsibilities, requirements, location restrictions, and application notes."
               helper="Minimum useful detail is required for deterministic scoring."
+              error={manualErrors.description}
             />
           </div>
         ) : (
@@ -791,7 +975,10 @@ function SearchProfileForm({
   );
 }
 
-function Field({ label, name, value, onChange, placeholder, helper, inputRef }) {
+function Field({ label, name, value, onChange, placeholder, helper, error, inputRef }) {
+  const helperId = helper ? `${name}-helper` : undefined;
+  const errorId = error ? `${name}-error` : undefined;
+
   return (
     <label className="mb-4 block">
       <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
@@ -802,13 +989,19 @@ function Field({ label, name, value, onChange, placeholder, helper, inputRef }) 
         onChange={onChange}
         placeholder={placeholder}
         className={FIELD_CLASS}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={[helperId, errorId].filter(Boolean).join(" ") || undefined}
       />
-      {helper && <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
+      {helper && <span id={helperId} className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
+      {error && <span id={errorId} className="mt-1.5 block text-xs font-medium text-red-700 dark:text-red-300">{error}</span>}
     </label>
   );
 }
 
-function TextAreaField({ label, name, value, onChange, placeholder, helper }) {
+function TextAreaField({ label, name, value, onChange, placeholder, helper, error }) {
+  const helperId = helper ? `${name}-helper` : undefined;
+  const errorId = error ? `${name}-error` : undefined;
+
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
@@ -819,8 +1012,11 @@ function TextAreaField({ label, name, value, onChange, placeholder, helper }) {
         placeholder={placeholder}
         rows={8}
         className={`${FIELD_CLASS} min-h-40 resize-y`}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={[helperId, errorId].filter(Boolean).join(" ") || undefined}
       />
-      {helper && <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
+      {helper && <span id={helperId} className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">{helper}</span>}
+      {error && <span id={errorId} className="mt-1.5 block text-xs font-medium text-red-700 dark:text-red-300">{error}</span>}
     </label>
   );
 }
@@ -874,7 +1070,7 @@ function TrackedEmptyState({ status }) {
   );
 }
 
-function EmptyState({ title = "No search yet", message = "Your submitted profile drives scraping, scoring, reasons, and the final ranking." }) {
+function EmptyState({ title = "No search yet", message = "Your search profile drives deterministic job matching." }) {
   return (
     <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] p-8 text-center shadow-sm shadow-stone-300/20 dark:border-stone-700 dark:bg-[#181714] dark:shadow-none">
       <div>
@@ -1227,6 +1423,22 @@ function saveStoredFilterPanelCollapsed(isCollapsed) {
     localStorage.setItem(FILTER_PANEL_COLLAPSED_KEY, isCollapsed ? "true" : "false");
   } catch {
     // Filter visibility is a convenience preference; search should still work if localStorage is unavailable.
+  }
+}
+
+function loadStoredOnboardingHidden() {
+  try {
+    return localStorage.getItem(ONBOARDING_HIDDEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveStoredOnboardingHidden(isHidden) {
+  try {
+    localStorage.setItem(ONBOARDING_HIDDEN_KEY, isHidden ? "true" : "false");
+  } catch {
+    // Onboarding is a convenience hint; storage failures should not block the app.
   }
 }
 
