@@ -72,6 +72,11 @@ const ELIGIBILITY_SIGNAL_CLASSES = {
   blocked:
     "border-red-200/90 bg-red-50/70 text-red-900 dark:border-red-900/80 dark:bg-red-950/55 dark:text-red-200"
 };
+const DECISION_HELPERS = {
+  apply: "Strong enough to prioritize.",
+  inspect: "Potentially relevant, but check eligibility, requirements, or red flags before applying.",
+  low: "Probably not worth prioritizing right now."
+};
 const FIELD_CLASS =
   "w-full rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#e45033] focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-[#e45033] dark:focus:ring-[#e45033]/20";
 const SELECT_CLASS = FIELD_CLASS;
@@ -571,7 +576,8 @@ function App() {
               <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
               <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
               <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                Score guide: 70+ strong match, 50-69 possible fit, below 50 review carefully.
+                Score guide: use the score to decide whether a job is worth your effort before applying.
+                70+ is strong, 50-69 is possible, and below 50 needs careful review.
               </p>
             </div>
           </div>
@@ -595,7 +601,7 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-xl border border-stone-200/80 bg-[#fbfaf7] px-4 py-3 text-sm text-stone-600 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:text-stone-300 dark:shadow-none">
-                {sourceInfo?.message || "Recommended is for first-pass decisions. Explore More keeps useful leads, stretches, and low-confidence roles available."}
+                {sourceInfo?.message || "Recommended is for first-pass decisions before applying. Explore More keeps useful leads, stretch roles, and low-confidence roles available."}
               </div>
               {hasNoSelectedTrackedJobs ? (
                 <TrackedEmptyState status={selectedTrackedStatus} />
@@ -604,7 +610,7 @@ function App() {
                   <div className="mb-3">
                     <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Recommended - apply or inspect first</h3>
                     <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                      Stronger role alignment. Check red chips before applying.
+                      Stronger role alignment. Use the decision label and reason chips before spending application effort.
                     </p>
                   </div>
                   <div className="grid gap-4">
@@ -636,9 +642,9 @@ function App() {
                 <section className="mt-6">
                   <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Explore More - inspect later</h3>
+                      <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Explore More - lower priority</h3>
                       <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                        Adjacent, stretch, restricted, or weak leads. Useful for review, not the first pass.
+                        Adjacent, stretch, restricted, or weak leads. Useful for review after stronger matches.
                       </p>
                     </div>
                     {visibleJobsToShow.length > 0 && (
@@ -1157,6 +1163,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   const [isExplanationCached, setIsExplanationCached] = useState(false);
   const decision = getDecisionSummary(job, variant);
   const eligibilitySignal = getEligibilitySignal(job);
+  const beforeApplyingChecks = getBeforeApplyingChecks(job.scoring.match_reasons);
   const isManualJob = job.metadata?.source_type === "manual" || job.source === "Manual Paste";
   let scoreColor = "text-emerald-700 dark:text-emerald-300";
 
@@ -1264,6 +1271,8 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
         </div>
       </div>
 
+      {beforeApplyingChecks.length > 0 && <BeforeApplyingChecks checks={beforeApplyingChecks} />}
+
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">
@@ -1329,6 +1338,22 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
         />
       )}
     </article>
+  );
+}
+
+function BeforeApplyingChecks({ checks }) {
+  return (
+    <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-sm text-amber-950 dark:border-amber-900/80 dark:bg-amber-950/25 dark:text-amber-100">
+      <div className="mb-2 text-xs font-semibold uppercase text-amber-800 dark:text-amber-200">Before applying, check</div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {checks.map((check) => (
+          <div key={`${check.label}-${check.reason}`} className="rounded-lg border border-amber-200/70 bg-[#fffdf8]/70 px-3 py-2 dark:border-amber-900/70 dark:bg-stone-950/20">
+            <div className="font-semibold">{check.label}</div>
+            <div className="mt-0.5 text-xs leading-5 opacity-80">{check.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1806,7 +1831,6 @@ function getStatusButtonLabel(currentStatus, buttonStatus) {
 
 function getDecisionSummary(job, variant) {
   const hasNegative = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "negative");
-  const hasCaution = job.scoring.match_reasons.some((reason) => getReasonTone(reason) === "caution");
   const hasStrongRoleEvidence = hasDirectRoleEvidence(job);
   const fit = job.scoring.execution_likelihood;
   const isActionableFit = ["strong_fit", "possible_fit"].includes(fit) || job.scoring.score >= 60;
@@ -1815,32 +1839,32 @@ function getDecisionSummary(job, variant) {
   if (isRelevantBlocked) {
     return {
       tone: "restricted",
-      label: "Check eligibility",
-      helper: "Relevant signals may be blocked"
+      label: "Inspect First",
+      helper: DECISION_HELPERS.inspect
     };
   }
 
   if (hasNegative && variant === "lower") {
     return {
       tone: "low",
-      label: "Low priority",
-      helper: "Restricted and weak match"
+      label: "Low Priority",
+      helper: DECISION_HELPERS.low
     };
   }
 
   if (hasNegative) {
     return {
       tone: "review",
-      label: "Inspect later",
-      helper: "Restriction may matter"
+      label: "Inspect First",
+      helper: DECISION_HELPERS.inspect
     };
   }
 
   if (fit === "strong_fit" || fit === "possible_fit") {
     return {
       tone: "apply",
-      label: "Apply first",
-      helper: hasCaution ? "Good fit with caveats" : "Best aligned"
+      label: "Apply First",
+      helper: DECISION_HELPERS.apply
     };
   }
 
@@ -1849,32 +1873,94 @@ function getDecisionSummary(job, variant) {
 
     return {
       tone: isApplyFirst ? "apply" : "review",
-      label: isApplyFirst ? "Apply first" : "Inspect first",
-      helper: "Direct role match"
+      label: isApplyFirst ? "Apply First" : "Inspect First",
+      helper: isApplyFirst ? DECISION_HELPERS.apply : DECISION_HELPERS.inspect
     };
   }
 
   if (fit === "adjacent") {
     return {
       tone: "review",
-      label: "Inspect later",
-      helper: "Related but not exact"
+      label: "Inspect First",
+      helper: DECISION_HELPERS.inspect
     };
   }
 
   if (fit === "stretch") {
     return {
       tone: "stretch",
-      label: "Stretch",
-      helper: "Potential gap to review"
+      label: "Inspect First",
+      helper: DECISION_HELPERS.inspect
     };
   }
 
   return {
     tone: variant === "lower" ? "low" : "review",
-    label: variant === "lower" ? "Low priority" : "Manual review",
-    helper: "Weak or noisy match"
+    label: variant === "lower" ? "Low Priority" : "Inspect First",
+    helper: variant === "lower" ? DECISION_HELPERS.low : DECISION_HELPERS.inspect
   };
+}
+
+function getBeforeApplyingChecks(reasons) {
+  const seenLabels = new Set();
+
+  return getOrderedMatchReasons(reasons)
+    .filter((reason) => ["caution", "negative"].includes(getReasonTone(reason)))
+    .map((reason) => ({
+      label: getBeforeApplyingCheckLabel(reason),
+      reason
+    }))
+    .filter((check) => {
+      if (seenLabels.has(check.label)) {
+        return false;
+      }
+
+      seenLabels.add(check.label);
+      return true;
+    })
+    .slice(0, 4);
+}
+
+function getBeforeApplyingCheckLabel(reason) {
+  const normalized = reason.toLowerCase();
+
+  if (
+    isEligibilityLikeReason(reason) ||
+    normalized.includes("location") ||
+    normalized.includes("region") ||
+    normalized.includes("country") ||
+    normalized.includes("remote role") ||
+    normalized.includes("work authorization") ||
+    normalized.includes("visa")
+  ) {
+    return "Location or eligibility unclear";
+  }
+
+  if (
+    normalized.includes("seniority") ||
+    normalized.includes("senior") ||
+    normalized.includes("staff") ||
+    normalized.includes("principal") ||
+    normalized.includes("lead")
+  ) {
+    return "Seniority may be high";
+  }
+
+  if (
+    normalized.includes("skill") ||
+    normalized.includes("requirement") ||
+    normalized.includes("category") ||
+    normalized.includes("occupation") ||
+    normalized.includes("workflow") ||
+    normalized.includes("adjacent") ||
+    normalized.includes("complexity") ||
+    normalized.includes("platform") ||
+    normalized.includes("architecture")
+  ) {
+    return "Requirements may need review";
+  }
+
+  return "Posting details need manual checking";
 }
 
 function hasDirectRoleEvidence(job) {

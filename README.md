@@ -2,7 +2,7 @@
 
 Job Intel is a small job decision-support tool that compares remote jobs against a user-defined search profile, evaluates pasted job listings, and explains why each job was shown.
 
-The current MVP validation build favors transparent, deterministic ranking over opaque AI matching. The goal is to help testers decide which jobs to apply to, inspect later, skip, or check for eligibility.
+The current MVP validation build favors transparent, deterministic ranking over opaque AI matching. The goal is to help testers decide whether a job is worth their effort before applying.
 
 ## Core Philosophy
 
@@ -22,12 +22,13 @@ Job search tools often hide why a result appears. This project does the opposite
 - Source descriptions that set expectations for each visible source.
 - Rule-based scoring from profile fields such as target roles, skills, keywords, location, work mode, experience level, and avoid keywords.
 - Transparent match reasons and score components.
-- Lightweight score anchoring near results.
+- Lightweight score anchoring near results that frames scores as effort-prioritization support before applying.
 - Source diagnostics and malformed-row skipping.
 - Country/location restriction handling, including multi-country restriction logic.
 - Compact frontend eligibility/restriction status when existing match reasons include location, country, or eligibility text.
 - Senior-aware execution calibration for aligned roles.
-- Recommendation labels such as Apply first, Inspect later, Stretch, Low priority, and Check eligibility.
+- Decision labels: Apply First, Inspect First, and Low Priority.
+- A small "Before applying, check" section when existing caution or blocker match reasons justify a practical review prompt.
 - Reason-chip severity styling for positive, caution, and blocker signals.
 - Optional on-demand Explain Match panel labeled as scoring-based support text.
 - Dismissible onboarding that explains the tool's boundaries.

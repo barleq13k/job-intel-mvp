@@ -190,10 +190,11 @@ Current display behavior:
 
 - jobs with `score >= 25` appear as recommended matches
 - lower-score jobs remain available under Explore More
-- a lightweight score guide anchors score interpretation near results
-- decision labels summarize actionability
+- a lightweight score guide explains that scores help users decide whether a job is worth their effort before applying
+- decision labels summarize actionability as `Apply First`, `Inspect First`, or `Low Priority`
 - reason chips show positive, caution, and blocker signals
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
+- a small `Before applying, check` section appears only when existing caution or blocker match reasons justify a practical review prompt
 - country/location restrictions remain visible
 - eligibility/restriction-like match reasons can appear as compact frontend status near job metadata; positive eligibility, caution, and blocked signals are visually distinguished without changing Worker reason generation
 - outbound job links open the source posting

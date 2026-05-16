@@ -41,9 +41,10 @@
 - Local-only notice explaining that Saved, Applied, and Skipped are stored in the current browser only, without changing localStorage behavior.
 - Latest successful search profile and ranked results restore from localStorage after refresh.
 - Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
-- Frontend score guide near results: 70+ strong match, 50-69 possible fit, and below 50 review carefully.
-- Job cards include compact decision labels that distinguish apply-first, inspect-later, stretch, low-priority, and eligibility-check cases.
+- Frontend score guide near results explains that scores help users decide whether a job is worth their effort before applying.
+- Job cards include compact decision labels: Apply First, Inspect First, and Low Priority.
 - WHY SHOWN chips are display-ordered as positive signals, caution signals, then restrictions or penalties without changing backend reason generation.
+- Job cards show a small `Before applying, check` section only when existing caution or blocker match reasons justify a practical review prompt.
 - Compact frontend eligibility/restriction status on job cards when existing match reasons already contain location, country, or eligibility text.
 - Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
