@@ -13,6 +13,16 @@ The current validation-stage build prioritizes:
 
 ---
 
+## Preview
+
+### Search + Decision Support
+
+![Job Intel Search Results](screenshots/home-results.png)
+
+### Transparent Match Reasons
+
+![Job Intel Match Details](screenshots/job-card-details.png)
+
 ## Core Philosophy
 
 Many job platforms optimize for volume, automation, or engagement while hiding why results appear.
