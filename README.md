@@ -1,104 +1,240 @@
 # Job Intel
 
-Job Intel is a small job decision-support tool that compares remote jobs against a user-defined search profile, evaluates pasted job listings, and explains why each job was shown.
+Job Intel is a deterministic remote-job decision support tool designed to help users evaluate whether a job is worth their effort before applying.
 
-The current MVP validation build favors transparent, deterministic ranking over opaque AI matching. The goal is to help testers decide whether a job is worth their effort before applying.
+Instead of maximizing job volume or automating applications, the MVP focuses on transparent scoring, restriction clarity, and lightweight decision support for remote applicants.
+
+The current validation-stage build prioritizes:
+
+* explainable ranking
+* visible tradeoffs
+* practical review signals
+* and calm decision support over opaque AI matching
+
+---
 
 ## Core Philosophy
 
-Job search tools often hide why a result appears. This project does the opposite.
+Many job platforms optimize for volume, automation, or engagement while hiding why results appear.
 
-- Deterministic scoring is the source of truth.
-- Match reasons should be visible and understandable.
-- Location and country restrictions should stay truthful.
-- Seniority and complexity should affect execution confidence, not fake relevance.
-- Future AI should explain, summarize, and clarify. It should not replace or secretly change the ranking.
+Job Intel intentionally does the opposite.
+
+* Deterministic scoring is the source of truth.
+* Match reasons should stay visible and understandable.
+* Restriction handling should remain truthful.
+* Seniority and complexity should affect execution confidence, not fake relevance.
+* Users should understand *why* a job appears before deciding to apply.
+
+AI is intentionally constrained to optional explanation support and does not participate in ranking or scoring decisions.
+
+Future AI should:
+
+* explain
+* summarize
+* clarify
+* organize information
+
+It should not:
+
+* secretly change rankings
+* override restrictions
+* decide eligibility
+* replace deterministic scoring
+
+---
 
 ## Current MVP Features
 
-- Real job ingestion from supported public sources.
-- Manual job evaluation for pasted listings through the same deterministic scoring pipeline.
-- First-use sample profile for a beginner-friendly remote support/QA-style search.
-- Source descriptions that set expectations for each visible source.
-- Rule-based scoring from profile fields such as target roles, skills, keywords, location, work mode, experience level, and avoid keywords.
-- Transparent match reasons and score components.
-- Lightweight score anchoring near results that frames scores as effort-prioritization support before applying.
-- Source diagnostics and malformed-row skipping.
-- Country/location restriction handling, including multi-country restriction logic.
-- Compact frontend eligibility/restriction status when existing match reasons include location, country, or eligibility text.
-- Senior-aware execution calibration for aligned roles.
-- Decision labels: Apply First, Inspect First, and Low Priority.
-- A small "Before applying, check" section when existing caution or blocker match reasons justify a practical review prompt.
-- Reason-chip severity styling for positive, caution, and blocker signals.
-- Optional on-demand Explain Match panel labeled as scoring-based support text.
-- Dismissible onboarding that explains the tool's boundaries.
-- Collapsible filter panel with a transient overlay for mid-scroll edits.
-- Local search/result restore via `localStorage`.
-- Local job status tracking for New, Saved, Applied, and Skipped.
-- Local-only tracking notice for Saved, Applied, and Skipped controls.
-- Quick access shortcuts for Saved, Applied, and Skipped jobs, backed by a lightweight local tracked-job cache.
-- Minimal PWA metadata and app icons.
-- Warm, restrained UI polish with light and dark modes.
+### Job Discovery + Decision Support
 
-These activation and trust improvements are frontend/UI clarity layers only. They do not change Worker scoring, result ordering, API contracts, restriction detection, or localStorage behavior.
+* Real job ingestion from supported public sources
+* Manual job evaluation for pasted listings through the same deterministic scoring pipeline
+* Deterministic rule-based scoring using:
+
+  * target roles
+  * skills
+  * keywords
+  * location
+  * work mode
+  * experience level
+  * avoid keywords
+* Transparent match reasons and score components
+* Country/location restriction handling, including multi-country restriction logic
+* Compact eligibility/restriction status using existing scoring signals
+* Senior-aware execution calibration
+* Source diagnostics and malformed-row skipping
+
+### Decision Clarity
+
+* Decision labels:
+
+  * Apply First
+  * Inspect First
+  * Low Priority
+* Lightweight score anchoring framed as effort-prioritization support
+* "Before applying, check" review prompts when caution/blocker signals exist
+* Reason-chip severity styling for:
+
+  * positive
+  * caution
+  * blocker signals
+
+### Workflow Support
+
+* Local search/result restore via `localStorage`
+* Local job status tracking:
+
+  * New
+  * Saved
+  * Applied
+  * Skipped
+* Lightweight tracked-job cache
+* Quick-access status shortcuts
+* Local-only workflow tracking notice
+
+### UI / UX
+
+* Beginner-friendly onboarding sample profile
+* Dismissible onboarding explaining system boundaries
+* Collapsible filter panel with transient overlay support
+* Optional scoring-based Explain Match panel
+* Warm restrained UI with light/dark modes
+* Minimal PWA metadata and app icons
+
+These activation and trust improvements are frontend/UI clarity layers only.
+
+They do not change:
+
+* Worker scoring
+* result ordering
+* API contracts
+* restriction detection
+* localStorage behavior
+
+---
+
+## Current Validation Focus
+
+The current MVP is testing:
+
+* whether users trust transparent ranking over opaque matching
+* whether Apply / Inspect / Low Priority labels reduce uncertainty
+* whether restriction visibility prevents wasted applications
+* whether lightweight local workflow tracking is useful before auth/accounts
+* whether users prefer decision support over automated recommendations
+* which public sources produce the most useful leads
+
+This project is currently validation-stage, not product-market-fit confirmed.
+
+---
+
+## Human Review Philosophy
+
+The project favors transparent, reviewable workflows over autonomous decision-making.
+
+AI-assisted features remain:
+
+* optional
+* explainable
+* non-authoritative
+* human-review-oriented
+
+The goal is decision support, not automated career control.
+
+---
 
 ## Current Architecture
 
-Frontend:
-- Vite 5
-- React 18
-- Tailwind CSS
-- Plain React state
-- Browser `localStorage` for latest search snapshot and job statuses
+### Frontend
 
-Backend:
-- Cloudflare Worker
-- API endpoints: `POST /api/jobs/search`, `POST /api/jobs/evaluate`, and optional `POST /api/jobs/explain`
-- No database
-- No auth
-- No queues
-- No background jobs
-- No embeddings
-- Optional Groq-backed explanations only when explicitly enabled; production should keep `AI_EXPLAIN_ENABLED=false` by default
+* Vite 5
+* React 18
+* Tailwind CSS
+* Plain React state
+* Browser `localStorage`
+
+### Backend
+
+* Cloudflare Worker
+* `POST /api/jobs/search`
+* `POST /api/jobs/evaluate`
+* Optional `POST /api/jobs/explain`
+
+### Intentional Constraints
+
+* No database
+* No auth
+* No queues
+* No embeddings
+* No browser automation
+* No background jobs
+* No AI ranking
+
+Optional Groq-backed explanations exist only when explicitly enabled.
+
+Production should keep:
+
+```env
+AI_EXPLAIN_ENABLED=false
+```
+
+by default.
+
+---
 
 ## Current Job Sources
 
-- Himalayas: primary real job source, fetched through its public remote jobs API.
-- Remotive: secondary real public API source with limited public result behavior.
-- RemoteOK: secondary real public API source using one capped public feed request and local deterministic scoring/ranking.
-- Real Python Fake Jobs: deterministic fake/static source used for regression and fallback testing.
-- Arbeitnow: backend-supported public API source, hidden from the frontend during source-quality review.
+### Active Sources
 
-The app does not use LinkedIn scraping, browser automation, private APIs, or account-based sources.
+* Himalayas (primary public source)
+* Remotive (secondary public source)
+* RemoteOK (secondary capped public feed)
+* Real Python Fake Jobs (deterministic regression/fallback source)
+
+### Backend-Supported / Hidden During Review
+
+* Arbeitnow
+
+The project does not use:
+
+* LinkedIn scraping
+* browser automation
+* private APIs
+* account-based ingestion
+
+---
 
 ## What AI Does Not Do
 
 There is no AI ranking in the current MVP.
 
 AI does not:
-- assign scores
-- change rankings
-- override location restrictions
-- ignore avoid keywords
-- decide eligibility
-- hide penalties
-- replace deterministic scoring
 
-The optional Explain Match endpoint may explain existing scoring signals in clearer language or suggest questions to verify before applying. The frontend presents this as a scoring-based explanation. It remains disabled by default, optional, and non-authoritative.
+* assign scores
+* change rankings
+* override restrictions
+* ignore avoid keywords
+* decide eligibility
+* hide penalties
+* replace deterministic scoring
 
-## Screenshots
+The optional Explain Match endpoint may:
 
-Screenshots can be added here after first deployment.
+* clarify existing scoring signals
+* summarize tradeoffs
+* suggest things to verify before applying
 
-Suggested captures:
-- Search profile panel and ranked results
-- A card with positive/caution/restriction chips
-- Saved/Applied/Skipped quick access
-- Mobile/narrow-width layout
+It remains:
 
-## Local Development Setup
+* disabled by default
+* optional
+* non-authoritative
 
-Install dependencies separately for the Worker and frontend.
+---
+
+## Local Development
+
+### Worker
 
 ```powershell
 cd worker
@@ -106,7 +242,7 @@ npm install
 npm run dev
 ```
 
-In another terminal:
+### Frontend
 
 ```powershell
 cd frontend
@@ -114,126 +250,151 @@ npm install
 npm run dev
 ```
 
-Local frontend dev runs on Vite and proxies `/api` to the Worker at `http://127.0.0.1:8787` by default.
+Frontend Vite dev server proxies `/api` to:
 
-Useful checks:
+```text
+http://127.0.0.1:8787
+```
+
+---
+
+## Useful Checks
+
+### Worker
 
 ```powershell
-cd worker
 npm run test:source
 npm run test:scoring
 npm run check
 ```
 
+### Frontend
+
 ```powershell
-cd frontend
 npm run build
 ```
 
-## Frontend / Backend Structure
-
-```text
-frontend/
-  index.html
-  public/
-    manifest.webmanifest
-    app icons
-  src/
-    main.jsx
-    styles.css
-
-worker/
-  src/
-    index.js
-  test/
-    scoring-regression.mjs
-    source-reliability.mjs
-  wrangler.jsonc
-
-docs/
-  implementation, scoring, API, deployment, and roadmap notes
-```
+---
 
 ## Deployment Overview
 
-Expected first deployment path:
+### Frontend
 
-- Frontend: Cloudflare Pages or another static host serving `frontend/dist`.
-- Backend: Cloudflare Workers via Wrangler.
+* Cloudflare Pages
+* or another static host serving `frontend/dist`
 
-Frontend build:
+### Backend
+
+* Cloudflare Workers via Wrangler
+
+### Frontend Build
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Worker deploy:
+### Worker Deploy
 
 ```powershell
 cd worker
 npm run deploy
 ```
 
-Set `VITE_API_BASE_URL` in the frontend environment only if the deployed frontend calls a separate Worker origin. Leave it empty when `/api` routes resolve on the same origin or through a Cloudflare route.
+Set:
+
+```env
+VITE_API_BASE_URL
+```
+
+only if frontend and Worker use separate origins.
+
+---
 
 ## Current Limitations
 
-- No accounts or authentication.
-- No database or persistent server-side job archive.
-- Saved/Applied/Skipped statuses and the lightweight tracked-job cache are local to the browser only.
-- Manual job evaluation requires a title and full listing text; company, location, and URL are optional.
-- Pasted manual URLs are saved only as links and are never fetched or scraped.
-- No semantic matching, embeddings, or vector search.
-- Source quality varies by upstream provider.
-- Remotive public API result volume may be limited.
-- Himalayas pagination is intentionally conservative.
-- RemoteOK uses a capped public feed request and local deterministic scoring/ranking, not query/tag filtering at the source.
-- Salary display depends on source-provided text and is not normalized deeply.
-- Scoring is transparent but heuristic.
+* No accounts/authentication
+* No persistent server-side storage
+* Saved/Applied/Skipped remain browser-local
+* Manual evaluation requires pasted listing text
+* Pasted URLs are never scraped
+* No semantic/vector search
+* Public-source quality varies
+* Salary normalization remains shallow
+* Scoring is heuristic and intentionally transparent
 
-## Validation Stage Status
-
-This MVP is ready for first-user validation after deployment.
-
-Primary validation questions:
-- Do users trust the ranking and reasons?
-- Do restriction warnings prevent wasted applications?
-- Do decision labels help users triage faster?
-- Does Save/Applied/Skipped provide enough lightweight workflow value without accounts?
-- Which real source produces the most useful job leads?
+---
 
 ## Future Roadmap
 
-High-level ideas only:
+### Validation / Refinement
 
-- Deploy and collect first tester feedback.
-- Phase 2.2: guided onboarding and UX discoverability, including reopenable help, clearer workflow guidance, plain-language scoring explanation, and more visible collapsed filters.
-- Refine scoring weights from real search examples.
-- Improve source-specific normalization.
-- Add better structured requirement extraction.
-- Refine optional explanation polish without making AI part of scoring or ranking.
-- Consider persistent profiles or saved-job storage only after validation shows it is needed.
-- Add more real job sources in conservative phases when quality justifies the maintenance cost.
+* collect first-user feedback
+* refine scoring weights
+* improve normalization
+* improve structured requirement extraction
+* refine onboarding/discoverability
+* improve optional explanation quality
 
-Future/experimental ideas, not current MVP scope:
+### Future / Experimental Ideas
 
-- Aggregated web search or broad web discovery, possibly as a later premium/experimental layer, only after legal, stability, source-quality, and maintenance risks are understood.
-- A constrained platform-help assistant that explains how Job Intel works, how scoring is interpreted, how filters/sources behave, and what local Saved/Applied/Skipped tracking means. It must not become a generic career coach, rank jobs, change scores, decide eligibility, or replace deterministic scoring.
+Not current MVP scope:
+
+* aggregated web discovery
+* broader source expansion
+* platform-help assistant
+* persistent profiles/storage
+
+Any future AI assistant must remain:
+
+* constrained
+* explainable
+* non-authoritative
+* separate from scoring/ranking logic
+
+---
 
 ## Contribution / Development Notes
 
-- Keep changes narrow and testable.
-- Preserve the `POST /api/jobs/search`, `POST /api/jobs/evaluate`, and `POST /api/jobs/explain` contracts unless intentionally changing the API.
-- Prefer explicit rule-based scoring over opaque matching.
-- Do not add auth, databases, queues, browser automation, embeddings, or AI services without a clear product reason.
-- Update docs when behavior, source support, deployment, or scoring interpretation changes.
+* Keep changes narrow and testable
+* Preserve API contracts unless intentionally changed
+* Prefer explicit rule-based scoring over opaque matching
+* Do not add:
+
+  * auth
+  * databases
+  * queues
+  * browser automation
+  * embeddings
+  * uncontrolled AI systems
+    without a clear product reason
+
+Update docs whenever:
+
+* scoring changes
+* source support changes
+* deployment changes
+* workflow behavior changes
+
+---
 
 ## Demo / Test Data
 
-The repository includes synthetic demo and regression-testing datasets used for scoring validation, UI testing, and ingestion stability checks.
+Synthetic datasets exist for:
 
-Files such as `data/sample_jobs.json` do not represent real job listings or live platform exports.
+* scoring validation
+* UI testing
+* ingestion regression testing
+
+Files such as:
+
+```text
+data/sample_jobs.json
+```
+
+do not represent real platform exports.
+
+---
 
 ## License
 
