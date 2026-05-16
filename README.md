@@ -1,15 +1,15 @@
 # Job Intel
 
-Job Intel is a deterministic remote-job decision support tool designed to help users evaluate whether a job is worth their effort before applying.
+Job Intel is a decision-support system that helps users quickly evaluate job listings using transparent, rule-based scoring instead of opaque AI recommendations.
 
-Instead of maximizing job volume or automating applications, the MVP focuses on transparent scoring, restriction clarity, and lightweight decision support for remote applicants.
+It demonstrates how structured workflows and AI-assisted components can be combined to:
 
-The current validation-stage build prioritizes:
+reduce decision fatigue
+surface relevant opportunities faster
+make evaluation criteria explicit instead of hidden
+support consistent, repeatable decision-making processes
 
-* explainable ranking
-* visible tradeoffs
-* practical review signals
-* and calm decision support over opaque AI matching
+This project is currently a validation-stage system exploring how structured AI-assisted workflows can improve real-world decision quality.
 
 ---
 
