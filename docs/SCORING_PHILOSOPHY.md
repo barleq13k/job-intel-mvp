@@ -10,6 +10,8 @@ Source jobs and manually pasted jobs use the same deterministic scoring engine. 
 
 Frontend validation for manually pasted jobs only checks whether enough text is present to evaluate; it does not change scores, reasons, ranking, or eligibility interpretation.
 
+Real-user feedback showed that scoring made sense once explained verbally. Planned Phase 2.2 UI work should therefore explain scoring in plain language inside the frontend, without changing score math or Worker response fields.
+
 ## Scoring Structure
 
 The Worker keeps scoring in one file for MVP simplicity, but the scoring internals are organized around:
@@ -116,6 +118,13 @@ Display filtering:
 - Frontend groups lower-score jobs under Explore More so stretch roles remain inspectable.
 - Manually evaluated jobs are displayed as normal scored job cards, with `Manual Paste` source labeling.
 
+Plain-language scoring explanation should cover:
+- Profile data: target roles, skills, keywords, location, work mode, experience level, and avoid keywords.
+- Job-side signals: title, description, source metadata, location text, salary/compensation when available, and source-provided details.
+- Execution fit: whether the job looks realistic for the selected experience level and skill profile.
+- Restrictions and complexity: country/region limits, work authorization hints, seniority, architecture/platform complexity, and avoid-keyword penalties.
+- Decision-support limits: scores are useful prioritization signals, not eligibility decisions or hiring predictions.
+
 ## Current Explanation Layer
 
 `POST /api/jobs/explain` may explain one already-scored job on demand.
@@ -166,3 +175,15 @@ It will not:
 - replace deterministic scoring
 
 The rule-based engine remains the source of truth for ranking, scoring, restrictions, and recommendation labels.
+
+## Future Platform Help Assistant
+
+A help assistant is not current MVP scope. If explored later, it should be constrained to platform-help behavior only:
+
+- explain how Job Intel works
+- explain deterministic scoring philosophy
+- explain filters, source behavior, and source limitations
+- explain local-only Saved/Applied/Skipped tracking
+- answer onboarding/help questions
+
+It must not rank jobs, change scores, override restrictions, decide eligibility, become a generic career coach, or replace transparent scoring.

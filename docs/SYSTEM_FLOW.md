@@ -27,6 +27,8 @@ The user fills out the frontend search profile form.
 
 The frontend also shows a compact dismissible intro that explains the tool's boundaries: supported source search, pasted job evaluation, deterministic tradeoff review, no auto-apply, and no pasted-URL scraping.
 
+Planned Phase 2.2 work should make onboarding/help reopenable and explain the actual process of using the platform: define a profile, choose a source, run a search or evaluate a pasted listing, inspect scoring reasons and eligibility/restriction signals, then save/apply/skip locally.
+
 A `Try Sample Profile` action can fill the existing form with a beginner-friendly remote support/QA-style profile. This only updates frontend form state; it does not submit a search, add backend-only fields, or change the API payload shape.
 
 Current profile fields include:
@@ -193,7 +195,7 @@ Current display behavior:
 - reason chips show positive, caution, and blocker signals
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last
 - country/location restrictions remain visible
-- restriction-like match reasons can also appear in a prominent frontend callout on the job card
+- eligibility/restriction-like match reasons can appear as compact frontend status near job metadata; positive eligibility, caution, and blocked signals are visually distinguished without changing Worker reason generation
 - outbound job links open the source posting
 - manually evaluated cards show `Manual Paste` as the source with a subtle manual indicator
 - search/profile filters can be manually collapsed; when collapsed, a fixed overlay panel supports mid-scroll edits without changing form state or results
@@ -201,6 +203,12 @@ Current display behavior:
 - explanations open in a collapsible per-card `Scoring-based explanation` panel and are support text only
 
 These frontend clarity layers do not change Worker scoring, ranking, grouping, filtering, API contracts, or restriction detection.
+
+Planned Phase 2.2 frontend-only display improvements:
+
+- Make collapsed filters easier to spot with clearer label treatment, accent styling, and subtle open/close affordance.
+- Add reopenable help/onboarding that explains score interpretation in plain language.
+- Keep the help layer informational only; it must not change requests, scoring, ranking, filtering, localStorage data semantics, or source behavior.
 
 ## 10. Local Tracking And Restore
 

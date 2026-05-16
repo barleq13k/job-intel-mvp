@@ -25,7 +25,7 @@ Job search tools often hide why a result appears. This project does the opposite
 - Lightweight score anchoring near results.
 - Source diagnostics and malformed-row skipping.
 - Country/location restriction handling, including multi-country restriction logic.
-- Prominent frontend restriction callouts when existing match reasons include location, country, or eligibility warning text.
+- Compact frontend eligibility/restriction status when existing match reasons include location, country, or eligibility text.
 - Senior-aware execution calibration for aligned roles.
 - Recommendation labels such as Apply first, Inspect later, Stretch, Low priority, and Check eligibility.
 - Reason-chip severity styling for positive, caution, and blocker signals.
@@ -207,12 +207,18 @@ Primary validation questions:
 High-level ideas only:
 
 - Deploy and collect first tester feedback.
+- Phase 2.2: guided onboarding and UX discoverability, including reopenable help, clearer workflow guidance, plain-language scoring explanation, and more visible collapsed filters.
 - Refine scoring weights from real search examples.
 - Improve source-specific normalization.
 - Add better structured requirement extraction.
 - Refine optional explanation polish without making AI part of scoring or ranking.
 - Consider persistent profiles or saved-job storage only after validation shows it is needed.
-- Add more real job sources only when quality justifies the maintenance cost.
+- Add more real job sources in conservative phases when quality justifies the maintenance cost.
+
+Future/experimental ideas, not current MVP scope:
+
+- Aggregated web search or broad web discovery, possibly as a later premium/experimental layer, only after legal, stability, source-quality, and maintenance risks are understood.
+- A constrained platform-help assistant that explains how Job Intel works, how scoring is interpreted, how filters/sources behave, and what local Saved/Applied/Skipped tracking means. It must not become a generic career coach, rank jobs, change scores, decide eligibility, or replace deterministic scoring.
 
 ## Contribution / Development Notes
 

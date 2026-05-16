@@ -212,12 +212,26 @@ Recommendation:
 - Stay.
 - Update whenever API fields, scoring components, or sources change.
 
+### 13. User Feedback Planning Boundaries
+
+Current status:
+- Real external feedback supports a near-term guided onboarding and UX discoverability pass.
+- The next planned frontend pass should make help reopenable, explain the workflow, explain scoring in plain language, and make collapsed filters easier to notice.
+- More source coverage would likely improve usefulness for niche searches, but source expansion should remain conservative and reliability-first.
+
+Recommendation:
+- Treat Phase 2.2 as frontend-first unless a later approved implementation proposal shows a strong reason to touch shared/backend code.
+- Do not change Worker scoring, ranking, filtering, source fetching, API contracts, or localStorage data semantics for guided help.
+- Keep aggregated web search, broad scraping, browser automation, and generic chatbot behavior parked outside current MVP scope.
+- If a help assistant is explored later, constrain it to platform help only and keep deterministic scoring as the source of truth.
+
 ## Recommended Cleanup Order
 
 1. Commit tracked Worker Wrangler log deletions.
 2. Keep generated local logs, build output, dependency folders, local env files, and `.wrangler/` ignored.
 3. Keep `docs/TARGET_OUTPUT.json`, `data/sample-profile.json`, and `data/sample_jobs.json` clearly positioned as examples or synthetic test data.
-4. Keep `/docs` and `README.md` as the implementation source of truth.
+4. Plan Phase 2.2 guided onboarding and filter discoverability as a frontend-only implementation proposal before touching app code.
+5. Keep `/docs` and `README.md` as the implementation source of truth.
 
 ## Do Not Do From This Audit
 
@@ -226,4 +240,5 @@ Recommendation:
 - Do not refactor the Worker.
 - Do not add TypeScript.
 - Do not add a database, auth, queues, agents, browser automation, vector search, or AI ranking/reranking.
+- Do not add aggregated web search, broad scraping, or generic chatbot behavior as current MVP work.
 - Do not treat the explanation cache or rate protection as production-grade global infrastructure.

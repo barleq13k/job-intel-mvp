@@ -13,7 +13,7 @@ Frontend:
 - The search profile panel can be manually collapsed; that local UI preference is stored only in browser localStorage, while the collapsed overlay is transient
 - The existing search form includes a narrow Find Jobs/Evaluate Job mode switch for source search or manual pasted job evaluation
 - First-use activation helpers include a sample profile button, visible source descriptions, and lightweight score guidance near results
-- Trust clarity helpers include prominent frontend restriction callouts from existing match reasons and a local-only notice near Saved/Applied/Skipped controls
+- Trust clarity helpers include compact frontend eligibility/restriction status from existing match reasons and a local-only notice near Saved/Applied/Skipped controls
 - Match explanations are displayed in a per-card collapsible `Scoring-based explanation` panel and are not saved to localStorage
 
 Backend:
@@ -33,7 +33,7 @@ Backend:
 5. Worker fetches jobs from the selected source.
 6. Worker normalizes, validates, deduplicates, scores, sorts, and formats jobs.
 7. Frontend receives frontend-ready jobs, displays scores `>= 25` as recommended matches, keeps lower-score jobs available under Explore More, and shows score guidance for interpretation.
-8. Frontend may emphasize existing restriction-like match reasons in a prominent callout. This does not create new restrictions or change scoring.
+8. Frontend may interpret existing eligibility/restriction-like match reasons into compact eligible, caution, or blocked status. This does not create new restrictions or change scoring.
 9. User may request an on-demand explanation for one visible job through `POST /api/jobs/explain`; this sidecar flow does not change search, scoring, ranking, restrictions, or eligibility decisions.
 
 Manual evaluation follows the same scoring/display path, except the frontend sends one pasted job to `POST /api/jobs/evaluate`; the Worker does not fetch the pasted URL.
@@ -65,6 +65,8 @@ Implemented sources:
 
 There is no source registry, plugin system, crawler system, browser automation, or background ingestion. Source selection is a simple conditional branch in the Worker.
 
+Future source expansion should remain conservative and reliability-first. More sources may improve perceived coverage for niche searches, but each added source should preserve explicit source labeling, source diagnostics, timeout/error handling, malformed-row skipping, and deterministic local scoring. Broad web aggregation, browser automation, account-based sources, and generic scraping are not current MVP architecture.
+
 Manual pasted jobs are not a source integration. They are user-submitted text normalized into the same internal job shape and scored once on request.
 
 Himalayas is treated as the primary real job source and uses conservative public API pagination with a small page cap. Later-page failures do not discard already accepted jobs. RemoteOK is a secondary real source with a conservative 100-job cap from one public feed request while source quality, latency, scoring behavior, and UI usability are evaluated; it is not query/tag-filtered before local deterministic scoring/ranking. Arbeitnow is a secondary validation source with a one-page cap while source quality and stability are evaluated. Remotive remains a secondary public API source and may return a limited public batch for a search. Real Python Fake Jobs remains a deterministic fake/static source for regression and fallback safety, not production-quality live job data.
@@ -92,6 +94,23 @@ The Worker returns jobs sorted by `scoring.score` descending.
 AI explanations do not participate in ranking, scoring, eligibility, or source selection.
 
 Frontend activation and trust/safety UI layers do not participate in ranking, scoring, eligibility, restriction detection, API contracts, or localStorage persistence semantics.
+
+## Planned Frontend Clarity Layer
+
+Phase 2.2 is planned as a frontend-first guided onboarding and UX discoverability pass:
+
+- Make onboarding/help reopenable after dismissal.
+- Explain the workflow from profile setup through result triage.
+- Explain scoring in plain language as deterministic decision-support from profile fields, job-side signals, execution fit, restrictions, avoid keywords, and complexity.
+- Make collapsed filters easier to spot without a major layout refactor unless separately approved.
+
+This planned layer should not change Worker logic, API contracts, source fetching, scoring, ranking, filtering, or localStorage data semantics.
+
+## Future / Experimental Layers
+
+Aggregated web search is a future experimental/premium candidate only. Risks include instability, source quality variance, legal and maintenance concerns, and scope creep.
+
+A help assistant is also future/experimental only. If explored, it must be constrained to platform-help behavior: explaining Job Intel workflow, scoring philosophy, filters/source behavior, onboarding, and local-only Saved/Applied/Skipped tracking. It must not become a generic career coach, rank jobs, change scores, override deterministic logic, claim eligibility, or replace visible scoring.
 
 ## Deployment Direction
 

@@ -44,7 +44,7 @@
 - Frontend score guide near results: 70+ strong match, 50-69 possible fit, and below 50 review carefully.
 - Job cards include compact decision labels that distinguish apply-first, inspect-later, stretch, low-priority, and eligibility-check cases.
 - WHY SHOWN chips are display-ordered as positive signals, caution signals, then restrictions or penalties without changing backend reason generation.
-- Prominent frontend restriction callout on job cards when existing match reasons already contain location, country, or eligibility restriction text.
+- Compact frontend eligibility/restriction status on job cards when existing match reasons already contain location, country, or eligibility text.
 - Light UI polish pass with warmer neutrals, softer card surfaces, calmer borders, restrained accent color, and cleaner chip/status controls.
 - Ranked job cards with score, fit label, source excerpt/summary, salary when available, reasons, and outbound job link.
 - Manually evaluated cards use the normal job card, local tracking, and Explain Match behavior, with a subtle manual indicator.
@@ -84,10 +84,21 @@ These are implemented heuristics, not AI judgments.
 
 ## Planned
 
+- Phase 2.2 guided onboarding and UX discoverability:
+  - Reopenable onboarding/help after dismissal.
+  - Plain-language workflow guidance that explains how to use Job Intel from profile setup through result triage.
+  - Plain-language scoring explanation that connects profile fields, job-side signals, execution fit, restrictions, avoid keywords, and complexity.
+  - More discoverable collapsed filter/settings control through clearer label treatment, accent styling, and subtle motion before any larger layout change.
 - Deployment setup.
 - Better source quality and source-specific normalization.
+- Conservative phased source expansion when reliability and maintenance costs justify it.
 - Continued scoring refinement from real search examples.
 - Tuning of explanation copy after real usage.
+
+## Future / Experimental
+
+- Aggregated web search or broad web discovery may be explored later as an experimental or premium layer, but it is not current MVP scope because of source instability, quality variance, legal/maintenance concerns, and scope creep risk.
+- A constrained platform-help assistant may be explored later only to answer questions about how Job Intel works, scoring philosophy, filters, sources, onboarding, and local-only tracking. It must not become a generic career coach, rank jobs, change scores, decide eligibility, or override deterministic logic.
 
 ## Intentionally Excluded From MVP
 
@@ -102,5 +113,6 @@ These are implemented heuristics, not AI judgments.
 - Agents.
 - Scraper registry.
 - Multi-source orchestration.
+- Broad web aggregation.
 - Groq ranking or reranking integration.
 - AI ranking, reranking, scoring, eligibility decisions, restriction overrides, chatbot UX, and persistent AI conversation history.
