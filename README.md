@@ -23,6 +23,19 @@ The current validation-stage build prioritizes:
 
 ![Job Intel Match Details](screenshots/job-card-details.png)
 
+## Workflow Architecture
+
+The project follows a validation-first, human-reviewed execution workflow designed to preserve deterministic scoring, transparent reasoning, and controlled implementation scope.
+
+### Market Intelligence Workflow
+
+![Marketing GPT Workflow](screenshots/marketing-workflow-visual.png)
+
+### Strategic Execution Workflow
+
+![Strategic Execution Workflow](screenshots/strategic-execution-workflow-visual.png)
+
+
 ## Core Philosophy
 
 Many job platforms optimize for volume, automation, or engagement while hiding why results appear.
