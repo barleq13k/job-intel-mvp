@@ -382,13 +382,19 @@ function App() {
   const filteredJobCount = visibleJobsToShow.length + lowerMatchJobsToShow.length;
   const selectedTrackedStatus = TRACKED_STATUS_SHORTCUTS.find((shortcut) => shortcut.value === statusFilter);
   const hasNoSelectedTrackedJobs = Boolean(selectedTrackedStatus) && filteredJobCount === 0;
+  const resultBucketSummary = status === "success" && statusFilter === "all" && jobs.length > 0
+    ? {
+        total: `${jobs.length} jobs found`,
+        buckets: `${visibleJobs.length} Start Here · ${lowerMatchJobs.length} Explore More`
+      }
+    : null;
   const resultSummary =
     status === "success"
       ? statusFilter !== "all"
         ? `${filteredJobCount} shown for ${getStatusLabel(statusFilter)} from local tracking.`
         : jobs.length === 0
           ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
-          : `${visibleJobs.length} Start Here matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
+          : resultBucketSummary.total
       : "Fill the search form to fetch and score jobs.";
 
   useEffect(() => {
@@ -700,7 +706,14 @@ function App() {
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
-              <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
+              {resultBucketSummary ? (
+                <div className="text-sm text-stone-500 dark:text-stone-400">
+                  <p>{resultBucketSummary.total}</p>
+                  <p className="mt-0.5 text-xs">{resultBucketSummary.buckets}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-stone-500 dark:text-stone-400">{resultSummary}</p>
+              )}
               <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                 Score guide: use the score to decide whether a job is worth your effort before applying.
                 70+ is strong, 50-69 is possible, and below 50 needs careful review.
