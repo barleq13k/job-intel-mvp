@@ -15,7 +15,7 @@
 - Source selector descriptions for visible sources, shown as frontend expectation-setting copy only.
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
-- Compact dismissible onboarding intro that explains source search, pasted job evaluation, tradeoff review, and product boundaries.
+- Compact dismissible and manually reopenable onboarding intro that explains source search, pasted job evaluation, tradeoff review, and product boundaries.
 - Local-only first-run Setup guide completion preference stored under `job-intel-first-run-onboarding-complete`.
 - `POST /api/jobs/search` Worker endpoint.
 - `POST /api/jobs/evaluate` Worker endpoint for manually pasted job listings.

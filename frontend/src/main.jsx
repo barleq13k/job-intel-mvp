@@ -480,6 +480,11 @@ function App() {
     saveStoredOnboardingHidden(true);
   }
 
+  function showOnboarding() {
+    setIsOnboardingHidden(false);
+    saveStoredOnboardingHidden(false);
+  }
+
   function toggleTheme() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
@@ -658,7 +663,11 @@ function App() {
         </div>
       </section>
 
-      {!isOnboardingHidden && <OnboardingPanel onDismiss={hideOnboarding} onOpenSetupGuide={openSetupGuide} />}
+      {isOnboardingHidden ? (
+        <IntroReopenPanel onShow={showOnboarding} />
+      ) : (
+        <OnboardingPanel onDismiss={hideOnboarding} onOpenSetupGuide={openSetupGuide} />
+      )}
 
       {isSetupGuideOpen && (
         <SetupGuideModal
@@ -1089,20 +1098,13 @@ function SetupGuideModal({ onComplete, onSkip }) {
           )}
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-stone-200/80 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800">
-          <button
-            type="button"
-            onClick={onSkip}
-            className="inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-semibold text-stone-600 transition hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:text-stone-300 dark:hover:text-stone-50"
-          >
-            Skip for now
-          </button>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 border-t border-stone-200/80 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800">
+          <div className={`order-1 grid w-full gap-2 ${step > 1 ? "grid-cols-2" : "grid-cols-1"} sm:order-2 sm:w-auto sm:grid-cols-none sm:flex sm:justify-end`}>
             {step > 1 && (
               <button
                 type="button"
                 onClick={() => setStep((current) => current - 1)}
-                className={SECONDARY_BUTTON_CLASS}
+                className={`${SECONDARY_BUTTON_CLASS} w-full sm:w-auto`}
               >
                 Back
               </button>
@@ -1112,7 +1114,7 @@ function SetupGuideModal({ onComplete, onSkip }) {
                 type="button"
                 onClick={() => setStep((current) => current + 1)}
                 disabled={!canContinueFromStepOne}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 dark:bg-[#e45033] dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 dark:bg-[#e45033] dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300 sm:w-auto"
               >
                 Next
               </button>
@@ -1120,15 +1122,40 @@ function SetupGuideModal({ onComplete, onSkip }) {
               <button
                 type="button"
                 onClick={finishSetupGuide}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 dark:bg-[#e45033] dark:hover:bg-[#f06447]"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 dark:bg-[#e45033] dark:hover:bg-[#f06447] sm:w-auto"
               >
                 Fill search form
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="order-2 inline-flex h-10 w-full items-center justify-center rounded-lg px-3 text-sm font-semibold text-stone-600 transition hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:text-stone-300 dark:hover:text-stone-50 sm:order-1 sm:w-auto sm:justify-start"
+          >
+            Skip for now
+          </button>
         </div>
       </section>
     </div>
+  );
+}
+
+function IntroReopenPanel({ onShow }) {
+  return (
+    <section className="border-b border-stone-200/80 bg-[#f7f5f1]/80 transition-colors dark:border-stone-800 dark:bg-[#181714]/80">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <p className="text-sm text-stone-600 dark:text-stone-300">Intro hidden. Setup guide is still available separately.</p>
+        <button
+          type="button"
+          onClick={onShow}
+          className={`${SECONDARY_BUTTON_CLASS} w-full sm:w-auto`}
+        >
+          <ChevronDown className="h-4 w-4" />
+          Show intro
+        </button>
+      </div>
+    </section>
   );
 }
 
