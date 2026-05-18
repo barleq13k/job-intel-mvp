@@ -87,7 +87,7 @@ The Worker validates the selected source type and fetches jobs directly.
 
 Implemented sources:
 
-- `himalayas`: visible primary real source using Himalayas public remote jobs API.
+- `himalayas`: visible primary real source using Himalayas public remote jobs API with a conservative four-page cap.
 - `remotive`: visible secondary real source using Remotive public jobs API.
 - `remoteok`: visible secondary real source using one RemoteOK public JSON feed request with a conservative 100-job cap and local deterministic scoring/ranking. The selected profile is not sent as RemoteOK query/tag filtering.
 - `realpython_fake_jobs`: visible deterministic fake/static source for regression and fallback testing.
@@ -190,9 +190,10 @@ The frontend displays returned jobs as ranked cards.
 
 Current display behavior:
 
-- jobs with `score >= 25` appear as recommended matches
+- jobs with `score >= 25` appear in the Start Here/Recommended section
 - lower-score jobs remain available under Explore More
 - a lightweight score guide explains that scores help users decide whether a job is worth their effort before applying
+- Start Here/Recommended copy is calibrated as best available matches from the current search, not a guarantee that every card is a 70+ strong fit
 - decision labels summarize actionability as `Apply First`, `Inspect First`, or `Low Priority`
 - reason chips show positive, caution, and blocker signals
 - reason chips are display-ordered as positive signals first, caution signals second, and restrictions or penalties last

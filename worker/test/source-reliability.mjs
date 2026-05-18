@@ -250,7 +250,9 @@ try {
     const pageJobs = {
       1: [validHimalayasJob],
       2: [{ ...validHimalayasJob, guid: "himalayas-python-43", title: "Python Support Engineer" }],
-      3: []
+      3: [{ ...validHimalayasJob, guid: "himalayas-python-44", title: "Python QA Engineer" }],
+      4: [{ ...validHimalayasJob, guid: "himalayas-python-45", title: "Python Automation Analyst" }],
+      5: [{ ...validHimalayasJob, guid: "himalayas-python-46", title: "Should Not Fetch" }]
     };
 
     return new Response(JSON.stringify({ jobs: pageJobs[page] || [] }), {
@@ -260,9 +262,9 @@ try {
   };
 
   const pagedHimalayasResult = await __test.fetchHimalayasJobs(profile);
-  assert.equal(pagedHimalayasResult.jobs.length, 2);
+  assert.equal(pagedHimalayasResult.jobs.length, 4);
   assert.equal(pagedHimalayasResult.droppedCount, 0);
-  assert.equal(pagedHimalayasResult.pagesFetched, 3);
+  assert.equal(pagedHimalayasResult.pagesFetched, 4);
 
   globalThis.fetch = async (url) => {
     const page = new URL(url).searchParams.get("page");

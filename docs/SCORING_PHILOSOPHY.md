@@ -114,7 +114,7 @@ Tie-break calibration:
 
 Display filtering:
 - Backend returns all scored jobs.
-- Frontend displays jobs with `score >= 25` as recommended matches.
+- Frontend displays jobs with `score >= 25` in the Start Here/Recommended section as best available matches from the current search, not guaranteed 70+ strong fits.
 - Frontend groups lower-score jobs under Explore More so stretch roles remain inspectable.
 - Manually evaluated jobs are displayed as normal scored job cards, with `Manual Paste` source labeling.
 

@@ -21,7 +21,7 @@
 - `POST /api/jobs/evaluate` Worker endpoint for manually pasted job listings.
 - Real Python static HTML ingestion.
 - Remotive public API ingestion.
-- Himalayas public API ingestion with conservative pagination.
+- Himalayas public API ingestion with a conservative four-page cap.
 - RemoteOK public JSON feed ingestion with a conservative 100-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
@@ -42,7 +42,7 @@
 - Result view chips for All, Saved, Applied, and Skipped; All shows the current ranked search only, while tracked views combine current results with minimal cached tracked cards from prior searches.
 - Local-only notice explaining that Saved, Applied, and Skipped are stored in the current browser only, without changing localStorage behavior.
 - Latest successful search profile and ranked results restore from localStorage after refresh.
-- Frontend recommended-match threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
+- Frontend Start Here/Recommended display threshold of `score >= 25`, with lower-score jobs grouped under Explore More.
 - Frontend score guide near results explains that scores help users decide whether a job is worth their effort before applying.
 - Job cards include compact decision labels: Apply First, Inspect First, and Low Priority.
 - WHY SHOWN chips are display-ordered as positive signals, caution signals, then restrictions or penalties without changing backend reason generation.

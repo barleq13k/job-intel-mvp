@@ -145,11 +145,11 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 - `source.status`, `source.message`, and `source.dropped_count` are additive diagnostics. `dropped_count` counts malformed upstream rows skipped during source normalization.
 - `source.message` may include source-specific context such as Himalayas or Arbeitnow page count, later-page partial fetch warnings, RemoteOK capped-feed wording, or Remotive public API batch wording. The response shape is unchanged.
 - Himalayas outbound job URLs are preserved from `applicationLink` when provided so users can reach the source/application page. RemoteOK outbound job URLs are preserved as RemoteOK source links for attribution and candidate navigation.
-- Himalayas uses a small, conservative public API page cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request and is not query/tag-filtered before local deterministic scoring/ranking; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
+- Himalayas uses a conservative four-page public API cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request and is not query/tag-filtered before local deterministic scoring/ranking; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
 - RemoteOK location text is preserved when it carries restriction meaning, such as `Remote - US`, `Europe`, or `Spain`; restricted remote listings are not flattened to generic `Remote`.
 - RemoteOK salary ranges are displayed only when positive numeric bounds are provided and no currency is inferred from the feed.
 - Backend returns all jobs sorted by score.
-- Frontend shows jobs with score `25` or higher as recommended matches and groups lower-score jobs under Explore More.
+- Frontend groups jobs with score `25` or higher in the Start Here/Recommended section and lower-score jobs under Explore More. This display section is a prioritization bucket, not a guarantee that every job is a 70+ strong fit.
 - For calibrated broad-role searches, category/tag-only role evidence is capped below the frontend Recommended threshold unless the title or strong description evidence supports the requested occupation. This preserves backend response shape while keeping weak matches inspectable under Explore More.
 - `scoring.execution_likelihood` values are `strong_fit`, `possible_fit`, `adjacent`, `stretch`, or `lower_match`.
 

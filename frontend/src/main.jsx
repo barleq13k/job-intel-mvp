@@ -388,7 +388,7 @@ function App() {
         ? `${filteredJobCount} shown for ${getStatusLabel(statusFilter)} from local tracking.`
         : jobs.length === 0
           ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
-          : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
+          : `${visibleJobs.length} Start Here matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
       : "Fill the search form to fetch and score jobs.";
 
   useEffect(() => {
@@ -727,16 +727,16 @@ function App() {
           {status === "success" && (
             <>
               <div className="mb-4 rounded-xl border border-stone-200/80 bg-[#fbfaf7] px-4 py-3 text-sm text-stone-600 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:text-stone-300 dark:shadow-none">
-                {sourceInfo?.message || "Recommended is for first-pass decisions before applying. Explore More keeps useful leads, stretch roles, and low-confidence roles available."}
+                {sourceInfo?.message || "These are the strongest matches from this search. Use the decision label and reason chips before spending application effort. Explore More keeps adjacent, restricted, and lower-confidence leads available."}
               </div>
               {hasNoSelectedTrackedJobs ? (
                 <TrackedEmptyState status={selectedTrackedStatus} />
               ) : visibleJobsToShow.length > 0 ? (
                 <>
                   <div className="mb-3">
-                    <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Recommended - apply or inspect first</h3>
+                    <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Recommended - start here</h3>
                     <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                      Stronger role alignment. Use the decision label and reason chips before spending application effort.
+                      Best available matches from this search. Scores in this section can still be possible fits, so check the decision label and reason chips before applying.
                     </p>
                   </div>
                   <div className="grid gap-4">
@@ -753,12 +753,12 @@ function App() {
                 </>
               ) : (
                 <EmptyState
-                  title={jobs.length === 0 ? "No jobs returned" : "No recommended matches"}
+                  title={jobs.length === 0 ? "No jobs returned" : "No Start Here matches"}
                   message={
                     jobs.length === 0
                       ? sourceInfo?.message || "The selected source returned no usable jobs for this profile."
                       : statusFilter !== "all"
-                        ? `No recommended matches with ${getStatusLabel(statusFilter)} status. Try another status filter or Explore More.`
+                        ? `No Start Here matches with ${getStatusLabel(statusFilter)} status. Try another status filter or Explore More.`
                       : "Explore More is open below with adjacent, restricted, and lower-confidence leads."
                   }
                 />
@@ -770,7 +770,7 @@ function App() {
                     <div>
                       <h3 className="text-sm font-semibold uppercase text-stone-500 dark:text-stone-400">Explore More - lower priority</h3>
                       <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                        Adjacent, stretch, restricted, or weak leads. Useful for review after stronger matches.
+                        Adjacent, stretch, restricted, or weak leads. Useful after reviewing the Start Here list.
                       </p>
                     </div>
                     {visibleJobsToShow.length > 0 && (
