@@ -90,6 +90,7 @@ Implemented sources:
 - `himalayas`: visible primary real source using Himalayas public remote jobs API with a conservative four-page cap.
 - `remotive`: visible secondary real source using Remotive public jobs API.
 - `remoteok`: visible secondary real source using one RemoteOK public JSON feed request with a conservative 100-job cap and local deterministic scoring/ranking. The selected profile is not sent as RemoteOK query/tag filtering.
+- `weworkremotely`: visible experimental secondary source using only We Work Remotely's Customer Support RSS feed with a conservative 50-item cap.
 - `realpython_fake_jobs`: visible deterministic fake/static source for regression and fallback testing.
 - `arbeitnow`: backend-supported secondary validation source using Arbeitnow's public job board API with a one-page cap; hidden from active frontend selection during source-quality review.
 
@@ -116,6 +117,8 @@ Normalization handles fields such as:
 Malformed or unusable rows are skipped and counted in source diagnostics.
 
 RemoteOK normalization preserves RemoteOK outbound URLs for attribution, skips the feed metadata/legal row, keeps meaningful location restriction text such as `Remote - US`, `Europe`, or `Spain`, and does not infer salary currency.
+
+We Work Remotely normalization preserves WWR outbound URLs for attribution, parses only the Customer Support RSS feed, caps considered feed items at 50, and uses conservative company handling. Explicit company fields and clear title patterns are accepted; otherwise the item keeps a neutral `Company not listed` fallback rather than guessing.
 
 ## 5. Validation
 

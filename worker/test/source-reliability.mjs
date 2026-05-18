@@ -62,11 +62,19 @@ const validRemoteOkJob = {
   salary_max: 120000,
   url: "https://remoteOK.com/remote-jobs/remote-junior-python-automation-specialist-remote-tools-1131561"
 };
+const validWeWorkRemotelyItem = {
+  guid: "https://weworkremotely.com/remote-jobs/example-co-customer-support-specialist",
+  title: "Customer Support Specialist at Example Co",
+  link: "https://weworkremotely.com/remote-jobs/example-co-customer-support-specialist?utm_source=rss#apply",
+  description: "<p>Help customers troubleshoot billing and product questions.</p><p>Full-Time Anywhere in the World $20/hr</p>",
+  category: ["Customer Support", "Full-Time"]
+};
 
 const normalized = __test.normalizeRemotiveJob(validRemotiveJob);
 const normalizedHimalayas = __test.normalizeHimalayasJob(validHimalayasJob);
 const normalizedArbeitnow = __test.normalizeArbeitnowJob(validArbeitnowJob);
 const normalizedRemoteOk = __test.normalizeRemoteOkJob(validRemoteOkJob);
+const normalizedWeWorkRemotely = __test.normalizeWeWorkRemotelyJob(validWeWorkRemotelyItem);
 const duplicateTextHimalayas = __test.normalizeHimalayasJob({
   ...validHimalayasJob,
   excerpt: "Build workflow automation for customer teams.",
@@ -107,6 +115,15 @@ assert.equal(normalizedRemoteOk.url, "https://remoteok.com/remote-jobs/remote-ju
 assert.equal(normalizedRemoteOk.salary, "80,000 - 120,000");
 assert.equal(normalizedRemoteOk.category, "python, automation, support");
 assert.equal(normalizedRemoteOk.description, "Build Python scripts and QA automation checks.");
+assert.equal(normalizedWeWorkRemotely.title, "Customer Support Specialist");
+assert.equal(normalizedWeWorkRemotely.company, "Example Co");
+assert.equal(normalizedWeWorkRemotely.source_job_id, "example-co-customer-support-specialist");
+assert.equal(normalizedWeWorkRemotely.location, "Anywhere in the World");
+assert.equal(normalizedWeWorkRemotely.url, "https://weworkremotely.com/remote-jobs/example-co-customer-support-specialist?utm_source=rss#apply");
+assert.equal(normalizedWeWorkRemotely.employment_type, "Full-Time");
+assert.equal(normalizedWeWorkRemotely.salary, "$20/hr");
+assert.equal(normalizedWeWorkRemotely.category, "Customer Support, Full-Time");
+assert.equal(normalizedWeWorkRemotely.description, "Help customers troubleshoot billing and product questions. Full-Time Anywhere in the World $20/hr");
 assert.equal(__test.normalizeRemoteOkJob(null), null);
 assert.equal(__test.normalizeRemoteOkJob({ ...validRemoteOkJob, position: undefined }), null);
 assert.equal(__test.normalizeRemoteOkJob({ ...validRemoteOkJob, company: null }), null);
@@ -124,6 +141,14 @@ assert.equal(__test.normalizeHimalayasJob(null), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, title: undefined }), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, companyName: null }), null);
 assert.equal(__test.normalizeHimalayasJob({ ...validHimalayasJob, applicationLink: "mailto:jobs@example.com" }).url, null);
+assert.equal(__test.normalizeWeWorkRemotelyJob(null), null);
+assert.equal(__test.normalizeWeWorkRemotelyJob({ ...validWeWorkRemotelyItem, title: "" }), null);
+assert.equal(__test.normalizeWeWorkRemotelyJob({ ...validWeWorkRemotelyItem, guid: "not-a-url", link: "mailto:jobs@example.com" }), null);
+assert.equal(__test.normalizeWeWorkRemotelyJob({
+  ...validWeWorkRemotelyItem,
+  title: "Customer Support Specialist",
+  "dc:creator": "jobs@example.com"
+}).company, "Company not listed");
 
 assert.equal(
   __test.dedupeJobs([
@@ -163,6 +188,13 @@ assert.equal(
 );
 assert.equal(
   __test.dedupeJobs([
+    normalizedWeWorkRemotely,
+    { ...normalizedWeWorkRemotely, title: "Different title from duplicate We Work Remotely guid" }
+  ]).length,
+  1
+);
+assert.equal(
+  __test.dedupeJobs([
     { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42?utm_source=a#apply" },
     { ...normalizedHimalayas, source_job_id: null, url: "https://himalayas.app/jobs/42" }
   ]).length,
@@ -173,11 +205,13 @@ const formatted = __test.formatJob(normalized, profile, "2026-05-12T12:00:00.000
 const formattedHimalayas = __test.formatJob(normalizedHimalayas, profile, "2026-05-12T12:00:00.000Z");
 const formattedArbeitnow = __test.formatJob(normalizedArbeitnow, profile, "2026-05-12T12:00:00.000Z");
 const formattedRemoteOk = __test.formatJob(normalizedRemoteOk, profile, "2026-05-12T12:00:00.000Z");
+const formattedWeWorkRemotely = __test.formatJob(normalizedWeWorkRemotely, profile, "2026-05-12T12:00:00.000Z");
 const formattedDuplicateText = __test.formatJob(duplicateTextHimalayas, profile, "2026-05-12T12:00:00.000Z");
 assert.equal(__test.makeStableJobId(formatted), "remotive_42");
 assert.equal(__test.makeStableJobId(formattedHimalayas), "himalayas_himalayas_python_42");
 assert.equal(__test.makeStableJobId(formattedArbeitnow), "arbeitnow_junior_python_automation_specialist_remote_tools_42");
 assert.equal(__test.makeStableJobId(formattedRemoteOk), "remoteok_1131561");
+assert.equal(__test.makeStableJobId(formattedWeWorkRemotely), "weworkremotely_example_co_customer_support_specialist");
 assert(!formattedDuplicateText.summary.includes("Build workflow automation for customer teams. Build workflow automation for customer teams."));
 
 const originalFetch = globalThis.fetch;
@@ -392,6 +426,90 @@ try {
       headers: { "Content-Type": "application/json" }
     });
   await assert.rejects(() => __test.fetchRemoteOkJobs(), /unexpected response shape/);
+
+  globalThis.fetch = async () =>
+    new Response(`<?xml version="1.0" encoding="UTF-8"?>
+      <rss version="2.0">
+        <channel>
+          <title>We Work Remotely Customer Support Jobs</title>
+          <item>
+            <guid>https://weworkremotely.com/remote-jobs/example-co-customer-support-specialist</guid>
+            <title><![CDATA[Customer Support Specialist at Example Co]]></title>
+            <link>https://weworkremotely.com/remote-jobs/example-co-customer-support-specialist?utm_source=rss#apply</link>
+            <description><![CDATA[<p>Help customers troubleshoot billing and product questions.</p><p>Full-Time Anywhere in the World $20/hr</p>]]></description>
+            <category>Customer Support</category>
+          </item>
+          <item>
+            <guid>malformed-wwr-item</guid>
+            <title></title>
+            <link>https://weworkremotely.com/remote-jobs/malformed-wwr-item</link>
+          </item>
+        </channel>
+      </rss>`, {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml" }
+    });
+
+  const weWorkRemotelyResult = await __test.fetchWeWorkRemotelyJobs();
+  assert.equal(weWorkRemotelyResult.jobs.length, 1);
+  assert.equal(weWorkRemotelyResult.droppedCount, 1);
+  assert.equal(weWorkRemotelyResult.maxJobs, 50);
+  assert.equal(weWorkRemotelyResult.jobs[0].source, "We Work Remotely");
+  assert.equal(weWorkRemotelyResult.jobs[0].url.startsWith("https://weworkremotely.com/remote-jobs/"), true);
+
+  globalThis.fetch = async () =>
+    new Response(`<?xml version="1.0" encoding="UTF-8"?>
+      <rss version="2.0">
+        <channel>
+          ${Array.from({ length: 55 }, (_, index) => `
+            <item>
+              <guid>https://weworkremotely.com/remote-jobs/cap-${index}</guid>
+              <title><![CDATA[Customer Support Agent ${index} at Example ${index}]]></title>
+              <link>https://weworkremotely.com/remote-jobs/cap-${index}</link>
+              <description><![CDATA[<p>Customer Support Full-Time Anywhere in the World.</p>]]></description>
+            </item>
+          `).join("")}
+        </channel>
+      </rss>`, {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml" }
+    });
+
+  const cappedWeWorkRemotelyResult = await __test.fetchWeWorkRemotelyJobs();
+  assert.equal(cappedWeWorkRemotelyResult.jobs.length, 50);
+  assert.equal(cappedWeWorkRemotelyResult.droppedCount, 0);
+  assert.equal(cappedWeWorkRemotelyResult.maxJobs, 50);
+
+  globalThis.fetch = async () =>
+    new Response(`<?xml version="1.0" encoding="UTF-8"?>
+      <rss version="2.0">
+        <channel>
+          <title>We Work Remotely Customer Support Jobs</title>
+        </channel>
+      </rss>`, {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml" }
+    });
+
+  const emptyWeWorkRemotelyResult = await __test.fetchWeWorkRemotelyJobs();
+  assert.deepEqual(emptyWeWorkRemotelyResult, { jobs: [], droppedCount: 0, maxJobs: 50 });
+
+  globalThis.fetch = async () => new Response("temporary outage", { status: 503 });
+  await assert.rejects(() => __test.fetchWeWorkRemotelyJobs(), /status 503/);
+
+  globalThis.fetch = async () => new Response("<rss>", { status: 200 });
+  await assert.rejects(() => __test.fetchWeWorkRemotelyJobs(), /invalid XML/);
+
+  globalThis.fetch = async () => new Response("<root />", { status: 200 });
+  await assert.rejects(() => __test.fetchWeWorkRemotelyJobs(), /unexpected RSS shape/);
+
+  globalThis.fetch = async () => {
+    const error = new Error("aborted");
+    error.name = "AbortError";
+    throw error;
+  };
+
+  await assert.rejects(() => __test.fetchWeWorkRemotelyJobs(), /timed out/);
 
   globalThis.fetch = async (_url, options = {}) =>
     new Promise((_resolve, reject) => {

@@ -26,19 +26,22 @@ const SOURCE_LABELS = {
   remotive: "Remotive",
   himalayas: "Himalayas",
   remoteok: "RemoteOK",
+  weworkremotely: "We Work Remotely",
   arbeitnow: "Arbeitnow"
 };
 const SOURCE_DESCRIPTIONS = {
   himalayas: "Best for real remote job listings.",
   remotive: "Smaller public remote-job source.",
   remoteok: "Broader remote listings; quality may vary.",
+  weworkremotely: "Experimental Customer Support RSS feed.",
   realpython_fake_jobs: "Demo/testing source, not real jobs."
 };
 const VISIBLE_SOURCE_OPTIONS = [
   { value: "realpython_fake_jobs", label: SOURCE_LABELS.realpython_fake_jobs },
   { value: "remotive", label: SOURCE_LABELS.remotive },
   { value: "himalayas", label: SOURCE_LABELS.himalayas },
-  { value: "remoteok", label: SOURCE_LABELS.remoteok }
+  { value: "remoteok", label: SOURCE_LABELS.remoteok },
+  { value: "weworkremotely", label: SOURCE_LABELS.weworkremotely }
 ];
 const STARTER_PATHS = [
   {
@@ -1205,7 +1208,7 @@ function OnboardingPanel({ onDismiss, onOpenSetupGuide }) {
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <OnboardingItem
               title="Find jobs"
-              text="Search Himalayas, Remotive, RemoteOK, or the demo source and get deterministic match scores."
+              text="Search Himalayas, Remotive, RemoteOK, We Work Remotely, or the demo source and get deterministic match scores."
             />
             <OnboardingItem
               title="Evaluate a job"

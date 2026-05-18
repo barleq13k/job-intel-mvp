@@ -213,6 +213,7 @@ by default.
 * Himalayas (primary public source)
 * Remotive (secondary public source)
 * RemoteOK (secondary capped public feed)
+* We Work Remotely (experimental Customer Support RSS feed)
 * Real Python Fake Jobs (deterministic regression/fallback source)
 
 ### Backend-Supported / Hidden During Review

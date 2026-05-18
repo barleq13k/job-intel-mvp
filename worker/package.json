@@ -12,7 +12,7 @@
     "test:source": "node test/source-reliability.mjs"
   },
   "dependencies": {
+    "fast-xml-parser": "^5.8.0",
     "wrangler": "^4.43.0"
-  },
-  "devDependencies": {}
+  }
 }

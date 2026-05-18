@@ -1,19 +1,25 @@
+import { XMLParser, XMLValidator } from "fast-xml-parser";
+
 const REAL_PYTHON_URL = "https://realpython.github.io/fake-jobs/";
 const REMOTIVE_URL = "https://remotive.com/api/remote-jobs";
 const HIMALAYAS_URL = "https://himalayas.app/jobs/api/search";
 const ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api";
 const REMOTEOK_URL = "https://remoteok.com/api";
+const WEWORKREMOTELY_URL = "https://weworkremotely.com/categories/remote-customer-support-jobs.rss";
 const SOURCE_NAME = "Real Python Fake Jobs";
 const REMOTIVE_SOURCE_NAME = "Remotive";
 const HIMALAYAS_SOURCE_NAME = "Himalayas";
 const ARBEITNOW_SOURCE_NAME = "Arbeitnow";
 const REMOTEOK_SOURCE_NAME = "RemoteOK";
+const WEWORKREMOTELY_SOURCE_NAME = "We Work Remotely";
 const MANUAL_SOURCE_NAME = "Manual Paste";
 const REMOTIVE_TIMEOUT_MS = 8000;
 const HIMALAYAS_MAX_PAGES = 4;
 const ARBEITNOW_MAX_PAGES = 1;
 const REMOTEOK_TIMEOUT_MS = 8000;
 const REMOTEOK_MAX_JOBS = 100;
+const WEWORKREMOTELY_TIMEOUT_MS = 8000;
+const WEWORKREMOTELY_MAX_JOBS = 50;
 const MANUAL_EVALUATE_MAX_BODY_BYTES = 128 * 1024;
 const MANUAL_DESCRIPTION_MAX_CHARS = 30000;
 const MANUAL_DESCRIPTION_MIN_CHARS = 80;
@@ -365,8 +371,8 @@ async function handleJobSearch(request) {
   const profile = normalizeProfile(body.profile);
   const sourceType = body.source?.type;
 
-  if (!["realpython_fake_jobs", "remotive", "himalayas", "arbeitnow", "remoteok"].includes(sourceType)) {
-    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, himalayas, arbeitnow, or remoteok." }, 400);
+  if (!["realpython_fake_jobs", "remotive", "himalayas", "arbeitnow", "remoteok", "weworkremotely"].includes(sourceType)) {
+    return json({ error: "Unsupported source. Use realpython_fake_jobs, remotive, himalayas, arbeitnow, remoteok, or weworkremotely." }, 400);
   }
 
   let sourceResult;
@@ -981,6 +987,10 @@ async function fetchJobsForSource(sourceType, profile) {
     return fetchRemoteOkJobs();
   }
 
+  if (sourceType === "weworkremotely") {
+    return fetchWeWorkRemotelyJobs();
+  }
+
   return makeSourceResult(await fetchRealPythonJobs());
 }
 
@@ -990,6 +1000,7 @@ function getSourceName(sourceType) {
     himalayas: HIMALAYAS_SOURCE_NAME,
     arbeitnow: ARBEITNOW_SOURCE_NAME,
     remoteok: REMOTEOK_SOURCE_NAME,
+    weworkremotely: WEWORKREMOTELY_SOURCE_NAME,
     realpython_fake_jobs: SOURCE_NAME
   }[sourceType] || SOURCE_NAME;
 }
@@ -1007,18 +1018,20 @@ function makeSourceSuccessMessage(sourceName, jobCount, sourceResult = {}) {
   const pageText = sourceResult.pagesFetched > 1 ? ` from ${sourceResult.pagesFetched} pages` : "";
   const remotiveBatchText = sourceName === REMOTIVE_SOURCE_NAME ? " from its public API batch" : "";
   const remoteOkFeedText = sourceName === REMOTEOK_SOURCE_NAME ? " from its capped public API feed" : "";
+  const weWorkRemotelyFeedText = sourceName === WEWORKREMOTELY_SOURCE_NAME ? " from its capped Customer Support RSS feed" : "";
+  const sourceContextText = pageText || remotiveBatchText || remoteOkFeedText || weWorkRemotelyFeedText;
   const suffix = sourceResult.warning ? ` ${sourceResult.warning}` : "";
 
   if (jobCount === 0) {
     const emptyMessage = droppedCount > 0
-      ? `${sourceName} returned jobs${pageText || remotiveBatchText || remoteOkFeedText}, but none were usable after normalization.`
-      : `${sourceName} returned no jobs${pageText || remotiveBatchText || remoteOkFeedText} for this search.`;
+      ? `${sourceName} returned jobs${sourceContextText}, but none were usable after normalization.`
+      : `${sourceName} returned no jobs${sourceContextText} for this search.`;
     return `${emptyMessage}${suffix}`;
   }
 
   const successMessage = droppedCount > 0
-    ? `${sourceName} returned ${jobCount} usable jobs${pageText || remotiveBatchText || remoteOkFeedText}; ${droppedCount} malformed rows were skipped.`
-    : `${sourceName} returned ${jobCount} jobs${pageText || remotiveBatchText || remoteOkFeedText}.`;
+    ? `${sourceName} returned ${jobCount} usable jobs${sourceContextText}; ${droppedCount} malformed rows were skipped.`
+    : `${sourceName} returned ${jobCount} jobs${sourceContextText}.`;
 
   return `${successMessage}${suffix}`;
 }
@@ -1685,6 +1698,334 @@ function normalizeRemoteOkJobUrl(...values) {
   return null;
 }
 
+async function fetchWeWorkRemotelyJobs() {
+  let response;
+
+  try {
+    response = await fetchWithTimeout(WEWORKREMOTELY_URL, {
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml",
+        "User-Agent": "job-intel-mvp/0.1"
+      }
+    }, WEWORKREMOTELY_TIMEOUT_MS);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw makeSourceError(`We Work Remotely request timed out after ${WEWORKREMOTELY_TIMEOUT_MS}ms.`, "timeout");
+    }
+
+    throw makeSourceError("We Work Remotely request failed before a response was received.", "network_error");
+  }
+
+  if (!response.ok) {
+    throw makeSourceError(`We Work Remotely fetch failed with status ${response.status}.`, "http_error");
+  }
+
+  let items;
+
+  try {
+    items = parseWeWorkRemotelyRss(await response.text());
+  } catch (error) {
+    if (error?.code) {
+      throw error;
+    }
+
+    throw makeSourceError("We Work Remotely returned invalid XML.", "invalid_xml");
+  }
+
+  let droppedCount = 0;
+  let consideredCount = 0;
+  const jobs = [];
+
+  for (const item of items) {
+    if (consideredCount >= WEWORKREMOTELY_MAX_JOBS) {
+      break;
+    }
+
+    consideredCount += 1;
+    const normalizedJob = normalizeWeWorkRemotelyJob(item);
+
+    if (normalizedJob) {
+      jobs.push(normalizedJob);
+    } else {
+      droppedCount += 1;
+    }
+  }
+
+  return makeSourceResult(jobs, droppedCount, {
+    maxJobs: WEWORKREMOTELY_MAX_JOBS
+  });
+}
+
+function parseWeWorkRemotelyRss(xmlText) {
+  const text = cleanOptionalText(xmlText);
+
+  if (!text) {
+    throw makeSourceError("We Work Remotely returned invalid XML.", "invalid_xml");
+  }
+
+  const validation = XMLValidator.validate(text);
+
+  if (validation !== true) {
+    throw makeSourceError("We Work Remotely returned invalid XML.", "invalid_xml");
+  }
+
+  let data;
+
+  try {
+    data = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "",
+      trimValues: true,
+      parseTagValue: false,
+      parseAttributeValue: false
+    }).parse(text);
+  } catch {
+    throw makeSourceError("We Work Remotely returned invalid XML.", "invalid_xml");
+  }
+
+  const channel = data?.rss?.channel;
+
+  if (!channel || typeof channel !== "object" || Array.isArray(channel)) {
+    throw makeSourceError("We Work Remotely returned an unexpected RSS shape.", "invalid_shape");
+  }
+
+  return asArray(channel.item);
+}
+
+function normalizeWeWorkRemotelyJob(item) {
+  if (!item || typeof item !== "object" || Array.isArray(item)) {
+    return null;
+  }
+
+  const titleInfo = parseWeWorkRemotelyTitle(getRssText(item, "title"));
+  const title = cleanOptionalText(titleInfo.title);
+  const url = normalizeWeWorkRemotelyJobUrl(getRssText(item, "link"), getRssText(item, "guid"));
+
+  if (!title || !url) {
+    return null;
+  }
+
+  const explicitCompany = getWeWorkRemotelyCompany(item);
+  const description = cleanWeWorkRemotelyDescription(
+    getRssText(item, "description"),
+    getRssText(item, "content:encoded")
+  );
+  const category = normalizeWeWorkRemotelyCategory(item);
+
+  return {
+    title,
+    company: explicitCompany || titleInfo.company || "Company not listed",
+    location: getWeWorkRemotelyLocation(item, description),
+    source: WEWORKREMOTELY_SOURCE_NAME,
+    source_job_id: normalizeWeWorkRemotelySourceId(getRssText(item, "guid"), url),
+    url,
+    employment_type: getWeWorkRemotelyEmploymentType(item, description),
+    salary: getWeWorkRemotelyCompensation(item, description),
+    description,
+    category: category || "Customer Support"
+  };
+}
+
+function normalizeWeWorkRemotelySourceId(guid, url) {
+  const sourceGuid = cleanSourceId(guid);
+
+  if (sourceGuid && normalizeWeWorkRemotelyJobUrl(sourceGuid)) {
+    return sourceIdFromUrl(sourceGuid);
+  }
+
+  return sourceGuid || sourceIdFromUrl(url);
+}
+
+function getRssText(item, ...keys) {
+  for (const key of keys) {
+    const value = readXmlText(item?.[key]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function readXmlText(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return cleanOptionalText(value);
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return "";
+  }
+
+  return cleanOptionalText(value["#text"] || value.__cdata || value._text || value.text || "");
+}
+
+function parseWeWorkRemotelyTitle(value) {
+  const title = cleanOptionalText(value);
+
+  if (!title) {
+    return { title: "", company: "" };
+  }
+
+  const atMatch = title.match(/^(.{8,160}?)\s+at\s+(.{2,90})$/i);
+
+  if (atMatch) {
+    const parsedTitle = cleanOptionalText(atMatch[1]);
+    const company = cleanOptionalText(atMatch[2]);
+
+    if (parsedTitle && isPlausibleCompanyName(company)) {
+      return { title: parsedTitle, company };
+    }
+  }
+
+  const colonMatch = title.match(/^(.{2,90}):\s+(.{8,180})$/);
+
+  if (colonMatch) {
+    const company = cleanOptionalText(colonMatch[1]);
+    const parsedTitle = cleanOptionalText(colonMatch[2]);
+
+    if (parsedTitle && isPlausibleCompanyName(company)) {
+      return { title: parsedTitle, company };
+    }
+  }
+
+  return { title, company: "" };
+}
+
+function getWeWorkRemotelyCompany(item) {
+  const value = getRssText(
+    item,
+    "company",
+    "company_name",
+    "companyName",
+    "wwr:company",
+    "dc:creator"
+  );
+
+  return isPlausibleCompanyName(value) ? value : "";
+}
+
+function isPlausibleCompanyName(value) {
+  const text = cleanOptionalText(value);
+
+  return Boolean(
+    text &&
+    text.length <= 100 &&
+    !text.includes("@") &&
+    !/^https?:\/\//i.test(text) &&
+    !/[<>]/.test(text)
+  );
+}
+
+function normalizeWeWorkRemotelyJobUrl(...values) {
+  for (const value of values) {
+    const normalized = normalizeUrlFromBase(value, WEWORKREMOTELY_URL);
+
+    if (!normalized) {
+      continue;
+    }
+
+    const url = new URL(normalized);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+
+    if (hostname === "weworkremotely.com" && isWeWorkRemotelyJobPath(url.pathname)) {
+      return url.toString();
+    }
+  }
+
+  return null;
+}
+
+function isWeWorkRemotelyJobPath(pathname) {
+  return /^\/(?:remote-jobs|listings)\//i.test(pathname);
+}
+
+function sourceIdFromUrl(value) {
+  const normalized = normalizeUrlFromBase(value, WEWORKREMOTELY_URL);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const url = new URL(normalized);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+
+  return cleanSourceId(pathParts[pathParts.length - 1] || normalized);
+}
+
+function cleanWeWorkRemotelyDescription(...parts) {
+  return limitText(cleanSourceDescription(...parts), 2200);
+}
+
+function normalizeWeWorkRemotelyCategory(item) {
+  return asArray(item?.category)
+    .map(readXmlText)
+    .filter(Boolean)
+    .join(", ");
+}
+
+function getWeWorkRemotelyLocation(item, description) {
+  const explicitLocation = getRssText(
+    item,
+    "location",
+    "job_location",
+    "wwr:location"
+  );
+
+  if (explicitLocation) {
+    return explicitLocation;
+  }
+
+  const text = cleanOptionalText(description);
+  const locationMatch = text.match(/\b(?:Anywhere in the World|Worldwide|United States(?: of America)?|Canada|Europe|EU|APAC|Asia|Philippines)\b/i);
+
+  return locationMatch ? cleanOptionalText(locationMatch[0]) : "Remote";
+}
+
+function getWeWorkRemotelyEmploymentType(item, description) {
+  const explicitType = getRssText(item, "job_type", "employment_type", "wwr:job_type");
+  const text = `${explicitType} ${description}`;
+
+  if (/\bfull[-\s]?time\b/i.test(text)) {
+    return "Full-Time";
+  }
+
+  if (/\bcontract\b/i.test(text)) {
+    return "Contract";
+  }
+
+  if (/\bpart[-\s]?time\b/i.test(text)) {
+    return "Part-Time";
+  }
+
+  return null;
+}
+
+function getWeWorkRemotelyCompensation(item, description) {
+  const explicitCompensation = normalizeCompensation(getRssText(item, "salary", "compensation", "wwr:salary"));
+
+  if (explicitCompensation) {
+    return explicitCompensation;
+  }
+
+  const text = cleanOptionalText(description);
+  const salaryMatch = text.match(/(?:\$\s?\d+(?:\.\d+)?\s?\/\s?(?:hr|hour)|[$€£]\s?\d[\d,]*(?:\s?-\s?(?:[$€£]\s?)?\d[\d,]*)?(?:\s?(?:USD|EUR|GBP))?)/i);
+
+  return salaryMatch ? normalizeCompensation(salaryMatch[0]) : null;
+}
+
+function asArray(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
 function normalizeRemoteOkSalary(minSalary, maxSalary) {
   const min = normalizePositiveNumber(minSalary);
   const max = normalizePositiveNumber(maxSalary);
@@ -1939,7 +2280,7 @@ function formatJob(job, profile, ingestedAt) {
 }
 
 function getMetadataSourceType(sourceName) {
-  if ([REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME, REMOTEOK_SOURCE_NAME].includes(sourceName)) {
+  if ([REMOTIVE_SOURCE_NAME, HIMALAYAS_SOURCE_NAME, ARBEITNOW_SOURCE_NAME, REMOTEOK_SOURCE_NAME, WEWORKREMOTELY_SOURCE_NAME].includes(sourceName)) {
     return "api";
   }
 
@@ -1980,6 +2321,10 @@ function getStableSourceKey(job) {
 
   if (job.source === REMOTEOK_SOURCE_NAME) {
     return "remoteok";
+  }
+
+  if (job.source === WEWORKREMOTELY_SOURCE_NAME) {
+    return "weworkremotely";
   }
 
   if (job.source === MANUAL_SOURCE_NAME) {
@@ -3769,6 +4114,7 @@ export const __test = Object.freeze({
   fetchHimalayasJobs,
   fetchRemoteOkJobs,
   fetchRemotiveJobs,
+  fetchWeWorkRemotelyJobs,
   fetchWithTimeout,
   formatJob,
   normalizeArbeitnowJob,
@@ -3777,6 +4123,8 @@ export const __test = Object.freeze({
   normalizeManualJob,
   normalizeRemoteOkJob,
   normalizeRemotiveJob,
+  normalizeWeWorkRemotelyJob,
+  parseWeWorkRemotelyRss,
   normalizeProfile,
   scoreJob
 });

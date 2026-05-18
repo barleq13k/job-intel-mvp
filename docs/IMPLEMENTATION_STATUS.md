@@ -11,6 +11,7 @@
   - Remotive
   - Himalayas
   - RemoteOK
+  - We Work Remotely as an experimental Customer Support RSS source
   - Arbeitnow implemented in the backend but hidden from active frontend selection during source-quality review
 - Source selector descriptions for visible sources, shown as frontend expectation-setting copy only.
 - Comma-separated profile parsing that preserves spaces within values.
@@ -23,12 +24,13 @@
 - Remotive public API ingestion.
 - Himalayas public API ingestion with a conservative four-page cap.
 - RemoteOK public JSON feed ingestion with a conservative 100-job cap, RemoteOK URL attribution preservation, location restriction text preservation, and non-inferred salary display.
+- We Work Remotely Customer Support RSS ingestion with a conservative 50-item cap, WWR URL attribution preservation, graceful RSS failure handling, and conservative company fallback behavior.
 - Arbeitnow public API ingestion with a conservative one-page cap while source quality is validated.
 - Job normalization, validation, deduplication, scoring, sorting, and formatting.
 - Manual job validation and normalization into the same deterministic scoring pipeline used by source jobs, without fetching pasted URLs.
 - Frontend manual job validation for required title/listing fields and clearly too-short listings before request dispatch.
 - Source reliability diagnostics, malformed-row skipping, request timeouts, stable source IDs, and deterministic job IDs for real API sources.
-- Himalayas is treated as the primary real source; RemoteOK, Arbeitnow, and Remotive remain secondary limited public API sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
+- Himalayas is treated as the primary real source; RemoteOK, We Work Remotely, Arbeitnow, and Remotive remain secondary limited public/feed sources; Real Python Fake Jobs remains a fake/static regression and fallback source.
 - Rule-based scoring with match reasons.
 - Broad-role category/tag-only protection that caps weak category-only evidence below Recommended for calibrated support/admin/assistant/customer-service/virtual-assistant searches, with stronger caps for clearly unrelated occupational title families.
 - Execution likelihood labels: `strong_fit`, `possible_fit`, `adjacent`, `stretch`, and `lower_match`.

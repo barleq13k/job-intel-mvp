@@ -30,6 +30,7 @@ Planned Phase 2.2 onboarding/help should explain how these fields drive the work
 ### Job Ingestion And Manual Evaluation
 System can:
 - fetch jobs from at least one source
+- fetch a conservative We Work Remotely Customer Support RSS source as an experimental secondary feed
 - evaluate a manually pasted listing through the same deterministic scoring pipeline
 - ingest structured job data
 - normalize jobs

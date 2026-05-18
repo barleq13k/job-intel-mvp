@@ -55,10 +55,11 @@ Supported `source.type` values:
 - `himalayas`
 - `arbeitnow`
 - `remoteok`
+- `weworkremotely`
 
 Unsupported source types return `400`.
 
-The active frontend source selector shows Real Python Fake Jobs, Remotive, Himalayas, and RemoteOK. Arbeitnow remains supported by the backend contract but hidden from active frontend selection during source-quality review.
+The active frontend source selector shows Real Python Fake Jobs, Remotive, Himalayas, RemoteOK, and We Work Remotely. We Work Remotely is exposed as an experimental Customer Support RSS source, not as the default or recommended path. Arbeitnow remains supported by the backend contract but hidden from active frontend selection during source-quality review.
 
 ## Source Error Response
 
@@ -140,12 +141,12 @@ Source fetch, timeout, invalid JSON, or invalid source-shape failures return `50
 - `id` is a stable deterministic string derived from the source job ID when available, otherwise from normalized title, company, and canonical URL. It is no longer based on display rank.
 - `salary` is `null` when unavailable.
 - `details` contains 2-4 simple description bullets when possible.
-- `metadata.source_type` is currently `api` for Remotive, Himalayas, Arbeitnow, and RemoteOK, `scraper` for Real Python, and `manual` for jobs evaluated through `/api/jobs/evaluate`.
+- `metadata.source_type` is currently `api` for Remotive, Himalayas, Arbeitnow, RemoteOK, and We Work Remotely, `scraper` for Real Python, and `manual` for jobs evaluated through `/api/jobs/evaluate`.
 - `metadata.source_job_id` is populated when a source provides a stable upstream ID, otherwise `null`.
 - `source.status`, `source.message`, and `source.dropped_count` are additive diagnostics. `dropped_count` counts malformed upstream rows skipped during source normalization.
-- `source.message` may include source-specific context such as Himalayas or Arbeitnow page count, later-page partial fetch warnings, RemoteOK capped-feed wording, or Remotive public API batch wording. The response shape is unchanged.
-- Himalayas outbound job URLs are preserved from `applicationLink` when provided so users can reach the source/application page. RemoteOK outbound job URLs are preserved as RemoteOK source links for attribution and candidate navigation.
-- Himalayas uses a conservative four-page public API cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request and is not query/tag-filtered before local deterministic scoring/ranking; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
+- `source.message` may include source-specific context such as Himalayas or Arbeitnow page count, later-page partial fetch warnings, RemoteOK capped-feed wording, We Work Remotely capped Customer Support RSS wording, or Remotive public API batch wording. The response shape is unchanged.
+- Himalayas outbound job URLs are preserved from `applicationLink` when provided so users can reach the source/application page. RemoteOK outbound job URLs are preserved as RemoteOK source links for attribution and candidate navigation. We Work Remotely outbound URLs are preserved as We Work Remotely source links for attribution and candidate navigation.
+- Himalayas uses a conservative four-page public API cap; Arbeitnow starts with a one-page public API cap while source quality is validated; RemoteOK uses a conservative 100-job cap from one public feed request and is not query/tag-filtered before local deterministic scoring/ranking; We Work Remotely uses only the Customer Support RSS feed with a conservative 50-item cap; Remotive uses its public API batch behavior without login or browser workarounds; Real Python Fake Jobs is a fake/static regression and fallback source.
 - RemoteOK location text is preserved when it carries restriction meaning, such as `Remote - US`, `Europe`, or `Spain`; restricted remote listings are not flattened to generic `Remote`.
 - RemoteOK salary ranges are displayed only when positive numeric bounds are provided and no currency is inferred from the feed.
 - Backend returns all jobs sorted by score.
