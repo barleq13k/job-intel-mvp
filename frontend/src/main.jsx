@@ -705,7 +705,7 @@ function App() {
           />
         )}
 
-        <section>
+        <section className="min-w-0">
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-2xl font-semibold text-stone-950 dark:text-stone-50">Ranked Results</h2>
@@ -1694,7 +1694,7 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
   }
 
   return (
-    <article className={`rounded-2xl border bg-[#fffdf8] p-5 shadow-sm shadow-stone-300/30 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-stone-300/40 dark:bg-[#181714] dark:shadow-none dark:hover:border-stone-700 ${getCardBorderClass(decision.tone)}`}>
+    <article className={`w-full max-w-full min-w-0 rounded-2xl border bg-[#fffdf8] p-5 shadow-sm shadow-stone-300/30 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-stone-300/40 dark:bg-[#181714] dark:shadow-none dark:hover:border-stone-700 ${getCardBorderClass(decision.tone)}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1713,15 +1713,15 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
             </span>
             <span className="text-xs font-medium text-stone-500 dark:text-stone-400">{decision.helper}</span>
           </div>
-          <h3 className="text-xl font-semibold leading-7 text-stone-950 dark:text-stone-50">{job.title}</h3>
-          <p className="mt-1 text-sm font-medium text-stone-700 dark:text-stone-300">{job.company}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-stone-500 dark:text-stone-400">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              {formatDisplayLocation(job.location) || "Location unavailable"}
+          <h3 className="text-xl font-semibold leading-7 text-stone-950 break-words [overflow-wrap:anywhere] dark:text-stone-50">{job.title}</h3>
+          <p className="mt-1 text-sm font-medium text-stone-700 break-words [overflow-wrap:anywhere] dark:text-stone-300">{job.company}</p>
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-stone-500 dark:text-stone-400">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <MapPin className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 break-words [overflow-wrap:anywhere]">{formatDisplayLocation(job.location) || "Location unavailable"}</span>
             </span>
-            <span>{job.source}</span>
-            {job.salary && <span>{job.salary}</span>}
+            <span className="min-w-0 break-words [overflow-wrap:anywhere]">{job.source}</span>
+            {job.salary && <span className="min-w-0 break-words [overflow-wrap:anywhere]">{job.salary}</span>}
             {job.cached_tracking_only && <span>Not in current search results.</span>}
           </div>
           {eligibilitySignal && <EligibilitySignal signal={eligibilitySignal} />}
@@ -1737,13 +1737,13 @@ function JobCard({ job, profile, variant = "recommended", status = "new", onStat
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-stone-700 dark:text-stone-300">{job.summary}</p>
+      <p className="mt-4 text-sm leading-6 text-stone-700 break-words [overflow-wrap:anywhere] dark:text-stone-300">{job.summary}</p>
 
       <div className="mt-4">
         <div className="mb-2 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">Why shown</div>
         <div className="flex flex-wrap gap-2.5">
           {getOrderedMatchReasons(job.scoring.match_reasons).map((reason) => (
-            <span key={reason} className={getReasonChipClass(reason)}>
+            <span key={reason} className={`${getReasonChipClass(reason)} break-words [overflow-wrap:anywhere]`}>
               {reason}
             </span>
           ))}
@@ -1828,7 +1828,7 @@ function BeforeApplyingChecks({ checks }) {
         {checks.map((check) => (
           <div key={`${check.label}-${check.reason}`} className="rounded-lg border border-amber-200/70 bg-[#fffdf8]/70 px-3 py-2 dark:border-amber-900/70 dark:bg-stone-950/20">
             <div className="font-semibold">{check.label}</div>
-            <div className="mt-0.5 text-xs leading-5 opacity-80">{check.reason}</div>
+            <div className="mt-0.5 text-xs leading-5 opacity-80 break-words [overflow-wrap:anywhere]">{check.reason}</div>
           </div>
         ))}
       </div>
