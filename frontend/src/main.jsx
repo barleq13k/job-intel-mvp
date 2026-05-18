@@ -11,6 +11,7 @@ const LAST_SEARCH_PROFILE_KEY = "job-intel-last-search-profile";
 const LAST_SEARCH_RESULTS_KEY = "job-intel-last-search-results";
 const FILTER_PANEL_COLLAPSED_KEY = "job-intel-filter-panel-collapsed";
 const ONBOARDING_HIDDEN_KEY = "job-intel-onboarding-hidden";
+const FIRST_RUN_ONBOARDING_COMPLETE_KEY = "job-intel-first-run-onboarding-complete";
 const MANUAL_LISTING_MIN_CHARS = 80;
 const MANUAL_LISTING_MIN_WORDS = 12;
 const TECH_ALIASES = {
@@ -39,16 +40,78 @@ const VISIBLE_SOURCE_OPTIONS = [
   { value: "himalayas", label: SOURCE_LABELS.himalayas },
   { value: "remoteok", label: SOURCE_LABELS.remoteok }
 ];
-const SAMPLE_PROFILE = {
-  target_roles: "support, customer support, technical support, QA tester, virtual assistant",
-  skills: "QA testing, customer support, documentation, AI tools, spreadsheets",
-  keywords: "remote, support, QA, assistant, documentation",
-  avoid_keywords: "senior, principal, architect, onsite",
-  location: "Philippines",
-  work_mode: "remote",
-  experience_level: "junior",
-  source_type: "himalayas"
-};
+const STARTER_PATHS = [
+  {
+    label: "Beginner VA / Admin Support",
+    helper: "Admin, data entry, documentation, and assistant work.",
+    form: {
+      target_roles: "virtual assistant, admin assistant, operations assistant",
+      skills: "data entry, email support, spreadsheets, documentation",
+      keywords: "remote, assistant, admin, entry level",
+      avoid_keywords: "senior, manager, executive, onsite",
+      location: "Philippines",
+      work_mode: "remote",
+      experience_level: "beginner",
+      source_type: "himalayas"
+    }
+  },
+  {
+    label: "Customer Support",
+    helper: "Email, chat, and customer service support roles.",
+    form: {
+      target_roles: "customer support, customer service, support specialist",
+      skills: "customer support, email support, chat support, documentation",
+      keywords: "remote, support, entry level, customer",
+      avoid_keywords: "senior, manager, onsite",
+      location: "Philippines",
+      work_mode: "remote",
+      experience_level: "beginner",
+      source_type: "himalayas"
+    }
+  },
+  {
+    label: "Technical Support",
+    helper: "Troubleshooting, product support, and software support.",
+    form: {
+      target_roles: "technical support, support engineer, product support",
+      skills: "troubleshooting, customer support, documentation, software support",
+      keywords: "remote, support, technical support, junior",
+      avoid_keywords: "senior, lead, architect, onsite",
+      location: "Philippines",
+      work_mode: "remote",
+      experience_level: "junior",
+      source_type: "himalayas"
+    }
+  },
+  {
+    label: "QA / Testing",
+    helper: "Manual QA, test cases, bug reports, and junior testing.",
+    form: {
+      target_roles: "QA tester, manual QA tester, software tester",
+      skills: "QA testing, test cases, bug reports, documentation",
+      keywords: "remote, QA, tester, junior",
+      avoid_keywords: "senior, lead, architect, onsite",
+      location: "Philippines",
+      work_mode: "remote",
+      experience_level: "junior",
+      source_type: "himalayas"
+    }
+  },
+  {
+    label: "Remote Operations Support",
+    helper: "Process support, documentation, and operations coordination.",
+    form: {
+      target_roles: "operations assistant, operations support, remote operations",
+      skills: "spreadsheets, documentation, process support, customer support",
+      keywords: "remote, operations, assistant, support",
+      avoid_keywords: "senior, manager, director, onsite",
+      location: "Philippines",
+      work_mode: "remote",
+      experience_level: "junior",
+      source_type: "himalayas"
+    }
+  }
+];
 const REASON_CHIP_CLASSES = {
   positive:
     "max-w-full rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1.5 text-xs font-medium leading-5 text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/70 dark:text-emerald-200",
@@ -90,6 +153,29 @@ const JOB_STATUSES = [
 ];
 const TRACKED_STATUS_SHORTCUTS = JOB_STATUSES.filter((status) => status.value !== "new");
 const STATUS_FILTERS = [{ value: "all", label: "All" }, ...TRACKED_STATUS_SHORTCUTS];
+const CUSTOM_STARTER_PATH_VALUE = "custom";
+const SETUP_GUIDE_AVOID_OPTIONS = [
+  {
+    value: "senior",
+    label: "Senior or management-heavy roles",
+    terms: ["senior", "manager", "lead"]
+  },
+  {
+    value: "onsite",
+    label: "Onsite or location-mismatched roles",
+    terms: ["onsite"]
+  },
+  {
+    value: "payment",
+    label: "Payment-required listings",
+    terms: ["paid training", "top up", "recharge"]
+  },
+  {
+    value: "unpaid",
+    label: "Commission-only or unpaid work",
+    terms: ["commission only", "unpaid"]
+  }
+];
 
 const initialForm = {
   target_roles: "",
@@ -242,6 +328,7 @@ function App() {
   const [sourceInfo, setSourceInfo] = useState(() => restoredSearch?.sourceInfo || null);
   const [theme, setTheme] = useState(() => localStorage.getItem("job-intel-theme") || "light");
   const [isOnboardingHidden, setIsOnboardingHidden] = useState(loadStoredOnboardingHidden);
+  const [isSetupGuideOpen, setIsSetupGuideOpen] = useState(() => !loadStoredFirstRunOnboardingComplete());
   const [showExploreMore, setShowExploreMore] = useState(false);
   const [jobStatuses, setJobStatuses] = useState(loadStoredJobStatuses);
   const [jobCache, setJobCache] = useState(loadStoredJobCache);
@@ -302,7 +389,7 @@ function App() {
         : jobs.length === 0
           ? sourceInfo?.message || `${sourceLabel} returned no jobs for this search.`
           : `${visibleJobs.length} recommended matches${lowerMatchJobs.length ? `, ${lowerMatchJobs.length} more to explore` : ""}`
-      : "Submit a profile to fetch and score jobs.";
+      : "Fill the search form to fetch and score jobs.";
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -369,8 +456,23 @@ function App() {
     }));
   }
 
-  function useSampleProfile() {
-    setForm((current) => ({ ...current, ...SAMPLE_PROFILE }));
+  function applyStarterPath(starterPath) {
+    setForm((current) => ({ ...current, ...starterPath.form }));
+  }
+
+  function openSetupGuide() {
+    setIsSetupGuideOpen(true);
+  }
+
+  function skipSetupGuide() {
+    saveStoredFirstRunOnboardingComplete("skipped");
+    setIsSetupGuideOpen(false);
+  }
+
+  function completeSetupGuide(formPatch) {
+    setForm((current) => ({ ...current, ...formPatch }));
+    saveStoredFirstRunOnboardingComplete("true");
+    setIsSetupGuideOpen(false);
   }
 
   function hideOnboarding() {
@@ -528,10 +630,18 @@ function App() {
               Job Intel
             </div>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-[#131311] sm:text-5xl dark:text-stone-50">
-              Compare remote jobs against your search profile.
+              Compare remote jobs against your search setup.
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openSetupGuide}
+              className={SECONDARY_BUTTON_CLASS}
+            >
+              <Sparkles className="h-4 w-4" />
+              Setup guide
+            </button>
             <button
               type="button"
               onClick={toggleTheme}
@@ -548,7 +658,14 @@ function App() {
         </div>
       </section>
 
-      {!isOnboardingHidden && <OnboardingPanel onDismiss={hideOnboarding} />}
+      {!isOnboardingHidden && <OnboardingPanel onDismiss={hideOnboarding} onOpenSetupGuide={openSetupGuide} />}
+
+      {isSetupGuideOpen && (
+        <SetupGuideModal
+          onComplete={completeSetupGuide}
+          onSkip={skipSetupGuide}
+        />
+      )}
 
       <div className={`mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 ${isFilterPanelCollapsed ? "lg:grid-cols-1" : "lg:grid-cols-[380px_1fr]"}`}>
         {!isFilterPanelCollapsed && (
@@ -563,7 +680,7 @@ function App() {
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
             onModeChange={setWorkflowMode}
-            onUseSampleProfile={useSampleProfile}
+            onSelectStarterPath={applyStarterPath}
             onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onCollapse={collapseFilterPanel}
             firstFieldRef={firstFilterFieldRef}
@@ -714,7 +831,7 @@ function App() {
             onFieldChange={updateField}
             onManualJobChange={updateManualJobField}
             onModeChange={setWorkflowMode}
-            onUseSampleProfile={useSampleProfile}
+            onSelectStarterPath={applyStarterPath}
             onSubmit={workflowMode === "evaluate" ? evaluateManualJob : searchJobs}
             onClose={closeFilterOverlay}
             variant="overlay"
@@ -726,7 +843,296 @@ function App() {
   );
 }
 
-function OnboardingPanel({ onDismiss }) {
+function SetupGuideModal({ onComplete, onSkip }) {
+  const [step, setStep] = useState(1);
+  const [selectedPathValue, setSelectedPathValue] = useState(STARTER_PATHS[0].label);
+  const [customRole, setCustomRole] = useState("");
+  const [skills, setSkills] = useState(STARTER_PATHS[0].form.skills);
+  const [keywords, setKeywords] = useState(STARTER_PATHS[0].form.keywords);
+  const [experienceLevel, setExperienceLevel] = useState(STARTER_PATHS[0].form.experience_level);
+  const [location, setLocation] = useState(STARTER_PATHS[0].form.location);
+  const [avoidChoices, setAvoidChoices] = useState(["senior", "onsite"]);
+  const selectedPath = STARTER_PATHS.find((starterPath) => starterPath.label === selectedPathValue);
+  const isCustomPath = selectedPathValue === CUSTOM_STARTER_PATH_VALUE;
+  const canContinueFromStepOne = !isCustomPath || Boolean(cleanDisplayText(customRole));
+
+  function selectPath(value) {
+    setSelectedPathValue(value);
+
+    const nextPath = STARTER_PATHS.find((starterPath) => starterPath.label === value);
+
+    if (nextPath) {
+      setSkills(nextPath.form.skills);
+      setKeywords(nextPath.form.keywords);
+      setExperienceLevel(nextPath.form.experience_level);
+      setLocation(nextPath.form.location);
+    } else {
+      setSkills("");
+      setKeywords("");
+    }
+  }
+
+  function toggleAvoidChoice(value) {
+    setAvoidChoices((current) =>
+      current.includes(value)
+        ? current.filter((choice) => choice !== value)
+        : [...current, value]
+    );
+  }
+
+  function finishSetupGuide() {
+    const avoidKeywords = SETUP_GUIDE_AVOID_OPTIONS
+      .filter((option) => avoidChoices.includes(option.value))
+      .flatMap((option) => option.terms)
+      .join(", ");
+    const baseForm = selectedPath
+      ? {
+          ...selectedPath.form,
+          skills: cleanDisplayText(skills),
+          keywords: cleanDisplayText(keywords)
+        }
+      : {
+          target_roles: cleanDisplayText(customRole),
+          skills: cleanDisplayText(skills),
+          keywords: cleanDisplayText(keywords),
+          source_type: "himalayas"
+        };
+
+    onComplete({
+      ...baseForm,
+      avoid_keywords: avoidKeywords,
+      location: cleanDisplayText(location),
+      work_mode: "remote",
+      experience_level: experienceLevel
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-stone-950/55 px-4 py-6">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="setup-guide-title"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl border border-stone-200 bg-[#fbfaf7] shadow-2xl shadow-stone-900/30 dark:border-stone-800 dark:bg-[#181714]"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-stone-200/80 p-5 dark:border-stone-800">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#e45033]/25 bg-[#e45033]/10 px-3 py-1 text-xs font-semibold text-[#9f2f1f] dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f]">
+              <Sparkles className="h-3.5 w-3.5" />
+              Setup guide
+            </div>
+            <h2 id="setup-guide-title" className="text-xl font-semibold text-stone-950 dark:text-stone-50">
+              Set up your first remote-job search
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
+              This only fills the search form. You can edit everything before searching.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+            aria-label="Close setup guide"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 overflow-y-auto p-5">
+          <div className="mb-5 flex items-center gap-2" aria-label={`Step ${step} of 3`}>
+            {[1, 2, 3].map((stepNumber) => (
+              <div
+                key={stepNumber}
+                className={`h-2 flex-1 rounded-full ${stepNumber <= step ? "bg-[#e45033]" : "bg-stone-200 dark:bg-stone-800"}`}
+              />
+            ))}
+          </div>
+
+          {step === 1 && (
+            <div>
+              <h3 className="text-lg font-semibold text-stone-950 dark:text-stone-50">What kind of remote role are you looking for?</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Pick a starting lane. This fills role, skill, and keyword fields you can edit before searching.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {STARTER_PATHS.map((starterPath) => (
+                  <button
+                    key={starterPath.label}
+                    type="button"
+                    onClick={() => selectPath(starterPath.label)}
+                    className={`rounded-xl border p-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 ${
+                      selectedPathValue === starterPath.label
+                        ? "border-[#e45033]/70 bg-[#e45033]/10 text-stone-950 dark:border-[#e45033] dark:bg-[#e45033]/15 dark:text-stone-50"
+                        : "border-stone-200/80 bg-[#fffdf8] text-stone-700 hover:border-[#e45033]/40 dark:border-stone-800 dark:bg-stone-950/20 dark:text-stone-200 dark:hover:border-[#e45033]/60"
+                    }`}
+                    aria-pressed={selectedPathValue === starterPath.label}
+                  >
+                    <span className="block font-semibold">{starterPath.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-stone-500 dark:text-stone-400">{starterPath.helper}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => selectPath(CUSTOM_STARTER_PATH_VALUE)}
+                className={`mt-3 w-full rounded-xl border p-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 ${
+                  isCustomPath
+                    ? "border-[#e45033]/70 bg-[#e45033]/10 text-stone-950 dark:border-[#e45033] dark:bg-[#e45033]/15 dark:text-stone-50"
+                    : "border-stone-200/80 bg-[#fffdf8] text-stone-700 hover:border-[#e45033]/40 dark:border-stone-800 dark:bg-stone-950/20 dark:text-stone-200 dark:hover:border-[#e45033]/60"
+                }`}
+                aria-pressed={isCustomPath}
+              >
+                <span className="block font-semibold">I'll type my own</span>
+                <span className="mt-1 block text-xs leading-5 text-stone-500 dark:text-stone-400">Use your own role words in the search form.</span>
+              </button>
+              {isCustomPath && (
+                <label className="mt-3 block">
+                  <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Role words</span>
+                  <input
+                    value={customRole}
+                    onChange={(event) => setCustomRole(event.target.value)}
+                    placeholder="data entry, appointment setter, junior designer"
+                    className={FIELD_CLASS}
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h3 className="text-lg font-semibold text-stone-950 dark:text-stone-50">What should Job Intel match against?</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Add the tools, skills, and search terms you want reflected in the search setup.
+              </p>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Skills and tools</span>
+                <input
+                  value={skills}
+                  onChange={(event) => setSkills(event.target.value)}
+                  placeholder="spreadsheets, email support, Zendesk, Python"
+                  className={FIELD_CLASS}
+                />
+                <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">
+                  Fills the Skills field. Use comma-separated items.
+                </span>
+              </label>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Keywords / search terms</span>
+                <input
+                  value={keywords}
+                  onChange={(event) => setKeywords(event.target.value)}
+                  placeholder="remote, entry level, chat support"
+                  className={FIELD_CLASS}
+                />
+                <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">
+                  Fills the Keywords field. Use terms you would search for.
+                </span>
+              </label>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Experience level</span>
+                <select
+                  value={experienceLevel}
+                  onChange={(event) => setExperienceLevel(event.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  <option value="beginner">Beginner</option>
+                  <option value="junior">Junior</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="senior">Senior</option>
+                  <option value="any">Any</option>
+                </select>
+              </label>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300">Location to check against</span>
+                <input
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  placeholder="Philippines, Worldwide, US, Europe, No preference"
+                  className={FIELD_CLASS}
+                />
+                <span className="mt-1.5 block text-xs text-stone-500 dark:text-stone-400">
+                  Remote jobs can still be limited by country, region, or work authorization.
+                </span>
+              </label>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <h3 className="text-lg font-semibold text-stone-950 dark:text-stone-50">What should Job Intel avoid or flag?</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Selected items fill the Avoid keywords field. You can edit them before searching.
+              </p>
+              <div className="mt-4 grid gap-2">
+                {SETUP_GUIDE_AVOID_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-start gap-3 rounded-xl border border-stone-200/80 bg-[#fffdf8] p-3 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-950/20 dark:text-stone-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={avoidChoices.includes(option.value)}
+                      onChange={() => toggleAvoidChoice(option.value)}
+                      className="mt-1 h-4 w-4 accent-[#e45033]"
+                    />
+                    <span>
+                      <span className="block font-semibold text-stone-950 dark:text-stone-50">{option.label}</span>
+                      <span className="mt-1 block text-xs text-stone-500 dark:text-stone-400">
+                        Adds: {option.terms.join(", ")}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-stone-200/80 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800">
+          <button
+            type="button"
+            onClick={onSkip}
+            className="inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-semibold text-stone-600 transition hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:text-stone-300 dark:hover:text-stone-50"
+          >
+            Skip for now
+          </button>
+          <div className="flex gap-2">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep((current) => current - 1)}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                Back
+              </button>
+            )}
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={() => setStep((current) => current + 1)}
+                disabled={!canContinueFromStepOne}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 disabled:cursor-not-allowed disabled:bg-stone-400 dark:bg-[#e45033] dark:hover:bg-[#f06447] dark:disabled:bg-stone-700 dark:disabled:text-stone-300"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={finishSetupGuide}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#131311] px-4 text-sm font-semibold text-white transition hover:bg-[#2a2925] focus:outline-none focus:ring-2 focus:ring-[#e45033]/25 dark:bg-[#e45033] dark:hover:bg-[#f06447]"
+              >
+                Fill search form
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function OnboardingPanel({ onDismiss, onOpenSetupGuide }) {
   return (
     <section className="border-b border-stone-200/80 bg-[#f7f5f1]/80 transition-colors dark:border-stone-800 dark:bg-[#181714]/80">
       <div className="mx-auto max-w-7xl px-5 py-4 sm:px-8">
@@ -735,16 +1141,26 @@ function OnboardingPanel({ onDismiss }) {
             <div className="max-w-3xl">
               <h2 className="text-lg font-semibold text-stone-950 dark:text-stone-50">Calm remote-job decision support.</h2>
               <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
-                Use your search profile to find supported remote-job listings, evaluate pasted jobs from anywhere, and understand the tradeoffs before you apply.
+                Use your search setup to find supported remote-job listings, evaluate pasted jobs from anywhere, and understand the tradeoffs before you apply.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
-            >
-              Hide intro
-            </button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onOpenSetupGuide}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#e45033]/25 bg-[#e45033]/10 px-3 text-xs font-semibold text-[#9f2f1f] transition hover:border-[#e45033]/40 hover:bg-[#e45033]/15 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f] dark:hover:bg-[#e45033]/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Setup guide
+              </button>
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+              >
+                Hide intro
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <OnboardingItem
@@ -786,7 +1202,7 @@ function SearchProfileForm({
   onFieldChange,
   onManualJobChange,
   onModeChange,
-  onUseSampleProfile,
+  onSelectStarterPath,
   onSubmit,
   onCollapse,
   onClose,
@@ -810,8 +1226,8 @@ function SearchProfileForm({
             <Search className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h2 id={titleId} className="text-lg font-semibold text-stone-950 dark:text-stone-50">Search Profile</h2>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Comma-separated roles, skills, and keywords.</p>
+            <h2 id={titleId} className="text-lg font-semibold text-stone-950 dark:text-stone-50">Search Setup</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Role paths, skills, and filters.</p>
           </div>
         </div>
         {isOverlay ? (
@@ -837,14 +1253,30 @@ function SearchProfileForm({
       </div>
 
       <div className={bodyClass}>
-        <button
-          type="button"
-          onClick={onUseSampleProfile}
-          className="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#e45033]/25 bg-[#e45033]/10 px-3 py-2.5 text-sm font-semibold text-[#9f2f1f] transition hover:border-[#e45033]/40 hover:bg-[#e45033]/15 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f] dark:hover:bg-[#e45033]/20"
-        >
-          <Sparkles className="h-4 w-4" />
-          Try Sample Profile
-        </button>
+        <div className="mb-5 rounded-xl border border-[#e45033]/20 bg-[#fffdf8]/75 p-3 dark:border-[#e45033]/30 dark:bg-stone-950/20">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#e45033]" />
+            <div>
+              <div className="text-sm font-semibold text-stone-950 dark:text-stone-50">Start with a role path</div>
+              <p className="mt-1 text-xs leading-5 text-stone-500 dark:text-stone-400">
+                Presets only fill the form. Edit anything before searching.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {STARTER_PATHS.map((starterPath) => (
+              <button
+                key={starterPath.label}
+                type="button"
+                onClick={() => onSelectStarterPath(starterPath)}
+                title={starterPath.helper}
+                className="inline-flex min-h-9 items-center rounded-full border border-stone-300/80 bg-[#fffdf8] px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:border-[#e45033]/45 hover:bg-[#e45033]/10 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-[#e45033]/60 dark:hover:bg-[#e45033]/15"
+              >
+                {starterPath.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="mb-5 grid grid-cols-2 rounded-xl border border-stone-300/80 bg-stone-100 p-1 dark:border-stone-700 dark:bg-stone-900">
           {[
@@ -870,7 +1302,7 @@ function SearchProfileForm({
         <div className={isEvaluateMode ? "rounded-xl border border-stone-200/80 bg-[#fffdf8]/60 p-4 dark:border-stone-800 dark:bg-stone-950/20" : ""}>
           {isEvaluateMode && (
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-50">Profile inputs</h3>
+              <h3 className="text-sm font-semibold text-stone-950 dark:text-stone-50">Search inputs</h3>
               <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Used as the deterministic scoring context.</p>
             </div>
           )}
@@ -988,7 +1420,11 @@ function SearchProfileForm({
               name="description"
               value={manualJob.description}
               onChange={onManualJobChange}
-              placeholder="Paste the responsibilities, requirements, location restrictions, and application notes."
+              placeholder={`Job description: Paste the responsibilities, requirements, tools, and application notes.
+
+Location: Remote, Philippines, Worldwide, US only
+Employment Type: Full-time, Part-time, Contract
+Compensation: $800/month, $15/hr, Not listed`}
               helper="Minimum useful detail is required for deterministic scoring."
               error={manualErrors.description}
             />
@@ -1129,7 +1565,7 @@ function TrackedEmptyState({ status }) {
   );
 }
 
-function EmptyState({ title = "No search yet", message = "Your search profile drives deterministic job matching." }) {
+function EmptyState({ title = "No search yet", message = "Your search setup drives deterministic job matching." }) {
   return (
     <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf7] p-8 text-center shadow-sm shadow-stone-300/20 dark:border-stone-700 dark:bg-[#181714] dark:shadow-none">
       <div>
@@ -1539,6 +1975,22 @@ function saveStoredOnboardingHidden(isHidden) {
     localStorage.setItem(ONBOARDING_HIDDEN_KEY, isHidden ? "true" : "false");
   } catch {
     // Onboarding is a convenience hint; storage failures should not block the app.
+  }
+}
+
+function loadStoredFirstRunOnboardingComplete() {
+  try {
+    return Boolean(localStorage.getItem(FIRST_RUN_ONBOARDING_COMPLETE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function saveStoredFirstRunOnboardingComplete(value) {
+  try {
+    localStorage.setItem(FIRST_RUN_ONBOARDING_COMPLETE_KEY, value);
+  } catch {
+    // The setup guide is optional; storage failures should not block the app.
   }
 }
 

@@ -3,8 +3,9 @@
 ## Implemented
 
 - Vite React frontend with Tailwind styling.
-- Job search profile form.
-- First-use `Try Sample Profile` action that fills the existing frontend profile form with a beginner-friendly remote support/QA-style profile.
+- Job search setup form.
+- First-run `Setup guide` modal that is skippable, manually reopenable, and fills existing search fields only without submitting a search.
+- First-use starter path chips that fill the existing frontend form with beginner-friendly remote support, admin, QA/testing, or operations search values.
 - Source selector with:
   - Real Python Fake Jobs
   - Remotive
@@ -15,6 +16,7 @@
 - Comma-separated profile parsing that preserves spaces within values.
 - Common technology alias normalization for JavaScript, Node.js, React, and TypeScript variants.
 - Compact dismissible onboarding intro that explains source search, pasted job evaluation, tradeoff review, and product boundaries.
+- Local-only first-run Setup guide completion preference stored under `job-intel-first-run-onboarding-complete`.
 - `POST /api/jobs/search` Worker endpoint.
 - `POST /api/jobs/evaluate` Worker endpoint for manually pasted job listings.
 - Real Python static HTML ingestion.
@@ -85,16 +87,11 @@ These are implemented heuristics, not AI judgments.
 
 ## Planned
 
-- Phase 2.2 guided onboarding and UX discoverability:
-  - Reopenable onboarding/help after dismissal.
-  - Plain-language workflow guidance that explains how to use Job Intel from profile setup through result triage.
-  - Plain-language scoring explanation that connects profile fields, job-side signals, execution fit, restrictions, avoid keywords, and complexity.
-  - More discoverable collapsed filter/settings control through clearer label treatment, accent styling, and subtle motion before any larger layout change.
 - Deployment setup.
 - Better source quality and source-specific normalization.
 - Conservative phased source expansion when reliability and maintenance costs justify it.
 - Continued scoring refinement from real search examples.
-- Tuning of explanation copy after real usage.
+- Continued tuning of onboarding and explanation copy after real usage.
 
 ## Future / Experimental
 

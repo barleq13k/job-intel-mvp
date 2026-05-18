@@ -117,7 +117,8 @@ It should not:
 
 ### UI / UX
 
-* Beginner-friendly onboarding sample profile
+* Beginner-friendly starter paths that fill the existing search form
+* First-run Setup guide that fills existing search fields only
 * Dismissible onboarding explaining system boundaries
 * Collapsible filter panel with transient overlay support
 * Optional scoring-based Explain Match panel

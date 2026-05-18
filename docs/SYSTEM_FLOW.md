@@ -23,13 +23,15 @@ User search profile
 
 ## 1. User Input
 
-The user fills out the frontend search profile form.
+The user fills out the frontend search setup form.
 
 The frontend also shows a compact dismissible intro that explains the tool's boundaries: supported source search, pasted job evaluation, deterministic tradeoff review, no auto-apply, and no pasted-URL scraping.
 
-Planned Phase 2.2 work should make onboarding/help reopenable and explain the actual process of using the platform: define a profile, choose a source, run a search or evaluate a pasted listing, inspect scoring reasons and eligibility/restriction signals, then save/apply/skip locally.
+The frontend keeps first-use guidance lightweight: define a search setup, choose a source, run a search or evaluate a pasted listing, inspect scoring reasons and eligibility/restriction signals, then save/apply/skip locally.
 
-A `Try Sample Profile` action can fill the existing form with a beginner-friendly remote support/QA-style profile. This only updates frontend form state; it does not submit a search, add backend-only fields, or change the API payload shape.
+A first-run `Setup guide` can ask for a starting lane, experience level, location to check against, and short avoid/check preferences. The guide only fills existing frontend search fields, stays skippable, can be reopened manually, and does not submit a search or create any saved account or setup system.
+
+Starter path chips can fill the existing form with beginner-friendly remote support, admin, QA/testing, or operations search values. Presets only fill the form so the user can edit anything before searching. This only updates frontend form state; it does not submit a search, add backend-only fields, or change the API payload shape.
 
 Current profile fields include:
 
@@ -221,6 +223,7 @@ Stored locally:
 - latest successful result set
 - dark mode preference
 - hidden/shown onboarding preference
+- first-run Setup guide completion preference
 - collapsed/open search filter panel preference; transient overlay-open state is not persisted
 - job statuses: Saved, Applied, Skipped; untracked is the implicit default
 - minimal tracked job display cache for Saved, Applied, and Skipped continuity across searches
@@ -235,6 +238,12 @@ Tracked job cache key:
 
 ```text
 job-intel-job-cache
+```
+
+Setup guide completion key:
+
+```text
+job-intel-first-run-onboarding-complete
 ```
 
 Cached tracked jobs store only minimal display fields: `id`, `title`, `company`, `location`, `source`, `score`, `status`, and `updated_at`.
