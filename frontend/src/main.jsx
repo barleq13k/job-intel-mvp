@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AlertTriangle, ArrowUpRight, BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronUp, Loader2, MapPin, Moon, Search, SlidersHorizontal, Sparkles, Sun, X } from "lucide-react";
 import "./styles.css";
+import onboardingSupportImageSrc from "../../images/job-intel-hero-img.webp";
 
 const MIN_RELEVANCE_SCORE = 25;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
@@ -1179,33 +1180,48 @@ function OnboardingPanel({ onDismiss, onOpenSetupGuide }) {
   return (
     <section className="border-b border-stone-200/80 bg-[#f7f5f1]/80 transition-colors dark:border-stone-800 dark:bg-[#181714]/80">
       <div className="mx-auto max-w-7xl px-5 py-4 sm:px-8">
-        <div className="rounded-2xl border border-stone-200/80 bg-[#fbfaf7] p-4 shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
+        <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-[#fbfaf7] shadow-sm shadow-stone-300/20 dark:border-stone-800 dark:bg-[#181714] dark:shadow-none">
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]">
+            <div className="min-w-0 p-4 lg:p-5">
               <h2 className="text-lg font-semibold text-stone-950 dark:text-stone-50">Calm remote-job decision support.</h2>
-              <p className="mt-1 text-sm leading-6 text-stone-600 dark:text-stone-300">
-                Use your search setup to find supported remote-job listings, evaluate pasted jobs from anywhere, and understand the tradeoffs before you apply.
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-stone-600 dark:text-stone-300">
+                Start with one real job post. Check if the role is worth your effort before you apply.
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenSetupGuide}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#e45033]/25 bg-[#e45033]/10 px-3 text-xs font-semibold text-[#9f2f1f] transition hover:border-[#e45033]/40 hover:bg-[#e45033]/15 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-[#e45033]/30 dark:bg-[#e45033]/10 dark:text-[#ffb29f] dark:hover:bg-[#e45033]/15"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Setup guide
+                </button>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700/80 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+                >
+                  Hide intro
+                </button>
+              </div>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onOpenSetupGuide}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#e45033]/25 bg-[#e45033]/10 px-3 text-xs font-semibold text-[#9f2f1f] transition hover:border-[#e45033]/40 hover:bg-[#e45033]/15 focus:outline-none focus:ring-2 focus:ring-[#e45033]/20 dark:border-[#e45033]/35 dark:bg-[#e45033]/15 dark:text-[#ffb29f] dark:hover:bg-[#e45033]/20"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Setup guide
-              </button>
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300/80 bg-[#fffdf8] px-3 text-xs font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-[#e45033]/15 dark:border-stone-700 dark:bg-[#181714] dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-900"
-              >
-                Hide intro
-              </button>
+            <div className="hidden border-t border-stone-200/70 bg-[#eee9df] md:block lg:border-l lg:border-t-0 dark:border-stone-800/80 dark:bg-[#201d18]">
+              <div className="relative h-32 overflow-hidden sm:h-36 lg:h-full lg:min-h-[164px]">
+                <img
+                  src={onboardingSupportImageSrc}
+                  alt=""
+                  aria-hidden="true"
+                  width="1536"
+                  height="1024"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover opacity-90 saturate-[0.88] dark:opacity-70 dark:saturate-[0.72] dark:contrast-[0.88]"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-[#fbfaf7]/10 dark:bg-[#181714]/28" />
+              </div>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 px-4 pb-4 pt-3 md:grid-cols-3 lg:px-5">
             <OnboardingItem
               title="Find jobs"
               text="Search Himalayas, Remotive, RemoteOK, We Work Remotely, or the demo source and get deterministic match scores."
